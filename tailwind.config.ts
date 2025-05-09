@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
@@ -54,19 +55,26 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				psychPurple: {
-					light: '#e1f0f0', // Light blue from your guidelines
-					DEFAULT: '#a7b8ec', // Purple/blue from your guidelines
-					dark: '#8a9acd', // Slightly darker shade for hover states
+					light: '#e1f0f0', 
+					lighter: '#d1e1ff',
+					DEFAULT: '#a7b8ec', 
+					dark: '#8a9acd',
+					darker: '#6d7eb6'
 				},
 				psychGreen: {
-					DEFAULT: '#5ae398', // Green from your guidelines
+					light: '#c5f5d9',
+					DEFAULT: '#5ae398',
+					dark: '#41c77f'
 				},
 				psychBeige: {
-					DEFAULT: '#f0f0e1', // Light beige from your guidelines
+					light: '#f7f7ee',
+					DEFAULT: '#f0f0e1',
+					dark: '#e6e6d1'
 				},
 				psychText: {
 					DEFAULT: '#1A1F2C',
 					muted: '#8E9196',
+					light: '#A9ADB3'
 				}
 			},
 			borderRadius: {
@@ -98,12 +106,27 @@ export default {
 					to: {
 						opacity: '1'
 					}
+				},
+				'slide-up': {
+					from: {
+						transform: 'translateY(10px)',
+						opacity: '0'
+					},
+					to: {
+						transform: 'translateY(0)',
+						opacity: '1'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'fade-in': 'fade-in 0.3s ease-in'
+				'fade-in': 'fade-in 0.3s ease-in',
+				'slide-up': 'slide-up 0.4s ease-out'
+			},
+			boxShadow: {
+				'soft': '0 2px 15px -3px rgba(167, 184, 236, 0.15), 0 4px 6px -4px rgba(167, 184, 236, 0.1)',
+				'hover': '0 10px 25px -3px rgba(167, 184, 236, 0.18), 0 4px 6px -4px rgba(167, 184, 236, 0.1)'
 			}
 		}
 	},
