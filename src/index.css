@@ -55,18 +55,81 @@
     @apply bg-psychBeige text-foreground;
     font-family: 'Inter', sans-serif;
   }
+
+  /* Smooth scrolling for the whole page */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Premium styling for focus states */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-psychPurple/50 ring-offset-2 ring-offset-white/50 transition-all duration-200;
+  }
+
+  /* Better typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight;
+  }
 }
 
 @layer components {
   .card-shadow {
-    @apply shadow-md shadow-psychPurple/10;
+    @apply shadow-lg shadow-psychPurple/10;
   }
   
   .highlight-effect {
-    @apply transition-all duration-200 hover:shadow-lg hover:shadow-psychPurple/20;
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-psychPurple/20;
   }
 
   .container-padding {
     @apply px-4 sm:px-6 md:px-8 lg:px-12;
   }
+
+  /* Premium Card Styling */
+  .premium-card {
+    @apply border-none bg-white/80 backdrop-blur-sm shadow-xl rounded-xl overflow-hidden;
+  }
+
+  /* Premium Button Effect */
+  .btn-premium {
+    @apply relative overflow-hidden transition-all duration-300 after:absolute after:inset-0 after:z-[-1] after:bg-gradient-to-r after:from-psychPurple after:to-psychPurple-dark after:opacity-0 hover:after:opacity-100 after:transition-opacity;
+  }
+
+  /* Floating animation for elements */
+  .floating {
+    animation: floating 6s ease-in-out infinite;
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    @apply backdrop-blur-md bg-white/80 border border-white/20;
+  }
+
+  /* Premium toast styling */
+  .sonner-premium {
+    --normal-bg: rgba(255, 255, 255, 0.8);
+    --normal-border: rgba(167, 184, 236, 0.2);
+    --normal-text: #1A1F2C;
+    --backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes floating {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Loading animation */
+.premium-loader {
+  width: 48px;
+  height: 48px;
+  border: 5px solid rgba(167, 184, 236, 0.3);
+  border-radius: 50%;
+  border-top-color: rgba(167, 184, 236, 1);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

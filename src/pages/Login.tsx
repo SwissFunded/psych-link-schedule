@@ -1,9 +1,8 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/components/ui/PageTransition';
@@ -38,61 +37,100 @@ export default function Login() {
     }
   ];
   
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+  
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  };
+  
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col items-center justify-center bg-psychPurple/5 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-psychPurple/5 to-psychPurple/10 p-4">
         <div className="w-full max-w-md">
           <motion.div 
-            initial={{ y: -20, opacity: 0 }}
+            initial={{ y: -30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="text-center mb-6"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-center mb-12"
           >
-            <h1 className="text-3xl font-bold text-psychPurple">PsychCentral</h1>
-            <p className="text-psychText/60 mt-2">Appointment Scheduler</p>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-psychPurple to-psychPurple-dark bg-clip-text text-transparent">PsychCentral</h1>
+            <p className="text-psychText/60 mt-2">Secure Appointment Access</p>
           </motion.div>
           
-          <Card className="w-full border-psychPurple/10 card-shadow">
-            <CardHeader>
-              <CardTitle className="text-xl">Welcome</CardTitle>
-              <CardDescription>
-                In a real application, patients would receive a secure magic link via email.
-                For this demo, please select a user to simulate receiving a link:
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="space-y-2">
-                {demoLinks.map((user, index) => (
-                  <motion.div
-                    key={user.email}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                  >
-                    <a 
-                      href={`/index?token=${user.token}&email=${user.email}`}
-                      className="block w-full p-3 bg-white border border-psychPurple/20 rounded-md hover:border-psychPurple hover:shadow-md transition-all duration-300"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card className="w-full border-psychPurple/10 shadow-xl backdrop-blur-sm bg-white/80">
+              <CardHeader>
+                <CardTitle className="text-xl">Welcome</CardTitle>
+                <CardDescription>
+                  In a real application, patients would receive a secure magic link via email.
+                  For this demo, please select a user to simulate receiving a link:
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                <motion.div 
+                  className="space-y-3"
+                  variants={container}
+                  initial="hidden"
+                  animate="show"
+                >
+                  {demoLinks.map((user, index) => (
+                    <motion.div
+                      key={user.email}
+                      variants={item}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">{user.name}</p>
-                          <p className="text-sm text-psychText/60">{user.email}</p>
+                      <a 
+                        href={`/index?token=${user.token}&email=${user.email}`}
+                        className="block w-full p-4 bg-white border border-psychPurple/20 rounded-lg hover:border-psychPurple hover:shadow-lg hover:shadow-psychPurple/10 transition-all duration-300"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">{user.name}</p>
+                            <p className="text-sm text-psychText/60">{user.email}</p>
+                          </div>
+                          <div className="text-psychPurple opacity-70 hover:opacity-100 transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                          </div>
                         </div>
-                        <div className="text-psychPurple">→</div>
-                      </div>
-                    </a>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-            
-            <CardFooter className="flex-col space-y-2">
-              <p className="text-center text-sm text-psychText/50">
-                In a production app, each patient would receive their unique secure login link via email.
-              </p>
-            </CardFooter>
-          </Card>
+                      </a>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </CardContent>
+              
+              <CardFooter className="flex-col space-y-2 border-t border-psychPurple/10 pt-4">
+                <p className="text-center text-sm text-psychText/50 max-w-[90%] mx-auto">
+                  In a production app, each patient would receive their unique secure login link via email.
+                </p>
+              </CardFooter>
+            </Card>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
+            className="mt-8 text-center text-psychText/40 text-xs"
+          >
+            <p>© 2025 PsychCentral. All rights reserved.</p>
+          </motion.div>
         </div>
       </div>
     </PageTransition>

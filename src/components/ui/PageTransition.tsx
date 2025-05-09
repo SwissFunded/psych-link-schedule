@@ -14,8 +14,8 @@ export const PageTransition = ({ children, className = '' }: PageTransitionProps
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ 
-        duration: 0.3,
-        ease: 'easeInOut'
+        duration: 0.5,
+        ease: [0.19, 1.0, 0.22, 1.0], // Smooth easing function
       }}
       className={className}
     >

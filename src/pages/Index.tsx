@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { PageTransition } from '@/components/ui/PageTransition';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -28,15 +30,71 @@ const Index = () => {
     handleAuth();
   }, [location, login, navigate]);
 
+  // Animation variants
+  const loadingContainerVariants = {
+    initial: { opacity: 0 },
+    animate: { 
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2
+      }
+    }
+  };
+  
+  const loadingDotVariants = {
+    initial: { y: 0, opacity: 0 },
+    animate: { 
+      y: [0, -15, 0],
+      opacity: 1,
+      transition: {
+        repeat: Infinity,
+        repeatType: "reverse" as const,
+        duration: 1,
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-psychPurple/5">
-      <div className={`transition-all duration-500 ${isLoading ? 'scale-105 opacity-0' : 'scale-100 opacity-100'}`}>
-        <div className="flex flex-col items-center">
-          <div className="w-16 h-16 border-4 border-psychPurple border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-psychText/50 animate-pulse">Authenticating...</p>
-        </div>
+    <PageTransition>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-psychPurple/5 to-psychPurple/10">
+        <motion.div
+          initial="initial"
+          animate="animate"
+          variants={loadingContainerVariants}
+          className="flex flex-col items-center"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="mb-8"
+          >
+            <div className="text-4xl font-bold text-psychPurple">PsychCentral</div>
+            <div className="text-xl text-psychText/50 text-center">Authenticating your session</div>
+          </motion.div>
+          
+          <div className="flex space-x-3 mb-4">
+            {[1, 2, 3].map((dot) => (
+              <motion.div
+                key={dot}
+                variants={loadingDotVariants}
+                className="w-4 h-4 rounded-full bg-psychPurple"
+                style={{ originY: 0.5 }}
+              />
+            ))}
+          </div>
+          
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isLoading ? 1 : 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-sm text-psychText/50"
+          >
+            Please wait while we set up your session
+          </motion.div>
+        </motion.div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
