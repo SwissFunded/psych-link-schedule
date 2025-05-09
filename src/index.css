@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 260 33% 98%;
+    --background: 60 50% 98%;
     --foreground: 240 10% 14%;
 
     --card: 0 0% 100%;
@@ -14,24 +14,24 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 14%;
 
-    --primary: 256 83% 74%;
+    --primary: 224 70% 79%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 258 34% 54%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 180 50% 91%;
+    --secondary-foreground: 240 10% 14%;
 
-    --muted: 260 18% 94%;
+    --muted: 60 34% 94%;
     --muted-foreground: 240 5% 57%;
 
-    --accent: 260 18% 94%;
+    --accent: 60 34% 94%;
     --accent-foreground: 240 10% 14%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 260 20% 90%;
-    --input: 260 20% 90%;
-    --ring: 256 83% 74%;
+    --border: 60 34% 90%;
+    --input: 60 34% 90%;
+    --ring: 224 70% 79%;
 
     --radius: 0.75rem;
 
@@ -52,7 +52,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-psychBeige text-foreground;
     font-family: 'Inter', sans-serif;
   }
 }

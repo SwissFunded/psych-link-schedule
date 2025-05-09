@@ -54,9 +54,15 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				psychPurple: {
-					light: '#F1F0FB',
-					DEFAULT: '#9b87f5',
-					dark: '#7E69AB',
+					light: '#e1f0f0', // Light blue from your guidelines
+					DEFAULT: '#a7b8ec', // Purple/blue from your guidelines
+					dark: '#8a9acd', // Slightly darker shade for hover states
+				},
+				psychGreen: {
+					DEFAULT: '#5ae398', // Green from your guidelines
+				},
+				psychBeige: {
+					DEFAULT: '#f0f0e1', // Light beige from your guidelines
 				},
 				psychText: {
 					DEFAULT: '#1A1F2C',
