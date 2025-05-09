@@ -1,48 +1,40 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
+    /* Main colors */
     --background: 60 50% 98%;
     --foreground: 240 10% 14%;
-
+    
+    /* Brand colors */
+    --psychPurple: 224 70% 79%;
+    --psychPurple-dark: 224 70% 69%;
+    --psychPurple-light: 224 70% 89%;
+    --psychBeige: 60 34% 94%;
+    --psychGreen: 151 63% 62%;
+    --psychText: 222 18% 14%;
+    
+    /* Component colors */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 14%;
-
+    --card-foreground: var(--foreground);
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 14%;
-
-    --primary: 224 70% 79%;
+    --popover-foreground: var(--foreground);
+    --primary: var(--psychPurple);
     --primary-foreground: 0 0% 100%;
-
     --secondary: 180 50% 91%;
-    --secondary-foreground: 240 10% 14%;
-
-    --muted: 60 34% 94%;
+    --secondary-foreground: var(--foreground);
+    --muted: var(--psychBeige);
     --muted-foreground: 240 5% 57%;
-
-    --accent: 60 34% 94%;
-    --accent-foreground: 240 10% 14%;
-
-    --destructive: 0 84.2% 60.2%;
+    --accent: var(--psychBeige);
+    --accent-foreground: var(--foreground);
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-
     --border: 60 34% 90%;
     --input: 60 34% 90%;
-    --ring: 224 70% 79%;
-
+    --ring: var(--psychPurple);
     --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -52,108 +44,105 @@
   }
 
   body {
-    @apply bg-psychBeige text-foreground;
+    @apply bg-psychBeige text-foreground antialiased;
     font-family: 'Inter', sans-serif;
   }
 
-  /* Smooth scrolling for the whole page */
-  html {
-    scroll-behavior: smooth;
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-medium text-psychText;
   }
 
-  /* Premium styling for focus states */
+  h1 { @apply text-3xl md:text-4xl; }
+  h2 { @apply text-2xl md:text-3xl; }
+  h3 { @apply text-xl md:text-2xl; }
+  h4 { @apply text-lg md:text-xl; }
+
+  /* Focus States */
   *:focus-visible {
     @apply outline-none ring-2 ring-psychPurple/50 ring-offset-2 ring-offset-white/50 transition-all duration-200;
-  }
-
-  /* Better typography */
-  h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight font-medium;
   }
 }
 
 @layer components {
-  .card-shadow {
-    @apply shadow-lg shadow-psychPurple/10;
-  }
-  
-  .highlight-effect {
-    @apply transition-all duration-300 hover:shadow-lg hover:shadow-psychPurple/20;
-  }
-
-  .container-padding {
-    @apply px-4 sm:px-6 md:px-8 lg:px-12;
+  /* Card Styles */
+  .card-premium {
+    @apply bg-white/80 backdrop-blur-sm border border-psychPurple/10 shadow-lg shadow-psychPurple/5 
+           rounded-xl overflow-hidden transition-all duration-300
+           hover:shadow-xl hover:shadow-psychPurple/10;
   }
 
-  /* Premium Card Styling */
-  .premium-card {
-    @apply border-none bg-white/80 backdrop-blur-sm shadow-xl rounded-xl overflow-hidden;
-  }
-
-  /* Premium Button Effect */
+  /* Button Styles */
   .btn-premium {
-    @apply relative overflow-hidden transition-all duration-300 after:absolute after:inset-0 after:z-[-1] after:bg-gradient-to-r after:from-psychPurple after:to-psychPurple-dark after:opacity-0 hover:after:opacity-100 after:transition-opacity;
+    @apply relative overflow-hidden transition-all duration-300 
+           after:absolute after:inset-0 after:z-[-1] after:bg-gradient-to-r 
+           after:from-psychPurple after:to-psychPurple-dark after:opacity-0 
+           hover:after:opacity-100 after:transition-opacity;
   }
 
-  /* Floating animation for elements */
-  .floating {
-    animation: floating 6s ease-in-out infinite;
+  /* Navigation */
+  .nav-item {
+    @apply text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple 
+           rounded-md px-3 py-2 text-sm font-medium transition-colors;
   }
 
-  /* Glass morphism effect */
-  .glass {
-    @apply backdrop-blur-md bg-white/80 border border-white/20;
-  }
-
-  /* Premium toast styling */
-  .sonner-premium {
-    --normal-bg: rgba(255, 255, 255, 0.9);
-    --normal-border: rgba(167, 184, 236, 0.25);
-    --normal-text: #1A1F2C;
-    --success-bg: rgba(90, 227, 152, 0.9);
-    --success-border: rgba(90, 227, 152, 0.3);
-    --success-text: #1A1F2C;
-    --error-bg: rgba(234, 56, 76, 0.9);
-    --error-border: rgba(234, 56, 76, 0.3);
-    --error-text: white;
-    --backdrop-filter: blur(8px);
-  }
-  
-  /* Active nav item styling */
   .nav-item-active {
     @apply bg-psychPurple/15 text-psychPurple font-medium;
   }
-  
-  /* Standard nav item styling */
-  .nav-item {
-    @apply text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple;
+
+  /* Form Elements */
+  .input-premium {
+    @apply bg-white border border-psychPurple/20 rounded-lg px-4 py-2.5 
+           text-psychText placeholder:text-psychText/50
+           focus:border-psychPurple focus:ring-1 focus:ring-psychPurple/30 
+           transition-all duration-200;
   }
-  
-  /* Premium shadow for header */
-  .header-shadow {
-    @apply shadow-[0_0_15px_rgba(167,184,236,0.15)];
+
+  /* Animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Loading States */
+  .loader-premium {
+    @apply w-12 h-12 rounded-full border-4 border-psychPurple/30 
+           border-t-psychPurple animate-spin;
+  }
+
+  /* Toast Notifications */
+  .toast-premium {
+    @apply bg-white/90 backdrop-blur-sm border border-psychPurple/20 
+           shadow-lg rounded-lg px-4 py-3;
+  }
+
+  /* Glass Effect */
+  .glass {
+    @apply backdrop-blur-md bg-white/80 border border-white/20;
   }
 }
 
-@keyframes floating {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  @apply w-2;
 }
 
-/* Loading animation */
-.premium-loader {
-  width: 48px;
-  height: 48px;
-  border: 5px solid rgba(167, 184, 236, 0.3);
-  border-radius: 50%;
-  border-top-color: rgba(167, 184, 236, 1);
-  animation: spin 1s linear infinite;
+::-webkit-scrollbar-track {
+  @apply bg-psychBeige;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+::-webkit-scrollbar-thumb {
+  @apply bg-psychPurple/50 rounded-full hover:bg-psychPurple/70 transition-colors;
 }
 
-/* Add Inter font */
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Font Import */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
