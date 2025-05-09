@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link } from 'react-router-dom';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { User, Calendar, Clock, LogOut, UserCircle, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/PageTransition';
-import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/ui/navigation-menu";
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem } from "@/components/ui/menubar";
@@ -112,18 +111,17 @@ export default function Layout({ children }: LayoutProps) {
                         variants={navItemVariants}
                       >
                         <NavigationMenuItem>
-                          <Link to={item.path}>
-                            <NavigationMenuLink
-                              className={cn(
-                                "inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                                location.pathname === item.path 
-                                ? "bg-psychPurple/15 text-psychPurple" 
-                                : "text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple"
-                              )}
-                            >
-                              {item.icon}
-                              {item.name}
-                            </NavigationMenuLink>
+                          <Link
+                            to={item.path}
+                            className={cn(
+                              "inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                              location.pathname === item.path 
+                              ? "bg-psychPurple/15 text-psychPurple" 
+                              : "text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple"
+                            )}
+                          >
+                            {item.icon}
+                            {item.name}
                           </Link>
                         </NavigationMenuItem>
                       </motion.div>
