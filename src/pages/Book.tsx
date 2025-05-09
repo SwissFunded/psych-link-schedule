@@ -6,7 +6,7 @@ import { format, addDays, startOfWeek, parse, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
-import { CalendarIcon, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CalendarIcon, ArrowLeft } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -15,8 +15,7 @@ import { toast } from 'sonner';
 
 export default function Book() {
   const { patient } = useAuth();
-  const [therapists, setTherapists] = useState<Therapist[]>([]);
-  const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
+  const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
@@ -24,28 +23,28 @@ export default function Book() {
   const navigate = useNavigate();
   
   useEffect(() => {
-    const fetchTherapists = async () => {
+    const fetchTherapist = async () => {
       try {
         setLoading(true);
         const fetchedTherapists = await appointmentService.getTherapists();
-        setTherapists(fetchedTherapists);
         
         if (fetchedTherapists.length > 0) {
-          setSelectedTherapist(fetchedTherapists[0]);
+          setTherapist(fetchedTherapists[0]);
         }
       } catch (error) {
-        console.error('Error fetching therapists:', error);
+        console.error('Error fetching therapist:', error);
+        toast.error("Failed to load therapist information");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchTherapists();
+    fetchTherapist();
   }, []);
   
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      if (!selectedTherapist || !date) return;
+      if (!therapist || !date) return;
       
       try {
         setLoading(true);
@@ -54,7 +53,7 @@ export default function Book() {
         const endDate = addDays(startDate, 6);
         
         const slots = await appointmentService.getAvailableTimeSlots(
-          selectedTherapist.id,
+          therapist.id,
           startDate,
           endDate
         );
@@ -62,32 +61,28 @@ export default function Book() {
         setAvailableSlots(slots);
       } catch (error) {
         console.error('Error fetching time slots:', error);
+        toast.error("Failed to load available time slots");
       } finally {
         setLoading(false);
       }
     };
     
     fetchTimeSlots();
-  }, [selectedTherapist, date]);
-  
-  const handleTherapistSelect = (therapist: Therapist) => {
-    setSelectedTherapist(therapist);
-    setSelectedTimeSlot(null);
-  };
+  }, [therapist, date]);
   
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     setSelectedTimeSlot(slot);
   };
   
   const handleBookAppointment = async () => {
-    if (!patient || !selectedTherapist || !selectedTimeSlot) return;
+    if (!patient || !therapist || !selectedTimeSlot) return;
     
     try {
       setLoading(true);
       
       const appointment = await appointmentService.bookAppointment({
         patientId: patient.id,
-        therapistId: selectedTherapist.id,
+        therapistId: therapist.id,
         date: selectedTimeSlot.date,
         duration: selectedTimeSlot.duration,
         status: 'scheduled',
@@ -137,28 +132,19 @@ export default function Book() {
         
         <div className="grid md:grid-cols-2 gap-6">
           <div>
-            <h2 className="text-lg font-medium mb-4">1. Select a Therapist</h2>
-            <div className="space-y-3">
-              {therapists.map(therapist => (
-                <Card 
-                  key={therapist.id}
-                  className={cn(
-                    "border cursor-pointer transition-all highlight-effect",
-                    selectedTherapist?.id === therapist.id 
-                      ? "border-psychPurple bg-psychPurple/5" 
-                      : "border-psychPurple/10"
-                  )}
-                  onClick={() => handleTherapistSelect(therapist)}
-                >
+            {therapist && (
+              <div className="mb-6">
+                <h2 className="text-lg font-medium mb-4">Your Therapist</h2>
+                <Card className="border border-psychPurple/10">
                   <CardContent className="p-4">
                     <h3 className="font-medium">{therapist.name}</h3>
                     <p className="text-sm text-psychText/70">{therapist.specialty}</p>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              </div>
+            )}
             
-            <h2 className="text-lg font-medium mt-6 mb-4">2. Select a Date</h2>
+            <h2 className="text-lg font-medium mb-4">1. Select a Date</h2>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -189,7 +175,7 @@ export default function Book() {
           </div>
           
           <div>
-            <h2 className="text-lg font-medium mb-4">3. Select a Time</h2>
+            <h2 className="text-lg font-medium mb-4">2. Select a Time</h2>
             
             {loading ? (
               <div className="animate-pulse space-y-2">
@@ -229,8 +215,8 @@ export default function Book() {
             ) : (
               <div className="bg-psychPurple/5 rounded p-6 text-center">
                 <p className="text-psychText/70">
-                  {!selectedTherapist
-                    ? "Please select a therapist"
+                  {!therapist
+                    ? "Loading therapist information..."
                     : !date
                     ? "Please select a date"
                     : "No available time slots for the selected date"}
