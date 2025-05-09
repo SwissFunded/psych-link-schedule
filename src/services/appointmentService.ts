@@ -43,7 +43,7 @@ const therapists: Therapist[] = [
 ];
 
 // Mock appointments for the current patient
-let patientAppointments: Appointment[] = [
+const patientAppointments: Appointment[] = [
   {
     id: "apt1",
     patientId: "p-123",
