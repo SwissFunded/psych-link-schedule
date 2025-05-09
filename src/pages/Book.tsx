@@ -1,241 +1,236 @@
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Therapist, TimeSlot } from '@/services/appointmentService';
 import { format, addDays, startOfWeek, parse, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale/de';
+import de from 'date-fns/locale/de';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
-import { CalendarIcon, ArrowLeft } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from 'sonner';
 
 export default function Book() {
-  const { patient } = useAuth();
-  const [therapist, setTherapist] = useState<Therapist | null>(null);
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
+  const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
+  const [date, setDate] = useState<Date | undefined>(() => {
+    const today = new Date();
+    const nextMonday = startOfWeek(addDays(today, 7), { weekStartsOn: 1 });
+    return nextMonday;
+  });
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(true);
+  const { patient } = useAuth();
   const navigate = useNavigate();
   
   useEffect(() => {
-    const fetchTherapist = async () => {
+    const fetchTherapists = async () => {
       try {
         setLoading(true);
-        const fetchedTherapists = await appointmentService.getTherapists();
-        
-        if (fetchedTherapists.length > 0) {
-          setTherapist(fetchedTherapists[0]);
-        }
+        const therapistsData = await appointmentService.getTherapists();
+        setTherapists(therapistsData);
       } catch (error) {
-        console.error('Fehler beim Laden des Therapeuten:', error);
-        toast.error("Therapeuteninformationen konnten nicht geladen werden");
+        console.error('Failed to fetch therapists:', error);
+        toast.error("Ärzte konnten nicht geladen werden");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchTherapist();
+    fetchTherapists();
   }, []);
   
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      if (!therapist || !date) return;
+      if (!selectedTherapist || !date) return;
       
       try {
         setLoading(true);
-        
-        const startDate = startOfWeek(date);
-        const endDate = addDays(startDate, 6);
-        
         const slots = await appointmentService.getAvailableTimeSlots(
-          therapist.id,
-          startDate,
-          endDate
+          selectedTherapist.id,
+          date,
+          addDays(date, 7)
         );
-        
-        setAvailableSlots(slots);
+        setAvailableSlots(slots.filter(slot => slot.available));
       } catch (error) {
-        console.error('Fehler beim Laden der Zeitfenster:', error);
-        toast.error("Verfügbare Zeitfenster konnten nicht geladen werden");
+        console.error('Failed to fetch time slots:', error);
+        toast.error("Zeitfenster konnten nicht geladen werden");
       } finally {
         setLoading(false);
       }
     };
     
     fetchTimeSlots();
-  }, [therapist, date]);
+  }, [selectedTherapist, date]);
+  
+  const handleTherapistSelect = (therapist: Therapist) => {
+    setSelectedTherapist(therapist);
+  };
   
   const handleTimeSlotSelect = (slot: TimeSlot) => {
     setSelectedTimeSlot(slot);
   };
   
   const handleBookAppointment = async () => {
-    if (!patient || !therapist || !selectedTimeSlot) return;
+    if (!selectedTherapist || !selectedTimeSlot || !patient?.id) return;
     
     try {
       setLoading(true);
       
-      const appointment = await appointmentService.bookAppointment({
+      const newAppointment = {
         patientId: patient.id,
-        therapistId: therapist.id,
+        therapistId: selectedTherapist.id,
         date: selectedTimeSlot.date,
         duration: selectedTimeSlot.duration,
         status: 'scheduled',
-        type: 'in-person'
-      });
+        type: 'video' as const, // Default type
+      };
       
-      toast.success("Termin erfolgreich gebucht");
-      navigate('/appointments');
+      const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
+      
+      if (bookedAppointment) {
+        toast.success("Termin erfolgreich gebucht");
+        navigate('/appointments');
+      }
     } catch (error) {
-      console.error('Fehler beim Buchen des Termins:', error);
-      toast.error("Termin konnte nicht gebucht werden. Bitte versuchen Sie es erneut.");
+      console.error('Failed to book appointment:', error);
+      toast.error("Termin konnte nicht gebucht werden");
     } finally {
       setLoading(false);
     }
   };
   
-  const groupSlotsByDay = () => {
-    const groupedSlots: { [key: string]: TimeSlot[] } = {};
-    
-    availableSlots.forEach(slot => {
-      const dateKey = format(parseISO(slot.date), 'yyyy-MM-dd');
-      if (!groupedSlots[dateKey]) {
-        groupedSlots[dateKey] = [];
-      }
-      groupedSlots[dateKey].push(slot);
-    });
-    
-    return groupedSlots;
-  };
-  
-  const groupedSlots = groupSlotsByDay();
-  const weekDays = Object.keys(groupedSlots).sort();
-  
   return (
     <Layout>
       <div className="container max-w-4xl mx-auto py-8 px-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-6"
-          onClick={() => navigate('/appointments')}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Zurück zu Terminen
-        </Button>
+        <h1 className="text-2xl font-semibold mb-6">Buchen Sie Ihren Termin</h1>
         
-        <h1 className="text-2xl font-semibold mb-6">Neuen Termin buchen</h1>
-        
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            {therapist && (
-              <div className="mb-6">
-                <h2 className="text-lg font-medium mb-4">Ihr Therapeut</h2>
-                <Card className="border border-psychPurple/10">
-                  <CardContent className="p-4">
-                    <h3 className="font-medium">{therapist.name}</h3>
-                    <p className="text-sm text-psychText/70">{therapist.specialty}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-            
-            <h2 className="text-lg font-medium mb-4">1. Datum auswählen</h2>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal border-psychPurple/20",
-                    !date && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP', { locale: de }) : <span>Datum auswählen</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 pointer-events-auto">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  initialFocus
-                  disabled={(date) => 
-                    date < new Date() ||
-                    date > addDays(new Date(), 30)
-                  }
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+        <Tabs defaultValue="therapist">
+          <TabsList className="mb-4">
+            <TabsTrigger value="therapist">Therapeut wählen</TabsTrigger>
+            <TabsTrigger value="date" disabled={!selectedTherapist}>Datum & Zeit wählen</TabsTrigger>
+            <TabsTrigger value="confirm" disabled={!selectedTimeSlot}>Bestätigen</TabsTrigger>
+          </TabsList>
           
-          <div>
-            <h2 className="text-lg font-medium mb-4">2. Uhrzeit auswählen</h2>
-            
+          <TabsContent value="therapist" className="animate-fade-in">
+            <h2 className="text-lg font-medium mb-4">Verfügbare Therapeuten</h2>
             {loading ? (
-              <div className="animate-pulse space-y-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-20 bg-psychPurple/5 rounded"></div>
-                ))}
-              </div>
-            ) : weekDays.length > 0 ? (
-              <div className="space-y-4">
-                {weekDays.map(dayKey => (
-                  <div key={dayKey}>
-                    <h3 className="text-sm font-medium mb-2 text-psychText/70">
-                      {format(parseISO(dayKey), 'EEEE, d. MMMM', { locale: de })}
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {groupedSlots[dayKey]
-                        .filter(slot => slot.available)
-                        .map(slot => (
-                          <Button
-                            key={slot.date}
-                            variant="outline"
-                            className={cn(
-                              "border-psychPurple/20",
-                              selectedTimeSlot?.date === slot.date 
-                                ? "bg-psychPurple text-white border-psychPurple" 
-                                : "hover:border-psychPurple hover:text-psychPurple"
-                            )}
-                            onClick={() => handleTimeSlotSelect(slot)}
-                          >
-                            {format(parseISO(slot.date), 'HH:mm', { locale: de })} Uhr
-                          </Button>
-                        ))}
-                    </div>
-                  </div>
-                ))}
+              <div className="animate-pulse">
+                <div className="h-12 bg-psychPurple/10 rounded w-1/2 mb-2"></div>
+                <div className="h-12 bg-psychPurple/10 rounded w-1/2 mb-2"></div>
               </div>
             ) : (
-              <div className="bg-psychPurple/5 rounded p-6 text-center">
-                <p className="text-psychText/70">
-                  {!therapist
-                    ? "Therapeuteninformationen werden geladen..."
-                    : !date
-                    ? "Bitte wählen Sie ein Datum"
-                    : "Keine verfügbaren Zeitfenster für das ausgewählte Datum"}
-                </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {therapists.map(therapist => (
+                  <Card 
+                    key={therapist.id}
+                    className={`border-psychPurple/10 highlight-effect ${selectedTherapist?.id === therapist.id ? 'border-2 border-psychPurple' : ''}`}
+                    onClick={() => handleTherapistSelect(therapist)}
+                  >
+                    <CardContent className="flex flex-col items-center justify-center p-4">
+                      <Avatar className="mb-2">
+                        <AvatarImage src={therapist.imageUrl} />
+                        <AvatarFallback>{therapist.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <h3 className="text-md font-medium">{therapist.name}</h3>
+                      <p className="text-sm text-psychText/70">{therapist.specialty}</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
-            
-            <div className="mt-8">
-              <Button 
-                className="w-full bg-psychPurple hover:bg-psychPurple/90"
-                disabled={!selectedTimeSlot || loading}
-                onClick={handleBookAppointment}
-              >
-                Termin buchen
-              </Button>
-            </div>
-          </div>
-        </div>
+          </TabsContent>
+          
+          <TabsContent value="date" className="animate-fade-in">
+            <h2 className="text-lg font-medium mb-4">Wählen Sie ein Datum und eine Uhrzeit</h2>
+            {selectedTherapist ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-md font-medium mb-2">Datum auswählen</h3>
+                  <Card className="border-psychPurple/10">
+                    <CardContent className="p-3">
+                      <Calendar 
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                        disabled={(date) => date < new Date()}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <div>
+                  <h3 className="text-md font-medium mb-2">Verfügbare Zeiten</h3>
+                  {loading ? (
+                    <div className="animate-pulse">
+                      <div className="h-10 bg-psychPurple/10 rounded mb-2"></div>
+                      <div className="h-10 bg-psychPurple/10 rounded mb-2"></div>
+                    </div>
+                  ) : availableSlots.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {availableSlots.map(slot => (
+                        <Button
+                          key={slot.date}
+                          variant="outline"
+                          className={`border-psychPurple/20 ${selectedTimeSlot?.date === slot.date ? 'bg-psychPurple text-white border-psychPurple' : 'hover:border-psychPurple hover:text-psychPurple'}`}
+                          onClick={() => handleTimeSlotSelect(slot)}
+                        >
+                          {format(parseISO(slot.date), 'HH:mm', { locale: de })} Uhr
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-psychText/70">Keine verfügbaren Zeiten für dieses Datum</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-psychText/70">Bitte wählen Sie zuerst einen Therapeuten aus</p>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="confirm" className="animate-fade-in">
+            <h2 className="text-lg font-medium mb-4">Bestätigen Sie Ihren Termin</h2>
+            {selectedTherapist && selectedTimeSlot ? (
+              <Card className="border-psychPurple/10">
+                <CardContent className="p-6">
+                  <div className="mb-4">
+                    <h3 className="text-md font-medium">Therapeut</h3>
+                    <p className="text-psychText/70">{selectedTherapist.name}</p>
+                  </div>
+                  <div className="mb-4">
+                    <h3 className="text-md font-medium">Datum und Uhrzeit</h3>
+                    <p className="text-psychText/70">
+                      {format(parseISO(selectedTimeSlot.date), 'EEEE, d. MMMM yyyy', { locale: de })}
+                    </p>
+                    <p className="text-psychText/70">
+                      {format(parseISO(selectedTimeSlot.date), 'HH:mm', { locale: de })} Uhr
+                    </p>
+                  </div>
+                  <Button 
+                    className="w-full bg-psychPurple hover:bg-psychPurple/90"
+                    onClick={handleBookAppointment}
+                    disabled={loading}
+                  >
+                    Termin buchen
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-psychText/70">Bitte wählen Sie zuerst einen Therapeuten und eine Uhrzeit aus</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
