@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment } from '@/services/appointmentService';
 import { format, isSameDay, parseISO } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock } from 'lucide-react';
@@ -10,6 +11,7 @@ import Layout from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from '@/components/ui/separator';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const AppointmentCard = ({ appointment, onReschedule, onCancel }: { 
   appointment: Appointment; 
@@ -17,8 +19,8 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
   onCancel: (aptId: string) => void;
 }) => {
   const date = parseISO(appointment.date);
-  const formattedDate = format(date, "EEEE, MMMM d, yyyy");
-  const formattedTime = format(date, "h:mm a");
+  const formattedDate = format(date, "EEEE, d. MMMM yyyy", { locale: de });
+  const formattedTime = format(date, "HH:mm", { locale: de });
   const [therapistName, setTherapistName] = useState('');
 
   useEffect(() => {
@@ -38,11 +40,14 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg">{therapistName}</CardTitle>
-            <CardDescription className="mt-1">{appointment.type} session • {appointment.duration} minutes</CardDescription>
+            <CardDescription className="mt-1">
+              {appointment.type === 'in-person' ? 'Persönliche' : 'Online'} Sitzung • {appointment.duration} Minuten
+            </CardDescription>
           </div>
           <div className="bg-psychPurple/10 px-3 py-1 rounded-full text-xs font-medium text-psychPurple">
-            {appointment.status === 'scheduled' ? 'Upcoming' : 
-             appointment.status === 'completed' ? 'Completed' : 
+            {appointment.status === 'scheduled' ? 'Bevorstehend' : 
+             appointment.status === 'completed' ? 'Abgeschlossen' : 
+             appointment.status === 'cancelled' ? 'Storniert' : 
              appointment.status}
           </div>
         </div>
@@ -54,7 +59,7 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
         </div>
         <div className="flex items-center gap-2 text-sm text-psychText mt-1">
           <Clock size={14} className="text-psychPurple" />
-          <span>{formattedTime}</span>
+          <span>{formattedTime} Uhr</span>
         </div>
       </CardContent>
       {appointment.status === 'scheduled' && (
@@ -65,14 +70,14 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
             className="border-psychPurple/20 text-psychText/70 hover:text-destructive hover:border-destructive/30"
             onClick={() => onCancel(appointment.id)}
           >
-            Cancel
+            Stornieren
           </Button>
           <Button 
             size="sm" 
             className="bg-psychPurple hover:bg-psychPurple/90"
             onClick={() => onReschedule(appointment)}
           >
-            Reschedule
+            Verschieben
           </Button>
         </CardFooter>
       )}
@@ -99,7 +104,8 @@ export default function Appointments() {
         setUpcomingAppointments(upcoming);
         setPastAppointments(past);
       } catch (error) {
-        console.error('Error fetching appointments:', error);
+        console.error('Fehler beim Abrufen von Terminen:', error);
+        toast.error("Termine konnten nicht geladen werden");
       } finally {
         setLoading(false);
       }
@@ -125,9 +131,11 @@ export default function Appointments() {
               : apt
           )
         );
+        toast.success("Termin erfolgreich storniert");
       }
     } catch (error) {
-      console.error('Error cancelling appointment:', error);
+      console.error('Fehler beim Stornieren des Termins:', error);
+      toast.error("Termin konnte nicht storniert werden");
     }
   };
   
@@ -158,19 +166,19 @@ export default function Appointments() {
     <Layout>
       <div className="container max-w-3xl mx-auto py-8 px-4">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold">Your Appointments</h1>
+          <h1 className="text-2xl font-semibold">Ihre Termine</h1>
           <Button 
             onClick={handleBookNew}
             className="bg-psychPurple hover:bg-psychPurple/90"
           >
-            Book New
+            Neuen Termin buchen
           </Button>
         </div>
         
         <Tabs defaultValue="upcoming">
           <TabsList className="mb-6">
-            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-            <TabsTrigger value="past">Past</TabsTrigger>
+            <TabsTrigger value="upcoming">Bevorstehend</TabsTrigger>
+            <TabsTrigger value="past">Vergangen</TabsTrigger>
           </TabsList>
           
           <TabsContent value="upcoming" className="animate-fade-in">
@@ -185,13 +193,13 @@ export default function Appointments() {
               ))
             ) : (
               <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-psychText mb-2">No upcoming appointments</h3>
-                <p className="text-psychText/60 mb-6">Book your next session to continue your therapy journey</p>
+                <h3 className="text-lg font-medium text-psychText mb-2">Keine bevorstehenden Termine</h3>
+                <p className="text-psychText/60 mb-6">Buchen Sie Ihren nächsten Termin, um Ihre Therapiereise fortzusetzen</p>
                 <Button 
                   onClick={handleBookNew}
                   className="bg-psychPurple hover:bg-psychPurple/90"
                 >
-                  Book Appointment
+                  Termin buchen
                 </Button>
               </div>
             )}
@@ -209,7 +217,7 @@ export default function Appointments() {
               ))
             ) : (
               <div className="text-center py-12">
-                <p className="text-psychText/60">No past appointments found</p>
+                <p className="text-psychText/60">Keine vergangenen Termine gefunden</p>
               </div>
             )}
           </TabsContent>

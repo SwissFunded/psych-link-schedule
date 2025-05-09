@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment, TimeSlot } from '@/services/appointmentService';
 import { format, addDays, parseISO } from 'date-fns';
+import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
@@ -35,7 +36,7 @@ export default function Reschedule() {
         const found = appointments.find(apt => apt.id === appointmentId);
         
         if (!found) {
-          toast.error("Appointment not found");
+          toast.error("Termin nicht gefunden");
           navigate('/appointments');
           return;
         }
@@ -46,8 +47,8 @@ export default function Reschedule() {
         const appointmentDate = parseISO(found.date);
         setDate(appointmentDate);
       } catch (error) {
-        console.error('Error fetching appointment:', error);
-        toast.error("Failed to load appointment details");
+        console.error('Fehler beim Laden des Termins:', error);
+        toast.error("Termindetails konnten nicht geladen werden");
       } finally {
         setLoading(false);
       }
@@ -71,7 +72,7 @@ export default function Reschedule() {
         
         setAvailableSlots(slots.filter(slot => slot.available));
       } catch (error) {
-        console.error('Error fetching time slots:', error);
+        console.error('Fehler beim Laden der Zeitfenster:', error);
       } finally {
         setLoading(false);
       }
@@ -96,12 +97,12 @@ export default function Reschedule() {
       );
       
       if (updated) {
-        toast.success("Appointment rescheduled successfully");
+        toast.success("Termin erfolgreich verschoben");
         navigate('/appointments');
       }
     } catch (error) {
-      console.error('Error rescheduling appointment:', error);
-      toast.error("Failed to reschedule appointment");
+      console.error('Fehler beim Verschieben des Termins:', error);
+      toast.error("Termin konnte nicht verschoben werden");
     } finally {
       setLoading(false);
     }
@@ -133,10 +134,10 @@ export default function Reschedule() {
           className="mb-6"
           onClick={() => navigate('/appointments')}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to appointments
+          <ArrowLeft className="mr-2 h-4 w-4" /> Zurück zu Terminen
         </Button>
         
-        <h1 className="text-2xl font-semibold mb-6">Reschedule Appointment</h1>
+        <h1 className="text-2xl font-semibold mb-6">Termin verschieben</h1>
         
         {loading && !appointment ? (
           <div className="animate-pulse space-y-4">
@@ -146,19 +147,19 @@ export default function Reschedule() {
         ) : appointment ? (
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h2 className="text-lg font-medium mb-4">Current Appointment</h2>
+              <h2 className="text-lg font-medium mb-4">Aktueller Termin</h2>
               <Card className="border-psychPurple/10 mb-6">
                 <CardContent className="p-4">
                   <p className="font-medium">
-                    {format(parseISO(appointment.date), 'EEEE, MMMM d, yyyy')}
+                    {format(parseISO(appointment.date), 'EEEE, d. MMMM yyyy', { locale: de })}
                   </p>
                   <p className="text-psychText/70">
-                    {format(parseISO(appointment.date), 'h:mm a')}
+                    {format(parseISO(appointment.date), 'HH:mm', { locale: de })} Uhr
                   </p>
                 </CardContent>
               </Card>
               
-              <h2 className="text-lg font-medium mb-4">Select a New Date</h2>
+              <h2 className="text-lg font-medium mb-4">Neues Datum wählen</h2>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -169,7 +170,7 @@ export default function Reschedule() {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                    {date ? format(date, 'PPP', { locale: de }) : <span>Datum auswählen</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 pointer-events-auto">
@@ -189,7 +190,7 @@ export default function Reschedule() {
             </div>
             
             <div>
-              <h2 className="text-lg font-medium mb-4">Select a New Time</h2>
+              <h2 className="text-lg font-medium mb-4">Neue Zeit wählen</h2>
               
               {loading ? (
                 <div className="animate-pulse space-y-2">
@@ -202,7 +203,7 @@ export default function Reschedule() {
                   {weekDays.map(dayKey => (
                     <div key={dayKey}>
                       <h3 className="text-sm font-medium mb-2 text-psychText/70">
-                        {format(parseISO(dayKey), 'EEEE, MMMM d')}
+                        {format(parseISO(dayKey), 'EEEE, d. MMMM', { locale: de })}
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {groupedSlots[dayKey].map(slot => (
@@ -217,7 +218,7 @@ export default function Reschedule() {
                             )}
                             onClick={() => handleTimeSlotSelect(slot)}
                           >
-                            {format(parseISO(slot.date), 'h:mm a')}
+                            {format(parseISO(slot.date), 'HH:mm', { locale: de })} Uhr
                           </Button>
                         ))}
                       </div>
@@ -227,7 +228,7 @@ export default function Reschedule() {
               ) : (
                 <div className="bg-psychPurple/5 rounded p-6 text-center">
                   <p className="text-psychText/70">
-                    No available time slots for the selected date
+                    Keine verfügbaren Zeitfenster für das ausgewählte Datum
                   </p>
                 </div>
               )}
@@ -238,19 +239,19 @@ export default function Reschedule() {
                   disabled={!selectedTimeSlot || loading}
                   onClick={handleReschedule}
                 >
-                  Confirm Reschedule
+                  Verschiebung bestätigen
                 </Button>
               </div>
             </div>
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-psychText/70">Appointment not found</p>
+            <p className="text-psychText/70">Termin nicht gefunden</p>
             <Button 
               onClick={() => navigate('/appointments')}
               className="mt-4"
             >
-              View All Appointments
+              Alle Termine anzeigen
             </Button>
           </div>
         )}

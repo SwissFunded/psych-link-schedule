@@ -13,7 +13,7 @@ export default function Profile() {
     return (
       <Layout>
         <div className="container max-w-2xl mx-auto py-8 px-4">
-          <div className="text-center">Loading profile...</div>
+          <div className="text-center">Profil wird geladen...</div>
         </div>
       </Layout>
     );
@@ -22,12 +22,12 @@ export default function Profile() {
   return (
     <Layout>
       <div className="container max-w-2xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-semibold mb-6">Your Profile</h1>
+        <h1 className="text-2xl font-semibold mb-6">Ihr Profil</h1>
         
         <Card className="border-psychPurple/10 card-shadow mb-6">
           <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Your account details</CardDescription>
+            <CardTitle>Persönliche Informationen</CardTitle>
+            <CardDescription>Ihre Kontodaten</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -37,12 +37,12 @@ export default function Profile() {
               </div>
               
               <div>
-                <p className="text-sm font-medium text-psychText/70">Email</p>
+                <p className="text-sm font-medium text-psychText/70">E-Mail</p>
                 <p>{patient.email}</p>
               </div>
               
               <div>
-                <p className="text-sm font-medium text-psychText/70">Phone</p>
+                <p className="text-sm font-medium text-psychText/70">Telefon</p>
                 <p>{patient.phone}</p>
               </div>
             </div>
@@ -51,11 +51,11 @@ export default function Profile() {
         
         <Card className="border-psychPurple/10 card-shadow">
           <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
+            <CardTitle>Kontoeinstellungen</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-psychText/70">
-              Need to update your contact information? Please contact your therapist's office directly.
+              Möchten Sie Ihre Kontaktinformationen aktualisieren? Bitte wenden Sie sich direkt an die Praxis Ihres Therapeuten.
             </p>
           </CardContent>
           <Separator className="my-2" />
@@ -65,7 +65,7 @@ export default function Profile() {
               className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
               onClick={logout}
             >
-              Sign Out
+              Abmelden
             </Button>
           </CardFooter>
         </Card>

@@ -73,7 +73,7 @@ const Index = () => {
               <span className="text-white font-bold text-3xl">P</span>
             </div>
             <div className="text-4xl font-bold text-psychPurple">PsychCentral</div>
-            <div className="text-xl text-psychText/50 text-center mt-2">Authenticating your session</div>
+            <div className="text-xl text-psychText/50 text-center mt-2">Authentifiziere Ihre Sitzung</div>
           </motion.div>
           
           <div className="flex space-x-3 mb-6">
@@ -93,7 +93,7 @@ const Index = () => {
             transition={{ duration: 0.5 }}
             className="text-sm text-psychText/50"
           >
-            Please wait while we set up your session
+            Bitte warten Sie, während wir Ihre Sitzung einrichten
           </motion.div>
         </motion.div>
       </div>
