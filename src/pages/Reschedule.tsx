@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment, TimeSlot } from '@/services/appointmentService';
 import { format, addDays, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale/de';
+import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
