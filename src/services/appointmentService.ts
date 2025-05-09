@@ -96,14 +96,12 @@ const generateAvailableSlots = (): TimeSlot[] => {
         const slotDate = new Date(currentDate);
         slotDate.setHours(hour, 0, 0, 0);
         
-        // Randomly mark some slots as unavailable
-        const available = Math.random() > 0.4;
-        
+        // All slots are available
         slots.push({
           therapistId: therapist.id,
           date: slotDate.toISOString(),
           duration: 50,
-          available
+          available: true
         });
       }
       
@@ -112,14 +110,12 @@ const generateAvailableSlots = (): TimeSlot[] => {
         const slotDate = new Date(currentDate);
         slotDate.setHours(hour, 0, 0, 0);
         
-        // Randomly mark some slots as unavailable
-        const available = Math.random() > 0.4;
-        
+        // All slots are available
         slots.push({
           therapistId: therapist.id,
           date: slotDate.toISOString(),
           duration: 50,
-          available
+          available: true
         });
       }
     }
@@ -129,6 +125,45 @@ const generateAvailableSlots = (): TimeSlot[] => {
 };
 
 const availableSlots = generateAvailableSlots();
+
+// Generate a guaranteed list of fixed available time slots for the next 7 days
+const generateFixedAvailableSlots = (): TimeSlot[] => {
+  const fixedSlots: TimeSlot[] = [];
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
+  
+  // Generate slots for the next 7 days
+  for (let day = 0; day < 7; day++) {
+    const currentDate = new Date(startDate);
+    currentDate.setDate(currentDate.getDate() + day);
+    
+    // Skip weekends
+    if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+      continue;
+    }
+    
+    // Generate slots for each therapist at fixed times: 10:00, 11:00, 14:00, 16:00
+    for (const therapist of therapists) {
+      const fixedHours = [10, 11, 14, 16];
+      
+      for (const hour of fixedHours) {
+        const slotDate = new Date(currentDate);
+        slotDate.setHours(hour, 0, 0, 0);
+        
+        fixedSlots.push({
+          therapistId: therapist.id,
+          date: slotDate.toISOString(),
+          duration: 50,
+          available: true
+        });
+      }
+    }
+  }
+  
+  return fixedSlots;
+};
+
+const fixedAvailableSlots = generateFixedAvailableSlots();
 
 // Service functions
 export const appointmentService = {
@@ -174,12 +209,25 @@ export const appointmentService = {
   getAvailableTimeSlots: async (therapistId: string, startDate: Date, endDate: Date): Promise<TimeSlot[]> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 800));
-    return availableSlots.filter(slot => 
+    
+    // Filter available slots
+    const filteredSlots = availableSlots.filter(slot => 
       slot.therapistId === therapistId &&
       slot.available &&
       new Date(slot.date) >= startDate &&
       new Date(slot.date) <= endDate
     );
+    
+    // If no slots are available, return fixed guaranteed slots
+    if (filteredSlots.length === 0) {
+      return fixedAvailableSlots.filter(slot => 
+        slot.therapistId === therapistId &&
+        new Date(slot.date) >= startDate &&
+        new Date(slot.date) <= endDate
+      );
+    }
+    
+    return filteredSlots;
   },
   
   bookAppointment: async (appointment: Omit<Appointment, 'id'>): Promise<Appointment> => {

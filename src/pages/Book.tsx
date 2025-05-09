@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +25,7 @@ export default function Book() {
   const navigate = useNavigate();
   
   // Default therapist ID - since we're removing therapist selection
-  const defaultTherapistId = "therapist1";
+  const defaultTherapistId = "t1";
   
   useEffect(() => {
     const fetchTimeSlots = async () => {
