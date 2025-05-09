@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -14,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   patient: Patient | null;
   loading: boolean;
-  login: (token: string, email?: string) => void;
+  login: (token: string, email?: string, silent?: boolean) => void;
   logout: () => void;
 }
 
@@ -58,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const email = new URLSearchParams(location.search).get('email');
         
         if (token) {
-          await login(token, email || undefined);
+          // Login silently (no toast message) during initial check
+          await login(token, email || undefined, true);
           
           // Remove token from URL for security
           const newUrl = window.location.pathname;
@@ -68,7 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const storedToken = localStorage.getItem('psychcentral_token');
           const storedEmail = localStorage.getItem('psychcentral_email');
           if (storedToken) {
-            await login(storedToken, storedEmail || undefined);
+            // Login silently (no toast message) during initial check
+            await login(storedToken, storedEmail || undefined, true);
           } else {
             setLoading(false);
           }
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const login = async (token: string, email?: string) => {
+  const login = async (token: string, email?: string, silent: boolean = false) => {
     try {
       setLoading(true);
       
@@ -109,10 +110,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Navigate to appointments page
       navigate('/appointments');
       
-      toast.success("Welcome back, " + userToLogin.name);
+      // Only show welcome toast when not in silent mode
+      if (!silent) {
+        toast.success("Welcome back, " + userToLogin.name);
+      }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error("Authentication failed");
+      // Only show error toast when not in silent mode
+      if (!silent) {
+        toast.error("Authentication failed");
+      }
       logout();
     } finally {
       setLoading(false);

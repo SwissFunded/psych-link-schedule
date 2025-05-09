@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +20,8 @@ const Index = () => {
         const email = new URLSearchParams(location.search).get('email');
         
         if (token && email) {
-          await login(token, email);
+          // Use silent=false to show the welcome message once, when a user explicitly clicks a login link
+          await login(token, email, false);
           setIsLoading(false);
         } else if (!hasRedirected) {
           // Only redirect once to prevent infinite loops
