@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Therapist, TimeSlot } from '@/services/appointmentService';
 import { format, addDays, startOfWeek, parse, parseISO } from 'date-fns';
-import de from 'date-fns/locale/de';
+import { de } from 'date-fns/locale/de';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
@@ -85,8 +86,8 @@ export default function Book() {
         therapistId: selectedTherapist.id,
         date: selectedTimeSlot.date,
         duration: selectedTimeSlot.duration,
-        status: 'scheduled',
-        type: 'video' as const, // Default type
+        status: 'scheduled' as const,
+        type: 'video' as const,
       };
       
       const bookedAppointment = await appointmentService.bookAppointment(newAppointment);

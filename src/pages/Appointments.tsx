@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment } from '@/services/appointmentService';
 import { format, isSameDay, parseISO } from 'date-fns';
-import de from 'date-fns/locale/de';
+import { de } from 'date-fns/locale/de';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock } from 'lucide-react';
