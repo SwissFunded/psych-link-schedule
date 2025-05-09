@@ -11,24 +11,40 @@ const Index = () => {
   const location = useLocation();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [hasRedirected, setHasRedirected] = useState(false);
   
   useEffect(() => {
     const handleAuth = async () => {
-      // Check for token in URL
-      const token = new URLSearchParams(location.search).get('token');
-      const email = new URLSearchParams(location.search).get('email');
-      
-      if (token && email) {
-        await login(token, email);
-      } else {
-        // If no token in URL, redirect to login
-        navigate('/');
+      try {
+        // Check for token in URL
+        const token = new URLSearchParams(location.search).get('token');
+        const email = new URLSearchParams(location.search).get('email');
+        
+        if (token && email) {
+          await login(token, email);
+          setIsLoading(false);
+        } else if (!hasRedirected) {
+          // Only redirect once to prevent infinite loops
+          setHasRedirected(true);
+          navigate('/');
+        } else {
+          // If we've already tried to redirect, just stop loading
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Authentication error:', error);
+        toast.error('Authentifizierung fehlgeschlagen');
+        setIsLoading(false);
+        
+        // Wait a short delay before redirecting to avoid potential loops
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
       }
-      setIsLoading(false);
     };
     
     handleAuth();
-  }, [location, login, navigate]);
+  }, [location, login, navigate, hasRedirected]);
 
   // Animation variants
   const loadingContainerVariants = {
