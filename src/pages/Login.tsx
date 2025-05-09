@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
 export default function Login() {
@@ -11,11 +12,17 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const predefinedEmails = [
+    'miromw@icloud.com',
+    'elena.pellizzon@psychcentral.ch',
+    'jane.smith@example.com'
+  ];
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email.trim()) {
-      toast.error("Please enter your email address");
+      toast.error("Please select an email address");
       return;
     }
     
@@ -49,7 +56,7 @@ export default function Login() {
           `;
           
           document.getElementById('simulate-magic-link')?.addEventListener('click', () => {
-            login(mockToken);
+            login(mockToken, email);
           });
         }
       }, 1500);
@@ -74,7 +81,7 @@ export default function Login() {
           <CardHeader>
             <CardTitle className="text-xl">Welcome back</CardTitle>
             <CardDescription>
-              Enter your email to receive a magic link
+              Select your email to receive a magic link
             </CardDescription>
           </CardHeader>
           
@@ -82,15 +89,21 @@ export default function Login() {
             <CardContent>
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Input 
-                    type="email" 
-                    placeholder="name@example.com" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="border-psychPurple/20 focus:border-psychPurple"
+                  <Select 
+                    onValueChange={setEmail}
                     disabled={isSubmitting}
-                    required
-                  />
+                  >
+                    <SelectTrigger className="w-full border-psychPurple/20 focus:border-psychPurple">
+                      <SelectValue placeholder="Select your email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {predefinedEmails.map(email => (
+                        <SelectItem key={email} value={email}>
+                          {email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>

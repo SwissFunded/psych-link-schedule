@@ -14,11 +14,33 @@ interface AuthContextType {
   isAuthenticated: boolean;
   patient: Patient | null;
   loading: boolean;
-  login: (token: string) => void;
+  login: (token: string, email?: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Predefined users for the app
+const USERS = {
+  'miromw@icloud.com': {
+    id: "p-miro123",
+    name: "Miró Waltisberg",
+    email: "miromw@icloud.com",
+    phone: "(555) 123-4567"
+  },
+  'elena.pellizzon@psychcentral.ch': {
+    id: "p-elena456",
+    name: "Elena Pellizon",
+    email: "elena.pellizzon@psychcentral.ch",
+    phone: "(555) 987-6543"
+  },
+  'jane.smith@example.com': {  // Keep the default user
+    id: "p-jane789",
+    name: "Jane Smith",
+    email: "jane.smith@example.com",
+    phone: "(555) 246-8101"
+  }
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,9 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         // Mock token verification
         const token = new URLSearchParams(location.search).get('token');
+        const email = new URLSearchParams(location.search).get('email');
         
         if (token) {
-          await login(token);
+          await login(token, email || undefined);
           
           // Remove token from URL for security
           const newUrl = window.location.pathname;
@@ -43,8 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           // Check for stored token
           const storedToken = localStorage.getItem('psychcentral_token');
+          const storedEmail = localStorage.getItem('psychcentral_email');
           if (storedToken) {
-            await login(storedToken);
+            await login(storedToken, storedEmail || undefined);
           } else {
             setLoading(false);
           }
@@ -59,35 +83,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const login = async (token: string) => {
+  const login = async (token: string, email?: string) => {
     try {
       setLoading(true);
-      
-      // Mock API call to validate token and get user data
-      // In a real app, this would verify the token with your backend
-      
-      // Simulating API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // For demo purposes, we'll create a mock user based on token
-      const mockPatient = {
-        id: "p-" + Math.random().toString(36).substr(2, 9),
-        name: "Jane Smith",
-        email: "jane.smith@example.com",
-        phone: "(555) 123-4567"
-      };
       
       // Store token
       localStorage.setItem('psychcentral_token', token);
       
+      let userToLogin: Patient;
+      
+      if (email && email in USERS) {
+        // If email is provided and exists in our predefined users
+        userToLogin = USERS[email as keyof typeof USERS];
+        localStorage.setItem('psychcentral_email', email);
+      } else {
+        // Default to Jane Smith if no email is provided or email doesn't match
+        userToLogin = USERS['jane.smith@example.com'];
+        localStorage.setItem('psychcentral_email', 'jane.smith@example.com');
+      }
+      
       // Update state
-      setPatient(mockPatient);
+      setPatient(userToLogin);
       setIsAuthenticated(true);
       
       // Navigate to appointments page
       navigate('/appointments');
       
-      toast.success("Welcome back, " + mockPatient.name);
+      toast.success("Welcome back, " + userToLogin.name);
     } catch (error) {
       console.error('Login error:', error);
       toast.error("Authentication failed");
@@ -99,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const logout = () => {
     localStorage.removeItem('psychcentral_token');
+    localStorage.removeItem('psychcentral_email');
     setIsAuthenticated(false);
     setPatient(null);
     setLoading(false);
