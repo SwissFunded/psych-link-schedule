@@ -134,6 +134,11 @@
   .glass {
     @apply backdrop-blur-md bg-white/80 border border-white/20;
   }
+  
+  /* Special highlight effect */
+  .highlight-effect {
+    @apply transition-all duration-300 hover:shadow-md hover:border-psychPurple/30;
+  }
 }
 
 /* Custom Scrollbar */

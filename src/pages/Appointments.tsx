@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment } from '@/services/appointmentService';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,9 +25,13 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
 
   useEffect(() => {
     const getTherapistDetails = async () => {
-      const therapist = await appointmentService.getTherapistById(appointment.therapistId);
-      if (therapist) {
-        setTherapistName(therapist.name);
+      try {
+        const therapist = await appointmentService.getTherapistById(appointment.therapistId);
+        if (therapist) {
+          setTherapistName(therapist.name);
+        }
+      } catch (error) {
+        console.error("Fehler beim Laden der Therapeuteninformationen:", error);
       }
     };
     
@@ -35,7 +39,7 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
   }, [appointment.therapistId]);
   
   return (
-    <Card className="mb-4 border-psychPurple/10 highlight-effect">
+    <Card className="mb-4 border-psychPurple/10">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
