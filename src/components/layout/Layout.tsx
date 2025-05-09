@@ -30,7 +30,7 @@ export default function Layout({ children }: LayoutProps) {
           className="flex flex-col items-center"
         >
           <div className="w-12 h-12 rounded-full border-4 border-psychPurple border-t-transparent animate-spin mb-4"></div>
-          <div className="text-psychText/50 animate-pulse">Loading your information...</div>
+          <div className="text-psychText/50 animate-pulse">Ihre Informationen werden geladen...</div>
         </motion.div>
       </div>
     );
@@ -51,10 +51,10 @@ export default function Layout({ children }: LayoutProps) {
           transition={{ duration: 0.4 }}
           className="bg-white/80 backdrop-blur-sm rounded-xl p-8 shadow-xl max-w-md w-full"
         >
-          <h2 className="text-2xl font-semibold mb-4 text-center">Authentication Required</h2>
-          <p className="text-center mb-6 text-psychText/70">Please use your login link to access your appointments.</p>
+          <h2 className="text-2xl font-semibold mb-4 text-center">Authentifizierung erforderlich</h2>
+          <p className="text-center mb-6 text-psychText/70">Bitte verwenden Sie Ihren Anmeldelink, um auf Ihre Termine zuzugreifen.</p>
           <Button onClick={() => window.location.href = '/'} className="w-full bg-psychPurple hover:bg-psychPurple-dark">
-            Return to Login
+            Zurück zur Anmeldung
           </Button>
         </motion.div>
       </motion.div>
@@ -69,9 +69,9 @@ export default function Layout({ children }: LayoutProps) {
 
   // Desktop navigation items
   const navItems = [
-    { name: "Appointments", path: "/appointments", icon: <Calendar size={18} className="mr-1.5" /> },
-    { name: "Book", path: "/book", icon: <Clock size={18} className="mr-1.5" /> },
-    { name: "Profile", path: "/profile", icon: <UserCircle size={18} className="mr-1.5" /> }
+    { name: "Termine", path: "/appointments", icon: <Calendar size={18} className="mr-1.5" /> },
+    { name: "Buchen", path: "/book", icon: <Clock size={18} className="mr-1.5" /> },
+    { name: "Profil", path: "/profile", icon: <UserCircle size={18} className="mr-1.5" /> }
   ];
   
   return (
@@ -96,7 +96,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="text-white font-bold">P</span>
                   </div>
                   <div className="bg-gradient-to-r from-psychPurple to-psychPurple-dark bg-clip-text text-transparent font-medium text-xl">
-                    PsychCentral
+                    PsychZentrum
                   </div>
                 </motion.div>
               </Link>
@@ -161,7 +161,7 @@ export default function Layout({ children }: LayoutProps) {
                       </div>
                       <MenubarItem className="flex items-center cursor-pointer" onClick={logout}>
                         <LogOut className="mr-2 h-4 w-4" />
-                        <span>Logout</span>
+                        <span>Abmelden</span>
                       </MenubarItem>
                     </MenubarContent>
                   </MenubarMenu>
