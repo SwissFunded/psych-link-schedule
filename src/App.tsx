@@ -47,16 +47,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner 
-        position="top-right" 
-        closeButton 
-        className="toast-premium"
-        toastOptions={{
-          classNames: {
-            toast: "bg-white/95 backdrop-blur-sm border border-psychPurple/20 shadow-lg rounded-lg text-psychText"
-          }
-        }}
-      />
+      <Sonner position="top-right" closeButton className="sonner-premium" />
       <BrowserRouter>
         <AuthProvider>
           <AnimationRoutes />

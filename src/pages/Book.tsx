@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Therapist, TimeSlot } from '@/services/appointmentService';
 import { format, addDays, startOfWeek, parse, parseISO } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
@@ -33,8 +32,8 @@ export default function Book() {
           setTherapist(fetchedTherapists[0]);
         }
       } catch (error) {
-        console.error('Fehler beim Abrufen der Therapeuteninformationen:', error);
-        toast.error("Die Therapeuteninformationen konnten nicht geladen werden");
+        console.error('Error fetching therapist:', error);
+        toast.error("Failed to load therapist information");
       } finally {
         setLoading(false);
       }
@@ -61,8 +60,8 @@ export default function Book() {
         
         setAvailableSlots(slots);
       } catch (error) {
-        console.error('Fehler beim Abrufen der verfügbaren Zeitfenster:', error);
-        toast.error("Die verfügbaren Zeitfenster konnten nicht geladen werden");
+        console.error('Error fetching time slots:', error);
+        toast.error("Failed to load available time slots");
       } finally {
         setLoading(false);
       }
@@ -90,11 +89,11 @@ export default function Book() {
         type: 'in-person'
       });
       
-      toast.success("Termin erfolgreich gebucht");
+      toast.success("Appointment booked successfully");
       navigate('/appointments');
     } catch (error) {
-      console.error('Fehler beim Buchen des Termins:', error);
-      toast.error("Der Termin konnte nicht gebucht werden. Bitte versuchen Sie es erneut.");
+      console.error('Error booking appointment:', error);
+      toast.error("Failed to book appointment. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -126,16 +125,16 @@ export default function Book() {
           className="mb-6"
           onClick={() => navigate('/appointments')}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Zurück zu den Terminen
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to appointments
         </Button>
         
-        <h1 className="text-2xl font-semibold mb-6">Neuen Termin buchen</h1>
+        <h1 className="text-2xl font-semibold mb-6">Book a New Appointment</h1>
         
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             {therapist && (
               <div className="mb-6">
-                <h2 className="text-lg font-medium mb-4">Ihr Therapeut</h2>
+                <h2 className="text-lg font-medium mb-4">Your Therapist</h2>
                 <Card className="border border-psychPurple/10">
                   <CardContent className="p-4">
                     <h3 className="font-medium">{therapist.name}</h3>
@@ -145,7 +144,7 @@ export default function Book() {
               </div>
             )}
             
-            <h2 className="text-lg font-medium mb-4">1. Datum auswählen</h2>
+            <h2 className="text-lg font-medium mb-4">1. Select a Date</h2>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -156,7 +155,7 @@ export default function Book() {
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date ? format(date, 'PPP', { locale: de }) : <span>Datum auswählen</span>}
+                  {date ? format(date, 'PPP') : <span>Pick a date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 pointer-events-auto">
@@ -165,7 +164,6 @@ export default function Book() {
                   selected={date}
                   onSelect={setDate}
                   initialFocus
-                  locale={de}
                   disabled={(date) => 
                     date < new Date() ||
                     date > addDays(new Date(), 30)
@@ -177,7 +175,7 @@ export default function Book() {
           </div>
           
           <div>
-            <h2 className="text-lg font-medium mb-4">2. Uhrzeit auswählen</h2>
+            <h2 className="text-lg font-medium mb-4">2. Select a Time</h2>
             
             {loading ? (
               <div className="animate-pulse space-y-2">
@@ -190,7 +188,7 @@ export default function Book() {
                 {weekDays.map(dayKey => (
                   <div key={dayKey}>
                     <h3 className="text-sm font-medium mb-2 text-psychText/70">
-                      {format(parseISO(dayKey), 'EEEE, d. MMMM', { locale: de })}
+                      {format(parseISO(dayKey), 'EEEE, MMMM d')}
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {groupedSlots[dayKey]
@@ -207,7 +205,7 @@ export default function Book() {
                             )}
                             onClick={() => handleTimeSlotSelect(slot)}
                           >
-                            {format(parseISO(slot.date), 'HH:mm', { locale: de })}
+                            {format(parseISO(slot.date), 'h:mm a')}
                           </Button>
                         ))}
                     </div>
@@ -218,10 +216,10 @@ export default function Book() {
               <div className="bg-psychPurple/5 rounded p-6 text-center">
                 <p className="text-psychText/70">
                   {!therapist
-                    ? "Therapeuteninformationen werden geladen..."
+                    ? "Loading therapist information..."
                     : !date
-                    ? "Bitte wählen Sie ein Datum"
-                    : "Keine verfügbaren Zeitfenster für das ausgewählte Datum"}
+                    ? "Please select a date"
+                    : "No available time slots for the selected date"}
                 </p>
               </div>
             )}
@@ -232,7 +230,7 @@ export default function Book() {
                 disabled={!selectedTimeSlot || loading}
                 onClick={handleBookAppointment}
               >
-                Termin buchen
+                Book Appointment
               </Button>
             </div>
           </div>
