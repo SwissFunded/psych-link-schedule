@@ -68,9 +68,9 @@ export default function Layout({ children }: LayoutProps) {
 
   // Desktop navigation items
   const navItems = [
-    { name: "Termine", path: "/appointments", icon: <Calendar size={18} className="mr-1.5" /> },
-    { name: "Buchen", path: "/book", icon: <Clock size={18} className="mr-1.5" /> },
-    { name: "Profil", path: "/profile", icon: <UserCircle size={18} className="mr-1.5" /> }
+    { name: "Termine", path: "/termine", icon: <Calendar size={18} className="mr-1.5" /> },
+    { name: "Buchen", path: "/buchen", icon: <Clock size={18} className="mr-1.5" /> },
+    { name: "Profil", path: "/profil", icon: <UserCircle size={18} className="mr-1.5" /> }
   ];
   
   return (
@@ -84,7 +84,7 @@ export default function Layout({ children }: LayoutProps) {
         >
           <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center space-x-8">
-              <Link to="/appointments" className="flex items-center group">
+              <Link to="/termine" className="flex items-center group">
                 <motion.div 
                   initial={{ x: -20, opacity: 0 }} 
                   animate={{ x: 0, opacity: 1 }}
@@ -193,9 +193,9 @@ export default function Layout({ children }: LayoutProps) {
                 variant="ghost"
                 size="icon"
                 asChild
-                className={`transition-all duration-300 ${location.pathname === '/appointments' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
+                className={`transition-all duration-300 ${location.pathname === '/termine' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
               >
-                <Link to="/appointments">
+                <Link to="/termine">
                   <Calendar size={20} />
                 </Link>
               </Button>
@@ -204,9 +204,9 @@ export default function Layout({ children }: LayoutProps) {
                 variant="ghost"
                 size="icon"
                 asChild
-                className={`transition-all duration-300 ${location.pathname === '/book' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
+                className={`transition-all duration-300 ${location.pathname === '/buchen' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
               >
-                <Link to="/book">
+                <Link to="/buchen">
                   <Clock size={20} />
                 </Link>
               </Button>
@@ -215,9 +215,9 @@ export default function Layout({ children }: LayoutProps) {
                 variant="ghost"
                 size="icon"
                 asChild
-                className={`transition-all duration-300 ${location.pathname === '/profile' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
+                className={`transition-all duration-300 ${location.pathname === '/profil' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
               >
-                <Link to="/profile">
+                <Link to="/profil">
                   <UserCircle size={20} />
                 </Link>
               </Button>

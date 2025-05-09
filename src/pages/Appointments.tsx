@@ -139,7 +139,7 @@ export default function Appointments() {
   };
   
   const handleBookNew = () => {
-    navigate('/book');
+    navigate('/buchen');
   };
   
   if (loading) {
