@@ -3,9 +3,13 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, Calendar, Clock, LogOut, UserCircle } from 'lucide-react';
+import { User, Calendar, Clock, LogOut, UserCircle, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/PageTransition';
+import { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuLink } from "@/components/ui/navigation-menu";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem } from "@/components/ui/menubar";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -62,6 +66,13 @@ export default function Layout({ children }: LayoutProps) {
     initial: { opacity: 0, y: -10 },
     animate: { opacity: 1, y: 0 }
   };
+
+  // Desktop navigation items
+  const navItems = [
+    { name: "Appointments", path: "/appointments", icon: <Calendar size={18} className="mr-1.5" /> },
+    { name: "Book", path: "/book", icon: <Clock size={18} className="mr-1.5" /> },
+    { name: "Profile", path: "/profile", icon: <UserCircle size={18} className="mr-1.5" /> }
+  ];
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -70,19 +81,57 @@ export default function Layout({ children }: LayoutProps) {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: [0.19, 1.0, 0.22, 1.0] }}
-          className="bg-white/90 backdrop-blur-md border-b border-psychPurple/10 py-4 px-4 sm:px-6 sticky top-0 z-10"
+          className="bg-white/90 backdrop-blur-lg border-b border-psychPurple/10 py-4 px-4 sm:px-6 sticky top-0 z-10 shadow-sm"
         >
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <Link to="/appointments" className="flex items-center group">
-              <motion.div 
-                initial={{ x: -20, opacity: 0 }} 
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.5 }}
-                className="bg-gradient-to-r from-psychPurple to-psychPurple-dark bg-clip-text text-transparent font-medium text-xl"
-              >
-                PsychCentral
-              </motion.div>
-            </Link>
+            <div className="flex items-center space-x-8">
+              <Link to="/appointments" className="flex items-center group">
+                <motion.div 
+                  initial={{ x: -20, opacity: 0 }} 
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="flex items-center"
+                >
+                  <div className="h-8 w-8 rounded-md bg-gradient-to-br from-psychPurple to-psychPurple-dark flex items-center justify-center mr-2.5">
+                    <span className="text-white font-bold">P</span>
+                  </div>
+                  <div className="bg-gradient-to-r from-psychPurple to-psychPurple-dark bg-clip-text text-transparent font-medium text-xl">
+                    PsychCentral
+                  </div>
+                </motion.div>
+              </Link>
+              
+              <div className="hidden md:block">
+                <NavigationMenu>
+                  <NavigationMenuList className="space-x-1">
+                    {navItems.map((item) => (
+                      <motion.div
+                        key={item.path}
+                        initial="initial"
+                        animate="animate"
+                        variants={navItemVariants}
+                      >
+                        <NavigationMenuItem>
+                          <Link to={item.path}>
+                            <NavigationMenuLink
+                              className={cn(
+                                "inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                location.pathname === item.path 
+                                ? "bg-psychPurple/15 text-psychPurple" 
+                                : "text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple"
+                              )}
+                            >
+                              {item.icon}
+                              {item.name}
+                            </NavigationMenuLink>
+                          </Link>
+                        </NavigationMenuItem>
+                      </motion.div>
+                    ))}
+                  </NavigationMenuList>
+                </NavigationMenu>
+              </div>
+            </div>
             
             <AnimatePresence>
               <motion.div 
@@ -91,35 +140,32 @@ export default function Layout({ children }: LayoutProps) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
               >
-                <motion.div 
-                  variants={navItemVariants}
-                  initial="initial"
-                  animate="animate"
-                  transition={{ delay: 0.2, duration: 0.4 }}
-                  className="hidden md:flex mr-6"
-                >
-                  <div className="text-right">
-                    <p className="font-medium text-sm">{patient?.name}</p>
-                    <p className="text-xs text-psychText/70">{patient?.email}</p>
-                  </div>
-                </motion.div>
-                
-                <motion.div
-                  variants={navItemVariants}
-                  initial="initial"
-                  animate="animate"
-                  transition={{ delay: 0.3, duration: 0.4 }}
-                >
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={logout} 
-                    title="Logout"
-                    className="text-psychText/70 hover:text-psychText hover:bg-psychPurple/5 transition-all duration-300"
-                  >
-                    <LogOut size={18} />
-                  </Button>
-                </motion.div>
+                <Menubar className="border-none bg-transparent">
+                  <MenubarMenu>
+                    <MenubarTrigger className="flex items-center space-x-2 rounded-full border border-psychPurple/20 px-3 py-1.5 hover:bg-psychPurple/5 data-[state=open]:bg-psychPurple/10">
+                      <div className="hidden md:flex flex-col items-end mr-2">
+                        <span className="text-sm font-medium">{patient?.name}</span>
+                        <span className="text-xs text-psychText/60">{patient?.email}</span>
+                      </div>
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient?.name}`} alt={patient?.name} />
+                        <AvatarFallback className="bg-gradient-to-br from-psychPurple to-psychPurple-dark text-white">
+                          {patient?.name?.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </MenubarTrigger>
+                    <MenubarContent className="min-w-[180px] mr-2 mt-1">
+                      <div className="md:hidden px-2 py-1.5 mb-2">
+                        <div className="font-medium text-sm">{patient?.name}</div>
+                        <div className="text-xs text-psychText/70 truncate">{patient?.email}</div>
+                      </div>
+                      <MenubarItem className="flex items-center cursor-pointer" onClick={logout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Logout</span>
+                      </MenubarItem>
+                    </MenubarContent>
+                  </MenubarMenu>
+                </Menubar>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -141,7 +187,7 @@ export default function Layout({ children }: LayoutProps) {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="bg-white/90 backdrop-blur-md border-t border-psychPurple/10 py-3 md:hidden fixed bottom-0 left-0 right-0 z-10"
+          className="bg-white/95 backdrop-blur-lg border-t border-psychPurple/10 py-3 md:hidden fixed bottom-0 left-0 right-0 z-10 shadow-[0_-1px_10px_rgba(167,184,236,0.1)]"
         >
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-around">

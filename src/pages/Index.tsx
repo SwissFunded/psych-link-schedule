@@ -67,18 +67,21 @@ const Index = () => {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="mb-8"
+            className="mb-8 flex flex-col items-center"
           >
+            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-psychPurple to-psychPurple-dark flex items-center justify-center mb-6 shadow-lg shadow-psychPurple/20">
+              <span className="text-white font-bold text-3xl">P</span>
+            </div>
             <div className="text-4xl font-bold text-psychPurple">PsychCentral</div>
-            <div className="text-xl text-psychText/50 text-center">Authenticating your session</div>
+            <div className="text-xl text-psychText/50 text-center mt-2">Authenticating your session</div>
           </motion.div>
           
-          <div className="flex space-x-3 mb-4">
+          <div className="flex space-x-3 mb-6">
             {[1, 2, 3].map((dot) => (
               <motion.div
                 key={dot}
                 variants={loadingDotVariants}
-                className="w-4 h-4 rounded-full bg-psychPurple"
+                className="w-4 h-4 rounded-full bg-gradient-to-br from-psychPurple to-psychPurple-dark"
                 style={{ originY: 0.5 }}
               />
             ))}

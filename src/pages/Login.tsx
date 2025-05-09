@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/components/ui/PageTransition';
+import { LogIn } from 'lucide-react';
 
 export default function Login() {
   const { isAuthenticated } = useAuth();
@@ -62,6 +63,11 @@ export default function Login() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="text-center mb-12"
           >
+            <div className="flex justify-center items-center mb-4">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-psychPurple to-psychPurple-dark flex items-center justify-center shadow-lg shadow-psychPurple/20">
+                <span className="text-white font-bold text-2xl">P</span>
+              </div>
+            </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-psychPurple to-psychPurple-dark bg-clip-text text-transparent">PsychCentral</h1>
             <p className="text-psychText/60 mt-2">Secure Appointment Access</p>
           </motion.div>
@@ -87,7 +93,7 @@ export default function Login() {
                   initial="hidden"
                   animate="show"
                 >
-                  {demoLinks.map((user, index) => (
+                  {demoLinks.map((user) => (
                     <motion.div
                       key={user.email}
                       variants={item}
@@ -96,18 +102,23 @@ export default function Login() {
                     >
                       <a 
                         href={`/index?token=${user.token}&email=${user.email}`}
-                        className="block w-full p-4 bg-white border border-psychPurple/20 rounded-lg hover:border-psychPurple hover:shadow-lg hover:shadow-psychPurple/10 transition-all duration-300"
+                        className="flex items-center justify-between w-full p-4 bg-white border border-psychPurple/20 rounded-lg hover:border-psychPurple hover:shadow-lg hover:shadow-psychPurple/10 transition-all duration-300"
                       >
-                        <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <div className="h-10 w-10 rounded-full overflow-hidden bg-psychPurple/10 mr-3 flex items-center justify-center">
+                            <img 
+                              src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`} 
+                              alt={user.name} 
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
                           <div>
                             <p className="font-medium">{user.name}</p>
                             <p className="text-sm text-psychText/60">{user.email}</p>
                           </div>
-                          <div className="text-psychPurple opacity-70 hover:opacity-100 transition-opacity">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M5 12h14M12 5l7 7-7 7"/>
-                            </svg>
-                          </div>
+                        </div>
+                        <div className="text-psychPurple opacity-70 hover:opacity-100 transition-opacity">
+                          <LogIn size={20} />
                         </div>
                       </a>
                     </motion.div>

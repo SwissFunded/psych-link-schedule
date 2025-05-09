@@ -68,7 +68,7 @@
 
   /* Better typography */
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight;
+    @apply tracking-tight font-medium;
   }
 }
 
@@ -107,10 +107,31 @@
 
   /* Premium toast styling */
   .sonner-premium {
-    --normal-bg: rgba(255, 255, 255, 0.8);
-    --normal-border: rgba(167, 184, 236, 0.2);
+    --normal-bg: rgba(255, 255, 255, 0.9);
+    --normal-border: rgba(167, 184, 236, 0.25);
     --normal-text: #1A1F2C;
+    --success-bg: rgba(90, 227, 152, 0.9);
+    --success-border: rgba(90, 227, 152, 0.3);
+    --success-text: #1A1F2C;
+    --error-bg: rgba(234, 56, 76, 0.9);
+    --error-border: rgba(234, 56, 76, 0.3);
+    --error-text: white;
     --backdrop-filter: blur(8px);
+  }
+  
+  /* Active nav item styling */
+  .nav-item-active {
+    @apply bg-psychPurple/15 text-psychPurple font-medium;
+  }
+  
+  /* Standard nav item styling */
+  .nav-item {
+    @apply text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple;
+  }
+  
+  /* Premium shadow for header */
+  .header-shadow {
+    @apply shadow-[0_0_15px_rgba(167,184,236,0.15)];
   }
 }
 
@@ -133,3 +154,6 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Add Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
