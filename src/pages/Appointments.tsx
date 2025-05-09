@@ -11,6 +11,7 @@ import Layout from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from '@/components/ui/separator';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 const AppointmentCard = ({ appointment, onReschedule, onCancel }: { 
   appointment: Appointment; 
@@ -90,6 +91,7 @@ export default function Appointments() {
   const [pastAppointments, setPastAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -104,13 +106,18 @@ export default function Appointments() {
         setPastAppointments(past);
       } catch (error) {
         console.error('Fehler beim Abrufen der Termine:', error);
+        toast({
+          title: "Fehler",
+          description: "Termine konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
     
     fetchAppointments();
-  }, [patient?.id]);
+  }, [patient?.id, toast]);
   
   const handleReschedule = (appointment: Appointment) => {
     navigate(`/reschedule/${appointment.id}`);
@@ -129,9 +136,19 @@ export default function Appointments() {
               : apt
           )
         );
+        
+        toast({
+          title: "Termin storniert",
+          description: "Ihr Termin wurde erfolgreich storniert.",
+        });
       }
     } catch (error) {
       console.error('Fehler beim Stornieren des Termins:', error);
+      toast({
+        title: "Fehler",
+        description: "Der Termin konnte nicht storniert werden. Bitte versuchen Sie es später erneut.",
+        variant: "destructive"
+      });
     }
   };
   
