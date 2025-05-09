@@ -133,12 +133,22 @@
   .header-shadow {
     @apply shadow-[0_0_15px_rgba(167,184,236,0.15)];
   }
+
+  /* Animation for content fade-in */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out forwards;
+  }
 }
 
 @keyframes floating {
   0% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
   100% { transform: translateY(0px); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* Loading animation */
