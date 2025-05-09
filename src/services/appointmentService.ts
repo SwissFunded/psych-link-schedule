@@ -1,4 +1,3 @@
-
 export interface Therapist {
   id: string;
   name: string;
