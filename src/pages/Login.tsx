@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/components/ui/PageTransition';
-import { LogIn, User } from 'lucide-react';
+import { LogIn, User, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,6 +17,8 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   
@@ -74,6 +76,47 @@ export default function Login() {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name || !email || !password || !confirmPassword) {
+      toast.error('Bitte füllen Sie alle Pflichtfelder aus');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      toast.error('Passwörter stimmen nicht überein');
+      return;
+    }
+    
+    // Check if the email already exists
+    const existingAccount = demoAccounts.find(acc => acc.email === email);
+    if (existingAccount) {
+      toast.error('Diese E-Mail-Adresse wird bereits verwendet');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // In a real app, you would register the user here.
+      // For this demo, we'll just simulate registration success
+      toast.success('Registrierung erfolgreich! Bitte melden Sie sich jetzt an.');
+      setActiveTab('login');
+      
+      // Reset registration form
+      setName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Registration failed:', error);
+      toast.error('Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleQuickLogin = async (demoAccount: typeof demoAccounts[0]) => {
     setIsLoading(true);
     
@@ -120,12 +163,15 @@ export default function Login() {
               </CardHeader>
               
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4 bg-psychPurple/5">
+                <TabsList className="grid w-full grid-cols-3 mb-4 bg-psychPurple/5">
                   <TabsTrigger value="login" className="data-[state=active]:bg-white data-[state=active]:text-psychPurple data-[state=active]:shadow-sm">
                     Anmelden
                   </TabsTrigger>
+                  <TabsTrigger value="register" className="data-[state=active]:bg-white data-[state=active]:text-psychPurple data-[state=active]:shadow-sm">
+                    Registrieren
+                  </TabsTrigger>
                   <TabsTrigger value="demo" className="data-[state=active]:bg-white data-[state=active]:text-psychPurple data-[state=active]:shadow-sm">
-                    Demo-Konten
+                    Demo
                   </TabsTrigger>
                 </TabsList>
                 
@@ -170,6 +216,78 @@ export default function Login() {
                           <>
                             <LogIn className="mr-2 h-4 w-4" />
                             Anmelden
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </TabsContent>
+                
+                <TabsContent value="register" className="m-0">
+                  <CardContent>
+                    <form onSubmit={handleRegister} className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="text-sm font-medium text-psychText/70">Name</Label>
+                        <Input 
+                          id="name" 
+                          type="text" 
+                          placeholder="Max Mustermann" 
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          disabled={isLoading}
+                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="register-email" className="text-sm font-medium text-psychText/70">E-Mail</Label>
+                        <Input 
+                          id="register-email" 
+                          type="email" 
+                          placeholder="ihre.email@beispiel.de" 
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          disabled={isLoading}
+                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="register-password" className="text-sm font-medium text-psychText/70">Passwort</Label>
+                        <Input 
+                          id="register-password" 
+                          type="password" 
+                          placeholder="••••••••" 
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          disabled={isLoading}
+                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password" className="text-sm font-medium text-psychText/70">Passwort bestätigen</Label>
+                        <Input 
+                          id="confirm-password" 
+                          type="password" 
+                          placeholder="••••••••" 
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          disabled={isLoading}
+                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                        />
+                      </div>
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-gradient-to-r from-psychPurple-dark to-psychPurple hover:from-psychPurple hover:to-psychPurple-dark text-white hover:shadow-lg hover:shadow-psychPurple/20 transition-all duration-300 mt-2"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <span className="flex items-center">
+                            <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-2"></span>
+                            Registrieren...
+                          </span>
+                        ) : (
+                          <>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Registrieren
                           </>
                         )}
                       </Button>
