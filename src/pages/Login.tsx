@@ -116,19 +116,6 @@ export default function Login() {
       setIsLoading(false);
     }
   };
-
-  const handleQuickLogin = async (demoAccount: typeof demoAccounts[0]) => {
-    setIsLoading(true);
-    
-    try {
-      const token = `demo-token-${Date.now()}`;
-      await login(token, demoAccount.email, false);
-    } catch (error) {
-      console.error('Demo login failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
   
   return (
     <PageTransition>
@@ -163,15 +150,12 @@ export default function Login() {
               </CardHeader>
               
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-4 bg-psychPurple/5">
+                <TabsList className="grid w-full grid-cols-2 mb-4 bg-psychPurple/5">
                   <TabsTrigger value="login" className="data-[state=active]:bg-white data-[state=active]:text-psychPurple data-[state=active]:shadow-sm">
                     Anmelden
                   </TabsTrigger>
                   <TabsTrigger value="register" className="data-[state=active]:bg-white data-[state=active]:text-psychPurple data-[state=active]:shadow-sm">
                     Registrieren
-                  </TabsTrigger>
-                  <TabsTrigger value="demo" className="data-[state=active]:bg-white data-[state=active]:text-psychPurple data-[state=active]:shadow-sm">
-                    Demo
                   </TabsTrigger>
                 </TabsList>
                 
@@ -292,44 +276,6 @@ export default function Login() {
                         )}
                       </Button>
                     </form>
-                  </CardContent>
-                </TabsContent>
-                
-                <TabsContent value="demo" className="m-0">
-                  <CardContent>
-                    <div className="space-y-3">
-                      <p className="text-sm text-psychText/70 mb-3">
-                        Wählen Sie ein Demo-Konto für einen schnellen Zugang:
-                      </p>
-                      {demoAccounts.map((account, index) => (
-                        <motion.div
-                          key={account.email}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <Button 
-                            variant="outline"
-                            className="flex items-center justify-between w-full p-3 border-psychPurple/10 hover:border-psychPurple hover:bg-psychPurple/5 hover:shadow-md transition-all duration-300"
-                            onClick={() => handleQuickLogin(account)}
-                            disabled={isLoading}
-                          >
-                            <div className="flex items-center text-left">
-                              <div className="h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-psychPurple/20 to-psychPurple/5 mr-3 flex items-center justify-center shadow-inner">
-                                <User size={18} className="text-psychPurple opacity-70" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-psychText">{account.name}</p>
-                                <p className="text-xs text-psychText/60">{account.email}</p>
-                              </div>
-                            </div>
-                            <LogIn size={16} className="text-psychPurple opacity-70" />
-                          </Button>
-                        </motion.div>
-                      ))}
-                    </div>
                   </CardContent>
                 </TabsContent>
               </Tabs>
