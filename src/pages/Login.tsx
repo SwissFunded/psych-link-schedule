@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { Logo } from '@/components/ui/logo';
 
 // Form validation schemas
 const loginSchema = z.object({
@@ -147,12 +147,9 @@ export default function Login() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="text-center mb-8"
           >
-            <div className="flex justify-center items-center mb-5">
-              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-psychPurple to-psychPurple-dark flex items-center justify-center shadow-lg shadow-psychPurple/30 transform rotate-6 hover:rotate-0 transition-all duration-300">
-                <span className="text-white font-bold text-2xl">P</span>
-              </div>
+            <div className="flex justify-center mb-5">
+              <Logo variant="default" className="transform scale-75 md:scale-90" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-psychPurple-dark via-psychPurple to-psychPurple-light bg-clip-text text-transparent">PsychCentral</h1>
             <p className="text-psychText/60 mt-2 font-light">Terminverwaltung für Ihre Therapie</p>
           </motion.div>
           

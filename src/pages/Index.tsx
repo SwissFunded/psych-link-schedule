@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -109,7 +110,7 @@ const Index = () => {
             className="mb-8 flex flex-col items-center"
           >
             <div className="mb-6">
-              <Logo variant="full" />
+              <Logo variant="default" />
             </div>
             <div className="text-xl text-psychText/50 text-center mt-2">Authentifiziere Ihre Sitzung</div>
           </motion.div>
