@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { User, Calendar, Clock, LogOut, UserCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem } from "@/components/ui/menubar";
 import { Logo } from '@/components/ui/logo';
+import { toast } from 'sonner';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,15 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { isAuthenticated, logout, loading, patient } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Add a safety redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated && location.pathname !== '/') {
+      toast.error("Bitte melden Sie sich an");
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, loading, location.pathname, navigate]);
   
   if (loading) {
     return (
@@ -56,7 +66,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           <h2 className="text-xl font-gt-pressura mb-4 text-center">Authentifizierung erforderlich</h2>
           <p className="text-center mb-6 text-psychText/70 font-gt-pressura">Bitte nutzen Sie Ihren Login-Link, um auf Ihre Termine zuzugreifen.</p>
-          <Button onClick={() => window.location.href = '/'} className="w-full bg-psychText hover:bg-psychText/90 font-gt-pressura">
+          <Button onClick={() => navigate('/', { replace: true })} className="w-full bg-psychText hover:bg-psychText/90 font-gt-pressura">
             Zurück zum Login
           </Button>
         </motion.div>

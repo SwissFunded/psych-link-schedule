@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +14,7 @@ const Index = () => {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   useEffect(() => {
     const handleAuth = async () => {
@@ -26,6 +28,8 @@ const Index = () => {
           const { data, error } = await supabase.auth.getUser();
           
           if (error) {
+            console.error("Auth error:", error.message);
+            setAuthError("Authentifizierung fehlgeschlagen: " + error.message);
             throw error;
           }
           
@@ -54,9 +58,9 @@ const Index = () => {
           // If we've already tried to redirect, stop loading
           setIsLoading(false);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Authentication error:', error);
-        toast.error('Authentifizierung fehlgeschlagen');
+        setAuthError(error?.message || "Authentifizierung fehlgeschlagen");
         setIsLoading(false);
         
         // Wait a short delay before redirecting to avoid potential loops
@@ -111,28 +115,52 @@ const Index = () => {
             <div className="mb-6">
               <Logo variant="default" />
             </div>
-            <div className="text-xl text-psychText/50 text-center mt-2">Authentifiziere Ihre Sitzung</div>
+            <div className="text-xl text-psychText/50 text-center mt-2">
+              {authError ? "Authentifizierung fehlgeschlagen" : "Authentifiziere Ihre Sitzung"}
+            </div>
+            {authError && (
+              <div className="text-red-500 text-sm mt-2 max-w-md text-center">
+                {authError}
+              </div>
+            )}
           </motion.div>
           
-          <div className="flex space-x-3 mb-6">
-            {[1, 2, 3].map((dot) => (
-              <motion.div
-                key={dot}
-                variants={loadingDotVariants}
-                className="w-4 h-4 rounded-full bg-gradient-to-br from-psychPurple to-psychPurple-dark"
-                style={{ originY: 0.5 }}
-              />
-            ))}
-          </div>
+          {!authError && (
+            <div className="flex space-x-3 mb-6">
+              {[1, 2, 3].map((dot) => (
+                <motion.div
+                  key={dot}
+                  variants={loadingDotVariants}
+                  className="w-4 h-4 rounded-full bg-gradient-to-br from-psychPurple to-psychPurple-dark"
+                  style={{ originY: 0.5 }}
+                />
+              ))}
+            </div>
+          )}
           
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: isLoading ? 1 : 0 }}
+            animate={{ opacity: isLoading && !authError ? 1 : 0 }}
             transition={{ duration: 0.5 }}
             className="text-sm text-psychText/50"
           >
             Bitte warten Sie, während wir Ihre Sitzung einrichten
           </motion.div>
+          
+          {authError && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <button 
+                onClick={() => navigate('/', { replace: true })} 
+                className="mt-6 px-4 py-2 bg-psychPurple text-white rounded-md hover:bg-psychPurple/90 transition-colors"
+              >
+                Zurück zum Login
+              </button>
+            </motion.div>
+          )}
         </motion.div>
       </div>
     </PageTransition>
