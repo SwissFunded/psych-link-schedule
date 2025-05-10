@@ -1,9 +1,11 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { PageTransition } from '@/components/ui/PageTransition';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -15,20 +17,41 @@ const Index = () => {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        // Check for token in URL
-        const token = new URLSearchParams(location.search).get('token');
-        const email = new URLSearchParams(location.search).get('email');
+        // Get the hash fragment from the URL
+        const hash = location.hash;
         
-        if (token && email) {
-          // Use silent=false to show the welcome message once, when a user explicitly clicks a login link
-          await login(token, email, false);
+        // Check if this is a Supabase auth redirect
+        if (hash && hash.includes('access_token')) {
+          // Let Supabase handle the hash URL
+          const { data, error } = await supabase.auth.getUser();
+          
+          if (error) {
+            throw error;
+          }
+          
+          if (data.user) {
+            // Successfully authenticated
+            setIsLoading(false);
+            toast.success(`Welcome back, ${data.user.email?.split('@')[0] || 'User'}`);
+            navigate('/appointments', { replace: true });
+            return;
+          }
+        }
+        
+        // Check if there are query params in the URL (for password reset, etc.)
+        const query = new URLSearchParams(location.search);
+        if (query.get('type') === 'recovery' || query.get('type') === 'signup') {
+          // Let the page load and Supabase will handle this automatically
           setIsLoading(false);
-        } else if (!hasRedirected) {
-          // Only redirect once to prevent infinite loops
+          return;
+        }
+        
+        // If no auth-specific params are found, redirect to login
+        if (!hasRedirected) {
           setHasRedirected(true);
-          navigate('/');
+          navigate('/', { replace: true });
         } else {
-          // If we've already tried to redirect, just stop loading
+          // If we've already tried to redirect, stop loading
           setIsLoading(false);
         }
       } catch (error) {
@@ -38,7 +61,7 @@ const Index = () => {
         
         // Wait a short delay before redirecting to avoid potential loops
         setTimeout(() => {
-          navigate('/');
+          navigate('/', { replace: true });
         }, 2000);
       }
     };
