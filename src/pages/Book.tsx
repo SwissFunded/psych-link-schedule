@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +11,8 @@ import Layout from '@/components/layout/Layout';
 import { Calendar } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
+import AppointmentTypeSelection from '@/components/ui/AppointmentTypeSelection';
+import AppointmentModal from '@/components/ui/AppointmentModal';
 
 export default function Book() {
   const [date, setDate] = useState<Date | undefined>(() => {
@@ -21,6 +24,12 @@ export default function Book() {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("date");
+  const [appointmentType, setAppointmentType] = useState({
+    type: 'video' as 'video' | 'in-person',
+    duration: 30 as 30 | 60
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const { patient } = useAuth();
   const navigate = useNavigate();
   
@@ -54,6 +63,15 @@ export default function Book() {
     setSelectedTimeSlot(slot);
     setActiveTab("confirm");
   };
+
+  const handleAppointmentTypeChange = (value: { type: 'video' | 'in-person', duration: 30 | 60 }) => {
+    setAppointmentType(value);
+  };
+  
+  const handleOpenModal = () => {
+    if (!selectedTimeSlot) return;
+    setIsModalOpen(true);
+  };
   
   const handleBookAppointment = async () => {
     if (!selectedTimeSlot || !patient?.id) return;
@@ -65,9 +83,9 @@ export default function Book() {
         patientId: patient.id,
         therapistId: defaultTherapistId,
         date: selectedTimeSlot.date,
-        duration: selectedTimeSlot.duration,
+        duration: appointmentType.duration,
         status: 'scheduled' as const,
-        type: 'video' as const,
+        type: appointmentType.type,
       };
       
       const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
@@ -81,6 +99,7 @@ export default function Book() {
       toast.error("Termin konnte nicht gebucht werden");
     } finally {
       setLoading(false);
+      setIsModalOpen(false);
     }
   };
   
@@ -145,26 +164,46 @@ export default function Book() {
           <TabsContent value="confirm" className="animate-fade-in">
             <h2 className="text-lg font-medium mb-4">Bestätigen Sie Ihren Termin</h2>
             {selectedTimeSlot ? (
-              <Card className="border-psychPurple/10">
-                <CardContent className="p-6">
-                  <div className="mb-4">
-                    <h3 className="text-md font-medium">Datum und Uhrzeit</h3>
-                    <p className="text-psychText/70">
-                      {format(parseISO(selectedTimeSlot.date), 'EEEE, d. MMMM yyyy', { locale: de })}
-                    </p>
-                    <p className="text-psychText/70">
-                      {format(parseISO(selectedTimeSlot.date), 'HH:mm', { locale: de })} Uhr
-                    </p>
-                  </div>
-                  <Button 
-                    className="w-full bg-psychPurple hover:bg-psychPurple/90"
-                    onClick={handleBookAppointment}
-                    disabled={loading}
-                  >
-                    Termin buchen
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="space-y-6">
+                <Card className="border-psychPurple/10">
+                  <CardContent className="p-6">
+                    <div className="mb-4">
+                      <h3 className="text-md font-medium">Datum und Uhrzeit</h3>
+                      <p className="text-psychText/70">
+                        {format(parseISO(selectedTimeSlot.date), 'EEEE, d. MMMM yyyy', { locale: de })}
+                      </p>
+                      <p className="text-psychText/70">
+                        {format(parseISO(selectedTimeSlot.date), 'HH:mm', { locale: de })} Uhr
+                      </p>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <AppointmentTypeSelection 
+                        value={appointmentType}
+                        onChange={handleAppointmentTypeChange}
+                      />
+                    </div>
+                    
+                    <Button 
+                      className="w-full bg-psychPurple hover:bg-psychPurple/90"
+                      onClick={handleOpenModal}
+                      disabled={loading}
+                    >
+                      Termin buchen
+                    </Button>
+                  </CardContent>
+                </Card>
+                
+                <AppointmentModal 
+                  isOpen={isModalOpen}
+                  onClose={() => setIsModalOpen(false)}
+                  onConfirm={handleBookAppointment}
+                  date={selectedTimeSlot.date}
+                  type={appointmentType.type}
+                  duration={appointmentType.duration}
+                  loading={loading}
+                />
+              </div>
             ) : (
               <div className="text-center py-6">
                 <p className="text-psychText/70">Bitte wählen Sie zuerst eine Uhrzeit aus</p>
