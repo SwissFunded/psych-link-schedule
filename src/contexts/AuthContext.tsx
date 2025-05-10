@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from '@supabase/supabase-js';
 
 interface Patient {
   id: string;
@@ -12,15 +14,18 @@ interface Patient {
 interface AuthContextType {
   isAuthenticated: boolean;
   patient: Patient | null;
+  user: User | null;
+  session: Session | null;
   loading: boolean;
-  login: (token: string, email?: string, silent?: boolean) => void;
+  login: (email: string, password: string, silent?: boolean) => Promise<void>;
+  signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Predefined users for the app
-const USERS = {
+// Predefined fallback users for the app (used only when Supabase data is not available)
+const DEFAULT_USERS = {
   'miromw@icloud.com': {
     id: "p-miro123",
     name: "Miró Waltisberg",
@@ -33,7 +38,7 @@ const USERS = {
     email: "elena.pellizzon@psychcentral.ch",
     phone: "(555) 987-6543"
   },
-  'jane.smith@example.com': {  // Keep the default user
+  'jane.smith@example.com': {
     id: "p-jane789",
     name: "Jane Smith",
     email: "jane.smith@example.com",
@@ -44,100 +49,175 @@ const USERS = {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Check for token in URL on initial load
   useEffect(() => {
-    const checkToken = async () => {
-      try {
-        // Mock token verification
-        const token = new URLSearchParams(location.search).get('token');
-        const email = new URLSearchParams(location.search).get('email');
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         
-        if (token) {
-          // Login silently (no toast message) during initial check
-          await login(token, email || undefined, true);
+        if (currentSession?.user) {
+          setIsAuthenticated(true);
           
-          // Remove token from URL for security
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, document.title, newUrl);
-        } else {
-          // Check for stored token
-          const storedToken = localStorage.getItem('psychcentral_token');
-          const storedEmail = localStorage.getItem('psychcentral_email');
-          if (storedToken) {
-            // Login silently (no toast message) during initial check
-            await login(storedToken, storedEmail || undefined, true);
+          // Create patient object from user data
+          const userEmail = currentSession.user.email;
+          let patientData: Patient;
+          
+          // If we have a predefined user, use that data
+          if (userEmail && userEmail in DEFAULT_USERS) {
+            patientData = DEFAULT_USERS[userEmail as keyof typeof DEFAULT_USERS];
           } else {
-            setLoading(false);
+            // Otherwise create a new patient object from the user data
+            patientData = {
+              id: currentSession.user.id,
+              name: userEmail?.split('@')[0] || 'User',
+              email: userEmail || '',
+              phone: ''
+            };
           }
+          
+          setPatient(patientData);
+        } else {
+          setIsAuthenticated(false);
+          setPatient(null);
         }
-      } catch (error) {
-        console.error('Authentication error:', error);
-        logout();
       }
-    };
+    );
     
-    checkToken();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      
+      if (currentSession?.user) {
+        setIsAuthenticated(true);
+        
+        // Create patient object from user data
+        const userEmail = currentSession.user.email;
+        let patientData: Patient;
+        
+        // If we have a predefined user, use that data
+        if (userEmail && userEmail in DEFAULT_USERS) {
+          patientData = DEFAULT_USERS[userEmail as keyof typeof DEFAULT_USERS];
+        } else {
+          // Otherwise create a new patient object from the user data
+          patientData = {
+            id: currentSession.user.id,
+            name: userEmail?.split('@')[0] || 'User',
+            email: userEmail || '',
+            phone: ''
+          };
+        }
+        
+        setPatient(patientData);
+      }
+      
+      setLoading(false);
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
   
-  const login = async (token: string, email?: string, silent: boolean = false) => {
+  const login = async (email: string, password: string, silent: boolean = false) => {
     try {
       setLoading(true);
       
-      // Store token
-      localStorage.setItem('psychcentral_token', token);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
-      let userToLogin: Patient;
-      
-      if (email && email in USERS) {
-        // If email is provided and exists in our predefined users
-        userToLogin = USERS[email as keyof typeof USERS];
-        localStorage.setItem('psychcentral_email', email);
-      } else {
-        // Default to Jane Smith if no email is provided or email doesn't match
-        userToLogin = USERS['jane.smith@example.com'];
-        localStorage.setItem('psychcentral_email', 'jane.smith@example.com');
+      if (error) {
+        throw error;
       }
       
-      // Update state
-      setPatient(userToLogin);
-      setIsAuthenticated(true);
-      
-      // Navigate to appointments page
+      // Navigate to appointments page after successful login
       navigate('/appointments');
       
-      // Only show welcome toast when not in silent mode
       if (!silent) {
-        toast.success("Welcome back, " + userToLogin.name);
+        const displayName = data.user?.email?.split('@')[0] || 'User';
+        toast.success(`Welcome back, ${displayName}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      // Only show error toast when not in silent mode
+      
       if (!silent) {
-        toast.error("Authentication failed");
+        toast.error(error.message || "Authentication failed");
       }
-      logout();
+      
+      setIsAuthenticated(false);
+      setPatient(null);
+      setUser(null);
+      setSession(null);
     } finally {
       setLoading(false);
     }
   };
   
-  const logout = () => {
-    localStorage.removeItem('psychcentral_token');
-    localStorage.removeItem('psychcentral_email');
-    setIsAuthenticated(false);
-    setPatient(null);
-    setLoading(false);
-    navigate('/');
-    toast.info("You've been logged out");
+  const signup = async (email: string, password: string, name: string) => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name
+          }
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // For supabase, users might need to confirm their email
+      toast.success("Registration successful! Please check your email for confirmation.");
+      return;
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      toast.error(error.message || "Registration failed");
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsAuthenticated(false);
+      setPatient(null);
+      setUser(null);
+      setSession(null);
+      navigate('/');
+      toast.info("You've been logged out");
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error("Logout failed");
+    }
   };
   
   return (
-    <AuthContext.Provider value={{ isAuthenticated, patient, loading, login, logout }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      patient, 
+      user,
+      session,
+      loading, 
+      login, 
+      signup,
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -11,9 +11,26 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { z } from 'zod';
+
+// Form validation schemas
+const loginSchema = z.object({
+  email: z.string().email("Gültige E-Mail-Adresse erforderlich"),
+  password: z.string().min(6, "Passwort muss mindestens 6 Zeichen lang sein")
+});
+
+const registerSchema = z.object({
+  name: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
+  email: z.string().email("Gültige E-Mail-Adresse erforderlich"),
+  password: z.string().min(6, "Passwort muss mindestens 6 Zeichen lang sein"),
+  confirmPassword: z.string()
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwörter stimmen nicht überein",
+  path: ["confirmPassword"]
+});
 
 export default function Login() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, signup } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +38,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   useEffect(() => {
     // If already authenticated, redirect to appointments
@@ -48,27 +66,35 @@ export default function Login() {
     }
   ];
 
+  const validateForm = (schema: z.ZodType<any>, data: any): boolean => {
+    try {
+      schema.parse(data);
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.errors.forEach(err => {
+          if (err.path) {
+            newErrors[err.path[0]] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !password) {
-      toast.error('Bitte geben Sie E-Mail und Passwort ein');
-      return;
-    }
-    
-    // Simple validation
-    const account = demoAccounts.find(acc => acc.email === email);
-    if (!account || account.password !== password) {
-      toast.error('Falsche E-Mail oder Passwort');
-      return;
-    }
+    const isValid = validateForm(loginSchema, { email, password });
+    if (!isValid) return;
     
     setIsLoading(true);
     
     try {
-      // Generate a mock token for this login
-      const token = `demo-token-${Date.now()}`;
-      await login(token, email, false);
+      await login(email, password);
     } catch (error) {
       console.error('Login failed:', error);
     } finally {
@@ -79,39 +105,33 @@ export default function Login() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !password || !confirmPassword) {
-      toast.error('Bitte füllen Sie alle Pflichtfelder aus');
-      return;
-    }
-    
-    if (password !== confirmPassword) {
-      toast.error('Passwörter stimmen nicht überein');
-      return;
-    }
-    
-    // Check if the email already exists
-    const existingAccount = demoAccounts.find(acc => acc.email === email);
-    if (existingAccount) {
-      toast.error('Diese E-Mail-Adresse wird bereits verwendet');
-      return;
-    }
+    const isValid = validateForm(registerSchema, { name, email, password, confirmPassword });
+    if (!isValid) return;
     
     setIsLoading(true);
     
     try {
-      // In a real app, you would register the user here.
-      // For this demo, we'll just simulate registration success
-      toast.success('Registrierung erfolgreich! Bitte melden Sie sich jetzt an.');
-      setActiveTab('login');
-      
+      await signup(email, password, name);
       // Reset registration form
       setName('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
+      // Switch to login tab after successful registration
+      setActiveTab('login');
     } catch (error) {
       console.error('Registration failed:', error);
-      toast.error('Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loginWithDemoAccount = async (account: typeof demoAccounts[0]) => {
+    setIsLoading(true);
+    try {
+      await login(account.email, account.password);
+    } catch (error) {
+      console.error('Demo login failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -171,8 +191,9 @@ export default function Login() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           disabled={isLoading}
-                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.email ? 'border-red-500' : ''}`}
                         />
+                        {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="password" className="text-sm font-medium text-psychText/70">Passwort</Label>
@@ -183,8 +204,9 @@ export default function Login() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           disabled={isLoading}
-                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.password ? 'border-red-500' : ''}`}
                         />
+                        {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
                       </div>
                       <Button 
                         type="submit" 
@@ -219,8 +241,9 @@ export default function Login() {
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           disabled={isLoading}
-                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.name ? 'border-red-500' : ''}`}
                         />
+                        {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="register-email" className="text-sm font-medium text-psychText/70">E-Mail</Label>
@@ -231,8 +254,9 @@ export default function Login() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           disabled={isLoading}
-                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.email ? 'border-red-500' : ''}`}
                         />
+                        {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="register-password" className="text-sm font-medium text-psychText/70">Passwort</Label>
@@ -243,8 +267,9 @@ export default function Login() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           disabled={isLoading}
-                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.password ? 'border-red-500' : ''}`}
                         />
+                        {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="confirm-password" className="text-sm font-medium text-psychText/70">Passwort bestätigen</Label>
@@ -255,8 +280,9 @@ export default function Login() {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           disabled={isLoading}
-                          className="border-psychPurple/20 focus:border-psychPurple/50"
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.confirmPassword ? 'border-red-500' : ''}`}
                         />
+                        {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
                       </div>
                       <Button 
                         type="submit" 
@@ -282,8 +308,23 @@ export default function Login() {
               
               <CardFooter className="flex-col space-y-2 border-t border-psychPurple/10 pt-4 bg-gradient-to-b from-transparent to-psychPurple/5">
                 <p className="text-center text-xs text-psychText/50 max-w-[90%] mx-auto">
-                  Dies ist eine Demo-Anwendung. Alle Passwörter sind „password123"
+                  Demo-Accounts verfügbar für Tests:
                 </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {demoAccounts.map((account, index) => (
+                    <Button 
+                      key={index}
+                      variant="outline" 
+                      size="sm"
+                      className="text-xs py-1 h-auto"
+                      disabled={isLoading}
+                      onClick={() => loginWithDemoAccount(account)}
+                    >
+                      <User className="h-3 w-3 mr-1" />
+                      {account.name}
+                    </Button>
+                  ))}
+                </div>
               </CardFooter>
             </Card>
           </motion.div>
