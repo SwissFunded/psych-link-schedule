@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { getVersionInfo } from '@/lib/version';
 
