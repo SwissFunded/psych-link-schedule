@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/components/ui/PageTransition';
-import { LogIn, User, UserPlus } from 'lucide-react';
+import { LogIn, User, UserPlus, Calendar, Phone } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +22,12 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   name: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
   email: z.string().email("Gültige E-Mail-Adresse erforderlich"),
+  phone: z.string().min(5, "Telefonnummer muss mindestens 5 Zeichen lang sein"),
+  birthdate: z.string().refine(value => {
+    if (!value) return false;
+    const date = new Date(value);
+    return !isNaN(date.getTime()) && date < new Date();
+  }, "Gültiges Geburtsdatum erforderlich"),
   password: z.string().min(6, "Passwort muss mindestens 6 Zeichen lang sein"),
   confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
@@ -35,6 +41,8 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [birthdate, setBirthdate] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
@@ -105,16 +113,18 @@ export default function Login() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const isValid = validateForm(registerSchema, { name, email, password, confirmPassword });
+    const isValid = validateForm(registerSchema, { name, email, phone, birthdate, password, confirmPassword });
     if (!isValid) return;
     
     setIsLoading(true);
     
     try {
-      await signup(email, password, name);
+      await signup(email, password, name, phone, birthdate);
       // Reset registration form
       setName('');
       setEmail('');
+      setPhone('');
+      setBirthdate('');
       setPassword('');
       setConfirmPassword('');
       // Switch to login tab after successful registration
@@ -254,6 +264,38 @@ export default function Login() {
                           className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.email ? 'border-red-500' : ''}`}
                         />
                         {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-sm font-medium text-psychText/70">
+                          <Phone className="inline-block h-3.5 w-3.5 mr-1" />
+                          Telefonnummer
+                        </Label>
+                        <Input 
+                          id="phone" 
+                          type="tel" 
+                          placeholder="+41 123 456 78 90" 
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          disabled={isLoading}
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.phone ? 'border-red-500' : ''}`}
+                        />
+                        {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="birthdate" className="text-sm font-medium text-psychText/70">
+                          <Calendar className="inline-block h-3.5 w-3.5 mr-1" />
+                          Geburtsdatum
+                        </Label>
+                        <Input 
+                          id="birthdate" 
+                          type="date" 
+                          value={birthdate}
+                          onChange={(e) => setBirthdate(e.target.value)}
+                          disabled={isLoading}
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.birthdate ? 'border-red-500' : ''}`}
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                        {errors.birthdate && <p className="text-xs text-red-500">{errors.birthdate}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="register-password" className="text-sm font-medium text-psychText/70">Passwort</Label>

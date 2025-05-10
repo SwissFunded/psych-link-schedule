@@ -9,6 +9,7 @@ interface Patient {
   name: string;
   email: string;
   phone: string;
+  birthdate?: string;
 }
 
 interface AuthContextType {
@@ -18,7 +19,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   login: (email: string, password: string, silent?: boolean) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, phone: string, birthdate: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -30,19 +31,22 @@ const DEFAULT_USERS = {
     id: "p-miro123",
     name: "Miró Waltisberg",
     email: "miromw@icloud.com",
-    phone: "(555) 123-4567"
+    phone: "(555) 123-4567",
+    birthdate: "1985-06-15"
   },
   'elena.pellizzon@psychcentral.ch': {
     id: "p-elena456",
     name: "Elena Pellizon",
     email: "elena.pellizzon@psychcentral.ch",
-    phone: "(555) 987-6543"
+    phone: "(555) 987-6543",
+    birthdate: "1990-03-22"
   },
   'jane.smith@example.com': {
     id: "p-jane789",
     name: "Jane Smith",
     email: "jane.smith@example.com",
-    phone: "(555) 246-8101"
+    phone: "(555) 246-8101",
+    birthdate: "1988-11-30"
   }
 };
 
@@ -74,11 +78,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             patientData = DEFAULT_USERS[userEmail as keyof typeof DEFAULT_USERS];
           } else {
             // Otherwise create a new patient object from the user data
+            const userData = currentSession.user.user_metadata;
             patientData = {
               id: currentSession.user.id,
-              name: userEmail?.split('@')[0] || 'User',
+              name: userData?.name || userEmail?.split('@')[0] || 'User',
               email: userEmail || '',
-              phone: ''
+              phone: userData?.phone || '',
+              birthdate: userData?.birthdate || ''
             };
           }
           
@@ -107,11 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           patientData = DEFAULT_USERS[userEmail as keyof typeof DEFAULT_USERS];
         } else {
           // Otherwise create a new patient object from the user data
+          const userData = currentSession.user.user_metadata;
           patientData = {
             id: currentSession.user.id,
-            name: userEmail?.split('@')[0] || 'User',
+            name: userData?.name || userEmail?.split('@')[0] || 'User',
             email: userEmail || '',
-            phone: ''
+            phone: userData?.phone || '',
+            birthdate: userData?.birthdate || ''
           };
         }
         
@@ -162,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = async (email: string, password: string, name: string, phone: string, birthdate: string) => {
     try {
       setLoading(true);
       
@@ -172,7 +180,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           data: {
-            name: name
+            name,
+            phone,
+            birthdate
           },
           emailRedirectTo: window.location.origin,
         }
