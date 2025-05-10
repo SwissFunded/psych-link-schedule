@@ -35,28 +35,27 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
-export const Button: React.FC<ButtonProps> = ({ 
-  children, 
-  variant = 'default', 
-  size = 'default',
-  className = '',
-  asChild = false,
-  ...props 
-}) => {
-  // If the button text includes "stornieren" or "abbrechen" (case insensitive),
-  // automatically use the cancel variant unless explicitly specified otherwise
-  const buttonText = typeof children === 'string' ? children.toLowerCase() : '';
-  const isCancelAction = buttonText.includes('stornieren') || buttonText.includes('abbrechen');
-  const effectiveVariant = isCancelAction && variant === 'default' ? 'cancel' : variant;
-  
-  const Comp = asChild ? Slot : "button";
-  
-  return (
-    <Comp
-      className={buttonVariants({ variant: effectiveVariant, size, className })}
-      {...props}
-    >
-      {children}
-    </Comp>
-  );
-};
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ children, variant = 'default', size = 'default', className = '', asChild = false, ...props }, ref) => {
+    // If the button text includes "stornieren" or "abbrechen" (case insensitive),
+    // automatically use the cancel variant unless explicitly specified otherwise
+    const buttonText = typeof children === 'string' ? children.toLowerCase() : '';
+    const isCancelAction = buttonText.includes('stornieren') || buttonText.includes('abbrechen');
+    const effectiveVariant = isCancelAction && variant === 'default' ? 'cancel' : variant;
+    
+    const Comp = asChild ? Slot : "button";
+    
+    return (
+      <Comp
+        className={buttonVariants({ variant: effectiveVariant, size, className })}
+        ref={ref}
+        {...props}
+      >
+        {children}
+      </Comp>
+    );
+  }
+);
+Button.displayName = "Button";
+
+export { Button };
