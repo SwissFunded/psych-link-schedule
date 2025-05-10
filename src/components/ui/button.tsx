@@ -1,4 +1,6 @@
+
 import React from 'react';
+import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
 export const buttonVariants = cva(
@@ -30,13 +32,15 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   children: React.ReactNode;
+  asChild?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({ 
   children, 
   variant = 'default', 
   size = 'default',
-  className = '', 
+  className = '',
+  asChild = false,
   ...props 
 }) => {
   // If the button text includes "stornieren" or "abbrechen" (case insensitive),
@@ -44,13 +48,15 @@ export const Button: React.FC<ButtonProps> = ({
   const buttonText = typeof children === 'string' ? children.toLowerCase() : '';
   const isCancelAction = buttonText.includes('stornieren') || buttonText.includes('abbrechen');
   const effectiveVariant = isCancelAction && variant === 'default' ? 'cancel' : variant;
-
+  
+  const Comp = asChild ? Slot : "button";
+  
   return (
-    <button
+    <Comp
       className={buttonVariants({ variant: effectiveVariant, size, className })}
       {...props}
     >
       {children}
-    </button>
+    </Comp>
   );
 };
