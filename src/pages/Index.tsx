@@ -110,7 +110,7 @@ const Index = () => {
             className="mb-8 flex flex-col items-center"
           >
             <div className="mb-6">
-              <Logo variant="default" />
+              <Logo variant="default" className="transform scale-75" />
             </div>
             <div className="text-xl text-psychText/50 text-center mt-2">Authentifiziere Ihre Sitzung</div>
           </motion.div>
