@@ -1,14 +1,16 @@
+
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, Calendar, Clock, LogOut, UserCircle, Home } from 'lucide-react';
+import { User, Calendar, Clock, LogOut, UserCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/PageTransition';
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem } from "@/components/ui/menubar";
+import { Logo } from '@/components/ui/logo';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -28,8 +30,8 @@ export default function Layout({ children }: LayoutProps) {
           transition={{ duration: 0.5 }}
           className="flex flex-col items-center"
         >
-          <div className="w-12 h-12 rounded-full border-4 border-psychPurple border-t-transparent animate-spin mb-4"></div>
-          <div className="text-psychText/50 animate-pulse">Ihre Informationen werden geladen...</div>
+          <div className="w-10 h-10 rounded-full border-3 border-psychText/30 border-t-transparent animate-spin mb-4"></div>
+          <div className="text-psychText/60 font-gt-pressura">Ihre Informationen werden geladen...</div>
         </motion.div>
       </div>
     );
@@ -48,11 +50,14 @@ export default function Layout({ children }: LayoutProps) {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.4 }}
-          className="bg-white/80 backdrop-blur-sm rounded-xl p-8 shadow-xl max-w-md w-full"
+          className="bg-white/90 backdrop-blur-sm rounded-md p-8 shadow-md max-w-md w-full"
         >
-          <h2 className="text-2xl font-semibold mb-4 text-center">Authentifizierung erforderlich</h2>
-          <p className="text-center mb-6 text-psychText/70">Bitte nutzen Sie Ihren Login-Link, um auf Ihre Termine zuzugreifen.</p>
-          <Button onClick={() => window.location.href = '/'} className="w-full bg-psychPurple hover:bg-psychPurple-dark">
+          <div className="flex justify-center mb-6">
+            <Logo variant="full" />
+          </div>
+          <h2 className="text-xl font-gt-pressura mb-4 text-center">Authentifizierung erforderlich</h2>
+          <p className="text-center mb-6 text-psychText/70 font-gt-pressura">Bitte nutzen Sie Ihren Login-Link, um auf Ihre Termine zuzugreifen.</p>
+          <Button onClick={() => window.location.href = '/'} className="w-full bg-psychText hover:bg-psychText/90 font-gt-pressura">
             Zurück zum Login
           </Button>
         </motion.div>
@@ -62,7 +67,7 @@ export default function Layout({ children }: LayoutProps) {
   
   // Animation variants
   const navItemVariants = {
-    initial: { opacity: 0, y: -10 },
+    initial: { opacity: 0, y: -8 },
     animate: { opacity: 1, y: 0 }
   };
 
@@ -80,23 +85,17 @@ export default function Layout({ children }: LayoutProps) {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: [0.19, 1.0, 0.22, 1.0] }}
-          className="bg-white/90 backdrop-blur-lg border-b border-psychPurple/10 py-4 px-4 sm:px-6 sticky top-0 z-10 shadow-sm"
+          className="bg-white/95 backdrop-blur-lg border-b border-psychText/5 py-3 px-4 sm:px-6 sticky top-0 z-10 shadow-sm"
         >
           <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center space-x-8">
               <Link to="/termine" className="flex items-center group">
                 <motion.div 
-                  initial={{ x: -20, opacity: 0 }} 
+                  initial={{ x: -10, opacity: 0 }} 
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ duration: 0.5 }}
-                  className="flex items-center"
                 >
-                  <div className="h-8 w-8 rounded-md bg-gradient-to-br from-psychPurple to-psychPurple-dark flex items-center justify-center mr-2.5">
-                    <span className="text-white font-bold">P</span>
-                  </div>
-                  <div className="bg-gradient-to-r from-psychPurple to-psychPurple-dark bg-clip-text text-transparent font-medium text-xl">
-                    PsychCentral
-                  </div>
+                  <Logo />
                 </motion.div>
               </Link>
               
@@ -114,10 +113,10 @@ export default function Layout({ children }: LayoutProps) {
                           <Link
                             to={item.path}
                             className={cn(
-                              "inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                              "inline-flex items-center rounded-md px-3 py-2 text-sm font-gt-pressura transition-colors",
                               location.pathname === item.path 
-                              ? "bg-psychPurple/15 text-psychPurple" 
-                              : "text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple"
+                              ? "bg-psychText/5 text-psychText" 
+                              : "text-psychText/70 hover:bg-psychText/5 hover:text-psychText"
                             )}
                           >
                             {item.icon}
@@ -140,24 +139,24 @@ export default function Layout({ children }: LayoutProps) {
               >
                 <Menubar className="border-none bg-transparent">
                   <MenubarMenu>
-                    <MenubarTrigger className="flex items-center space-x-2 rounded-full border border-psychPurple/20 px-3 py-1.5 hover:bg-psychPurple/5 data-[state=open]:bg-psychPurple/10">
+                    <MenubarTrigger className="flex items-center space-x-2 rounded-md border border-psychText/10 px-3 py-1.5 hover:bg-psychText/5 data-[state=open]:bg-psychText/5">
                       <div className="hidden md:flex flex-col items-end mr-2">
-                        <span className="text-sm font-medium">{patient?.name}</span>
+                        <span className="text-sm font-gt-pressura">{patient?.name}</span>
                         <span className="text-xs text-psychText/60">{patient?.email}</span>
                       </div>
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient?.name}`} alt={patient?.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-psychPurple to-psychPurple-dark text-white">
+                        <AvatarFallback className="bg-psychText text-white">
                           {patient?.name?.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                     </MenubarTrigger>
                     <MenubarContent className="min-w-[180px] mr-2 mt-1">
                       <div className="md:hidden px-2 py-1.5 mb-2">
-                        <div className="font-medium text-sm">{patient?.name}</div>
+                        <div className="font-gt-pressura text-sm">{patient?.name}</div>
                         <div className="text-xs text-psychText/70 truncate">{patient?.email}</div>
                       </div>
-                      <MenubarItem className="flex items-center cursor-pointer" onClick={logout}>
+                      <MenubarItem className="flex items-center cursor-pointer font-gt-pressura" onClick={logout}>
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Abmelden</span>
                       </MenubarItem>
@@ -185,7 +184,7 @@ export default function Layout({ children }: LayoutProps) {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="bg-white/95 backdrop-blur-lg border-t border-psychPurple/10 py-3 md:hidden fixed bottom-0 left-0 right-0 z-10 shadow-[0_-1px_10px_rgba(167,184,236,0.1)]"
+          className="bg-white/95 backdrop-blur-lg border-t border-psychText/5 py-3 md:hidden fixed bottom-0 left-0 right-0 z-10 shadow-[0_-1px_5px_rgba(0,0,0,0.05)]"
         >
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-around">
@@ -193,7 +192,7 @@ export default function Layout({ children }: LayoutProps) {
                 variant="ghost"
                 size="icon"
                 asChild
-                className={`transition-all duration-300 ${location.pathname === '/termine' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
+                className={`transition-all duration-300 ${location.pathname === '/termine' ? 'text-psychText bg-psychText/5 rounded-md' : 'text-psychText/60'}`}
               >
                 <Link to="/termine">
                   <Calendar size={20} />
@@ -204,7 +203,7 @@ export default function Layout({ children }: LayoutProps) {
                 variant="ghost"
                 size="icon"
                 asChild
-                className={`transition-all duration-300 ${location.pathname === '/buchen' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
+                className={`transition-all duration-300 ${location.pathname === '/buchen' ? 'text-psychText bg-psychText/5 rounded-md' : 'text-psychText/60'}`}
               >
                 <Link to="/buchen">
                   <Clock size={20} />
@@ -215,7 +214,7 @@ export default function Layout({ children }: LayoutProps) {
                 variant="ghost"
                 size="icon"
                 asChild
-                className={`transition-all duration-300 ${location.pathname === '/profil' ? 'text-psychPurple bg-psychPurple/10 rounded-lg' : 'text-psychText/60'}`}
+                className={`transition-all duration-300 ${location.pathname === '/profil' ? 'text-psychText bg-psychText/5 rounded-md' : 'text-psychText/60'}`}
               >
                 <Link to="/profil">
                   <UserCircle size={20} />

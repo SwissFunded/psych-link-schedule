@@ -1,4 +1,14 @@
-/* Add Inter font */
+
+/* Custom font setup */
+@font-face {
+  font-family: 'GT Pressura LCG Extended';
+  src: url('/fonts/GT-Pressura-LCG-Extended-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Add Inter font as fallback */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -35,7 +45,7 @@
     --input: 60 34% 90%;
     --ring: 224 70% 79%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -55,9 +65,10 @@
 
   body {
     @apply bg-psychBeige text-foreground;
-    font-family: 'Inter', sans-serif;
-    background-image: radial-gradient(at top left, rgba(167, 184, 236, 0.15), transparent 50%), 
-                      radial-gradient(at bottom right, rgba(90, 227, 152, 0.1), transparent 50%);
+    font-family: 'GT Pressura LCG Extended', 'Inter', sans-serif;
+    background-image: 
+      radial-gradient(at top left, rgba(167, 184, 236, 0.08), transparent 50%), 
+      radial-gradient(at bottom right, rgba(90, 227, 152, 0.05), transparent 50%);
     background-attachment: fixed;
   }
 
@@ -68,102 +79,128 @@
 
   /* Premium styling for focus states */
   *:focus-visible {
-    @apply outline-none ring-2 ring-psychPurple/50 ring-offset-2 ring-offset-white/50 transition-all duration-200;
+    @apply outline-none ring-2 ring-psychPurple/30 ring-offset-1 ring-offset-white/50 transition-all duration-200;
   }
 
   /* Better typography */
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight font-medium;
+    @apply font-gt-pressura tracking-tight;
+  }
+  
+  h1 {
+    @apply text-3xl md:text-4xl lg:text-5xl font-normal;
+  }
+  
+  h2 {
+    @apply text-2xl md:text-3xl lg:text-4xl font-normal;
+  }
+  
+  h3 {
+    @apply text-xl md:text-2xl lg:text-3xl font-normal;
+  }
+  
+  p, li, span {
+    @apply leading-relaxed;
   }
 }
 
 @layer components {
   .card-shadow {
-    @apply shadow-lg shadow-psychPurple/10;
+    @apply shadow-md shadow-psychPurple/5;
   }
   
   .highlight-effect {
-    @apply transition-all duration-300 hover:shadow-lg hover:shadow-psychPurple/20;
+    @apply transition-all duration-300 hover:shadow-md hover:shadow-psychPurple/10;
   }
 
   .container-padding {
     @apply px-4 sm:px-6 md:px-8 lg:px-12;
   }
 
-  /* Premium Card Styling */
+  /* Professional Card Styling */
   .premium-card {
-    @apply border-none bg-white/80 backdrop-blur-sm shadow-xl rounded-xl overflow-hidden;
+    @apply border-none bg-white/90 backdrop-blur-sm shadow-md rounded-md overflow-hidden;
   }
 
-  /* Premium Button Effect */
+  /* Professional Button Effect */
   .btn-premium {
     @apply relative overflow-hidden transition-all duration-300 after:absolute after:inset-0 after:z-[-1] after:bg-gradient-to-r after:from-psychPurple after:to-psychPurple-dark after:opacity-0 hover:after:opacity-100 after:transition-opacity;
   }
 
-  /* Floating animation for elements */
+  /* Subtle floating animation for elements */
   .floating {
-    animation: floating 6s ease-in-out infinite;
+    animation: floating 8s ease-in-out infinite;
   }
 
   /* Glass morphism effect */
   .glass {
-    @apply backdrop-blur-md bg-white/80 border border-white/20;
+    @apply backdrop-blur-md bg-white/90 border border-white/30;
   }
 
-  /* Premium toast styling */
+  /* Professional toast styling */
   .sonner-premium {
-    --normal-bg: rgba(255, 255, 255, 0.9);
-    --normal-border: rgba(167, 184, 236, 0.25);
+    --normal-bg: rgba(255, 255, 255, 0.95);
+    --normal-border: rgba(167, 184, 236, 0.15);
     --normal-text: #1A1F2C;
-    --success-bg: rgba(90, 227, 152, 0.9);
-    --success-border: rgba(90, 227, 152, 0.3);
+    --success-bg: rgba(90, 227, 152, 0.95);
+    --success-border: rgba(90, 227, 152, 0.2);
     --success-text: #1A1F2C;
-    --error-bg: rgba(234, 56, 76, 0.9);
-    --error-border: rgba(234, 56, 76, 0.3);
+    --error-bg: rgba(234, 56, 76, 0.95);
+    --error-border: rgba(234, 56, 76, 0.2);
     --error-text: white;
     --backdrop-filter: blur(8px);
   }
   
   /* Active nav item styling */
   .nav-item-active {
-    @apply bg-psychPurple/15 text-psychPurple font-medium;
+    @apply bg-psychPurple/10 text-psychText font-medium;
   }
   
   /* Standard nav item styling */
   .nav-item {
-    @apply text-psychText/70 hover:bg-psychPurple/10 hover:text-psychPurple;
+    @apply text-psychText/80 hover:bg-psychPurple/5 hover:text-psychText;
   }
   
-  /* Premium shadow for header */
+  /* Professional shadow for header */
   .header-shadow {
-    @apply shadow-[0_0_15px_rgba(167,184,236,0.15)];
+    @apply shadow-[0_1px_10px_rgba(0,0,0,0.05)];
   }
 
   /* Animation for content fade-in */
   .animate-fade-in {
     animation: fadeIn 0.5s ease-in-out forwards;
   }
+  
+  /* Professional button styling */
+  .btn-professional {
+    @apply rounded-md bg-psychPurple/90 text-white px-4 py-2 font-medium transition-all hover:bg-psychPurple hover:shadow-sm;
+  }
+  
+  /* Psychcentral logo */
+  .psychcentral-logo {
+    @apply font-gt-pressura text-psychText tracking-tight leading-none;
+  }
 }
 
 @keyframes floating {
   0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-6px); }
   100% { transform: translateY(0px); }
 }
 
 @keyframes fadeIn {
-  0% { opacity: 0; transform: translateY(10px); }
+  0% { opacity: 0; transform: translateY(5px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
 /* Loading animation */
 .premium-loader {
-  width: 48px;
-  height: 48px;
-  border: 5px solid rgba(167, 184, 236, 0.3);
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(167, 184, 236, 0.2);
   border-radius: 50%;
   border-top-color: rgba(167, 184, 236, 1);
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
