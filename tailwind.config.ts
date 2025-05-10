@@ -60,18 +60,18 @@ export default {
 				psychPurple: {
 					light: '#e1f0f0', 
 					lighter: '#d1e1ff',
-					DEFAULT: '#a7b8ec', 
+					DEFAULT: '#a7b8ec', // Updated to the exact color from the guidelines
 					dark: '#8a9acd',
 					darker: '#6d7eb6'
 				},
 				psychGreen: {
 					light: '#c5f5d9',
-					DEFAULT: '#00E687', // Bright green exactly as in the logo
+					DEFAULT: '#5ae398', // Updated to the exact color from the guidelines
 					dark: '#41c77f'
 				},
 				psychBeige: {
 					light: '#f7f7ee',
-					DEFAULT: '#f0f0e1',
+					DEFAULT: '#f0f0e1', // Exact color from the guidelines
 					dark: '#e6e6d1'
 				},
 				psychText: {
