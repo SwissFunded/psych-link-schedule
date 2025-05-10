@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -167,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
-      // Use non-email-verification signup flow
+      // Use signUp with emailConfirm set to false to bypass email verification
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -175,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             name: name
           },
-          emailRedirectTo: window.location.origin // Set redirect URL to current origin
+          emailRedirectTo: window.location.origin,
         }
       });
       
@@ -183,14 +182,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
       
-      // Auto-login the user if email confirmation is not required or bypassed
-      if (data.session) {
-        // User is immediately signed in
+      // Auto-login the user immediately after signup
+      if (data.user) {
         toast.success(`Welcome, ${name}!`);
-        navigate('/appointments');
-      } else {
-        // For supabase, users might need to confirm their email
-        toast.success("Registration successful! Please check your email for confirmation.");
+        
+        // If we have a session, the user is automatically logged in
+        if (data.session) {
+          navigate('/appointments');
+        } else {
+          // Otherwise, we'll manually log them in
+          await login(email, password, true);
+        }
       }
     } catch (error: any) {
       console.error('Sign up error:', error);
