@@ -66,7 +66,7 @@ export default {
 				},
 				psychGreen: {
 					light: '#c5f5d9',
-					DEFAULT: '#5ae398',
+					DEFAULT: '#00E687', // Updated to match the bright green in the logo
 					dark: '#41c77f'
 				},
 				psychBeige: {

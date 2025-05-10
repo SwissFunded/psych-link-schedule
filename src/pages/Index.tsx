@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,6 +5,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { PageTransition } from '@/components/ui/PageTransition';
 import { supabase } from '@/integrations/supabase/client';
+import { Logo } from '@/components/ui/logo';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -108,10 +108,9 @@ const Index = () => {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="mb-8 flex flex-col items-center"
           >
-            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-psychPurple to-psychPurple-dark flex items-center justify-center mb-6 shadow-lg shadow-psychPurple/20">
-              <span className="text-white font-bold text-3xl">P</span>
+            <div className="mb-6">
+              <Logo variant="full" />
             </div>
-            <div className="text-4xl font-bold text-psychPurple">PsychCentral</div>
             <div className="text-xl text-psychText/50 text-center mt-2">Authentifiziere Ihre Sitzung</div>
           </motion.div>
           

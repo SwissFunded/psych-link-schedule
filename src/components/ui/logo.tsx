@@ -17,20 +17,28 @@ export function Logo({
 }: LogoProps) {
   return (
     <div className={cn("flex items-center", className)}>
-      {(variant === 'default' || variant === 'icon') && (
-        <div className={cn("h-8 w-8 bg-psychText flex items-center justify-center rounded", iconClassName)}>
-          <span className="text-white font-gt-pressura font-normal text-xl leading-none">P</span>
-        </div>
-      )}
-      
-      {(variant === 'default' || variant === 'full') && (
-        <div className={cn("ml-2.5 flex flex-col", textClassName)}>
+      {/* Left logo section - PsychCentral */}
+      <div className={cn("flex flex-col bg-psychPurple/30 py-2 px-4 rounded-l-md", 
+        variant === 'icon' ? 'rounded-md' : '')}>
+        {(variant === 'default' || variant === 'full' || variant === 'icon') && (
           <span className="font-gt-pressura text-psychText text-xl leading-none">PsychCentral</span>
-          {variant === 'full' && (
+        )}
+        {(variant === 'full' || (variant === 'default' && !variant)) && (
+          <>
+            <span className="font-gt-pressura text-psychText text-xl leading-none mt-1">Ambulante Psychiatrie</span>
+            <span className="font-gt-pressura text-psychText text-xl leading-none mt-1">und Psychotherapie</span>
+          </>
+        )}
+      </div>
+      
+      {/* Right logo section - Psychologie.ch */}
+      {variant !== 'icon' && (
+        <div className={cn("flex flex-col bg-psychGreen/90 py-2 px-4 rounded-r-md", textClassName)}>
+          <span className="font-gt-pressura text-psychText text-xl leading-none">Psychologie.ch</span>
+          {(variant === 'full' || (variant === 'default' && !variant)) && (
             <>
-              <span className="font-gt-pressura text-psychText text-xl leading-none">Ambulante</span>
-              <span className="font-gt-pressura text-psychText text-xl leading-none">Psychiatrie und</span>
-              <span className="font-gt-pressura text-psychText text-xl leading-none">Psychotherapie</span>
+              <span className="font-gt-pressura text-psychText text-xl leading-none mt-1">Zentrum für</span>
+              <span className="font-gt-pressura text-psychText text-xl leading-none mt-1">Psychotherapie</span>
             </>
           )}
         </div>

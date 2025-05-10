@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link } from 'react-router-dom';
@@ -94,6 +93,7 @@ export default function Layout({ children }: LayoutProps) {
                   initial={{ x: -10, opacity: 0 }} 
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ duration: 0.5 }}
+                  className="overflow-hidden"
                 >
                   <Logo />
                 </motion.div>
