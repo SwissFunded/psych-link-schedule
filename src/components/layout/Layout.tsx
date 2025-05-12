@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
@@ -66,7 +67,10 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           <h2 className="text-xl font-gt-pressura mb-4 text-center">Authentifizierung erforderlich</h2>
           <p className="text-center mb-6 text-psychText/70 font-gt-pressura">Bitte nutzen Sie Ihren Login-Link, um auf Ihre Termine zuzugreifen.</p>
-          <Button onClick={() => navigate('/', { replace: true })} className="w-full bg-psychText hover:bg-psychText/90 font-gt-pressura">
+          <Button 
+            onClick={() => navigate('/')} 
+            className="w-full bg-psychText hover:bg-psychText/90 font-gt-pressura"
+          >
             Zurück zum Login
           </Button>
         </motion.div>
