@@ -181,6 +181,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
+      // Get the current site URL dynamically instead of hardcoding localhost
+      const siteUrl = window.location.origin;
+      
       // Use signUp with emailConfirm set to false to bypass email verification
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -192,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone,
             birthdate
           },
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: `${siteUrl}/`,
         }
       });
       
