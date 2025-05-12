@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -195,7 +194,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone,
             birthdate
           },
-          emailRedirectTo: `${siteUrl}/`,
+          // Ensure we're using the full URL without trailing slashes
+          // This needs to match exactly what's configured in the Supabase dashboard
+          emailRedirectTo: siteUrl,
         }
       });
       
