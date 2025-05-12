@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import { User, Session } from '@supabase/supabase-js';
 interface Patient {
   id: string;
   name: string;
+  surname?: string;
   email: string;
   phone: string;
   birthdate?: string;
@@ -19,7 +21,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   login: (email: string, password: string, silent?: boolean) => Promise<void>;
-  signup: (email: string, password: string, name: string, phone: string, birthdate: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, surname: string, phone: string, birthdate: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -29,21 +31,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const DEFAULT_USERS = {
   'miromw@icloud.com': {
     id: "p-miro123",
-    name: "Miró Waltisberg",
+    name: "Miró",
+    surname: "Waltisberg",
     email: "miromw@icloud.com",
     phone: "(555) 123-4567",
     birthdate: "1985-06-15"
   },
   'elena.pellizzon@psychcentral.ch': {
     id: "p-elena456",
-    name: "Elena Pellizon",
+    name: "Elena",
+    surname: "Pellizon",
     email: "elena.pellizzon@psychcentral.ch",
     phone: "(555) 987-6543",
     birthdate: "1990-03-22"
   },
   'jane.smith@example.com': {
     id: "p-jane789",
-    name: "Jane Smith",
+    name: "Jane",
+    surname: "Smith",
     email: "jane.smith@example.com",
     phone: "(555) 246-8101",
     birthdate: "1988-11-30"
@@ -82,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             patientData = {
               id: currentSession.user.id,
               name: userData?.name || userEmail?.split('@')[0] || 'User',
+              surname: userData?.surname || '',
               email: userEmail || '',
               phone: userData?.phone || '',
               birthdate: userData?.birthdate || ''
@@ -117,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           patientData = {
             id: currentSession.user.id,
             name: userData?.name || userEmail?.split('@')[0] || 'User',
+            surname: userData?.surname || '',
             email: userEmail || '',
             phone: userData?.phone || '',
             birthdate: userData?.birthdate || ''
@@ -170,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const signup = async (email: string, password: string, name: string, phone: string, birthdate: string) => {
+  const signup = async (email: string, password: string, name: string, surname: string, phone: string, birthdate: string) => {
     try {
       setLoading(true);
       
@@ -181,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           data: {
             name,
+            surname,
             phone,
             birthdate
           },

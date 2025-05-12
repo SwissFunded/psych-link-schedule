@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,8 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  name: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
+  name: z.string().min(2, "Vorname muss mindestens 2 Zeichen lang sein"),
+  surname: z.string().min(2, "Nachname muss mindestens 2 Zeichen lang sein"),
   email: z.string().email("Gültige E-Mail-Adresse erforderlich"),
   phone: z.string().min(5, "Telefonnummer muss mindestens 5 Zeichen lang sein"),
   birthdate: z.string().refine(value => {
@@ -41,6 +43,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [surname, setSurname] = useState('');
   const [phone, setPhone] = useState('');
   const [birthdate, setBirthdate] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -113,15 +116,25 @@ export default function Login() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const isValid = validateForm(registerSchema, { name, email, phone, birthdate, password, confirmPassword });
+    const isValid = validateForm(registerSchema, { 
+      name, 
+      surname,
+      email, 
+      phone, 
+      birthdate, 
+      password, 
+      confirmPassword 
+    });
+    
     if (!isValid) return;
     
     setIsLoading(true);
     
     try {
-      await signup(email, password, name, phone, birthdate);
+      await signup(email, password, name, surname, phone, birthdate);
       // Reset registration form
       setName('');
+      setSurname('');
       setEmail('');
       setPhone('');
       setBirthdate('');
@@ -240,11 +253,11 @@ export default function Login() {
                   <CardContent>
                     <form onSubmit={handleRegister} className="space-y-3">
                       <div className="space-y-2">
-                        <Label htmlFor="name" className="text-sm font-medium text-psychText/70">Name</Label>
+                        <Label htmlFor="name" className="text-sm font-medium text-psychText/70">Vorname</Label>
                         <Input 
                           id="name" 
                           type="text" 
-                          placeholder="Max Mustermann" 
+                          placeholder="Max" 
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           disabled={isLoading}
@@ -252,6 +265,21 @@ export default function Login() {
                         />
                         {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                       </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="surname" className="text-sm font-medium text-psychText/70">Nachname</Label>
+                        <Input 
+                          id="surname" 
+                          type="text" 
+                          placeholder="Mustermann" 
+                          value={surname}
+                          onChange={(e) => setSurname(e.target.value)}
+                          disabled={isLoading}
+                          className={`border-psychPurple/20 focus:border-psychPurple/50 ${errors.surname ? 'border-red-500' : ''}`}
+                        />
+                        {errors.surname && <p className="text-xs text-red-500">{errors.surname}</p>}
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="register-email" className="text-sm font-medium text-psychText/70">E-Mail</Label>
                         <Input 
