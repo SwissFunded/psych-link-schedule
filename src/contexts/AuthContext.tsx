@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ interface AuthContextType {
   login: (email: string, password: string, silent?: boolean) => Promise<void>;
   signup: (email: string, password: string, name: string, surname: string, phone: string, birthdate: string) => Promise<void>;
   logout: () => void;
+  verifyOtp: (email: string, token: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -180,10 +182,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
-      // Get the current site URL dynamically instead of hardcoding localhost
+      // Get the current site URL dynamically
       const siteUrl = window.location.origin;
       
-      // Use signUp with emailConfirm set to false to bypass email verification
+      // Use signUp with OTP for email verification
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -194,8 +196,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone,
             birthdate
           },
-          // Ensure we're using the full URL without trailing slashes
-          // This needs to match exactly what's configured in the Supabase dashboard
           emailRedirectTo: siteUrl,
         }
       });
@@ -204,22 +204,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
       
-      // Auto-login the user immediately after signup
+      // Show success message for OTP verification
       if (data.user) {
-        toast.success(`Welcome, ${name}!`);
+        toast.success(`Registrierung erfolgreich! Bitte geben Sie den Bestätigungscode ein, der an ${email} gesendet wurde.`);
         
-        // If we have a session, the user is automatically logged in
-        if (data.session) {
-          navigate('/appointments');
-        } else {
-          // Otherwise, we'll manually log them in
-          await login(email, password, true);
-        }
+        // Redirect to the OTP verification page with the email address
+        navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
       }
     } catch (error: any) {
       console.error('Sign up error:', error);
       toast.error(error.message || "Registration failed");
       throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const verifyOtp = async (email: string, token: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'signup'
+      });
+      
+      if (error) {
+        toast.error(error.message || "Ungültiger Code");
+        return false;
+      }
+      
+      if (data.session) {
+        toast.success("E-Mail erfolgreich bestätigt! Willkommen!");
+        navigate('/appointments');
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
+      console.error('OTP verification error:', error);
+      toast.error(error.message || "Verifizierung fehlgeschlagen");
+      return false;
     } finally {
       setLoading(false);
     }
@@ -249,7 +275,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading, 
       login, 
       signup,
-      logout 
+      logout,
+      verifyOtp
     }}>
       {children}
     </AuthContext.Provider>
