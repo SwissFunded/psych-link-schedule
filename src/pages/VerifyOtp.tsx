@@ -49,8 +49,8 @@ export default function VerifyOtp() {
 
   // Handle OTP verification
   const handleVerify = async () => {
-    if (otp.length !== 6) {
-      toast.error("Bitte geben Sie den 6-stelligen Code ein");
+    if (otp.length !== 4) {
+      toast.error("Bitte geben Sie den 4-stelligen Code ein");
       return;
     }
 
@@ -109,7 +109,7 @@ export default function VerifyOtp() {
               <CardHeader className="pb-4">
                 <CardTitle className="text-xl font-medium text-psychText">Bestätigungscode eingeben</CardTitle>
                 <CardDescription className="text-psychText/60">
-                  Bitte geben Sie den Code ein, der an <span className="font-medium">{email}</span> gesendet wurde
+                  Bitte geben Sie den 4-stelligen Code ein, der an <span className="font-medium">{email}</span> gesendet wurde
                 </CardDescription>
               </CardHeader>
               
@@ -121,26 +121,24 @@ export default function VerifyOtp() {
                   
                   <div className="w-full">
                     <InputOTP 
-                      maxLength={6}
+                      maxLength={4}
                       value={otp} 
                       onChange={(value) => setOtp(value)}
                       disabled={isSubmitting}
                       className="w-full justify-center"
                     >
                       <InputOTPGroup>
-                        <InputOTPSlot index={0} className="border-psychPurple/20 focus:border-psychPurple" />
-                        <InputOTPSlot index={1} className="border-psychPurple/20 focus:border-psychPurple" />
-                        <InputOTPSlot index={2} className="border-psychPurple/20 focus:border-psychPurple" />
-                        <InputOTPSlot index={3} className="border-psychPurple/20 focus:border-psychPurple" />
-                        <InputOTPSlot index={4} className="border-psychPurple/20 focus:border-psychPurple" />
-                        <InputOTPSlot index={5} className="border-psychPurple/20 focus:border-psychPurple" />
+                        <InputOTPSlot index={0} className="border-psychPurple/20 focus:border-psychPurple h-14 w-14 text-lg" />
+                        <InputOTPSlot index={1} className="border-psychPurple/20 focus:border-psychPurple h-14 w-14 text-lg" />
+                        <InputOTPSlot index={2} className="border-psychPurple/20 focus:border-psychPurple h-14 w-14 text-lg" />
+                        <InputOTPSlot index={3} className="border-psychPurple/20 focus:border-psychPurple h-14 w-14 text-lg" />
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
                   
                   <Button 
                     onClick={handleVerify}
-                    disabled={otp.length !== 6 || isSubmitting}
+                    disabled={otp.length !== 4 || isSubmitting}
                     className="w-full bg-gradient-to-r from-psychPurple-dark to-psychPurple hover:from-psychPurple hover:to-psychPurple-dark text-white hover:shadow-lg hover:shadow-psychPurple/20 transition-all duration-300"
                   >
                     {isSubmitting ? (

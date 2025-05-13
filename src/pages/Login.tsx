@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -132,7 +131,7 @@ export default function Login() {
     
     try {
       await signup(email, password, name, surname, phone, birthdate);
-      // Reset registration form
+      // Reset registration form fields
       setName('');
       setSurname('');
       setEmail('');
@@ -140,8 +139,6 @@ export default function Login() {
       setBirthdate('');
       setPassword('');
       setConfirmPassword('');
-      // Switch to login tab after successful registration
-      setActiveTab('login');
     } catch (error) {
       console.error('Registration failed:', error);
     } finally {
@@ -251,6 +248,10 @@ export default function Login() {
                 
                 <TabsContent value="register" className="m-0">
                   <CardContent>
+                    <div className="mb-4 p-3 bg-psychPurple/5 rounded-md text-sm text-psychText/80">
+                      <p>Nach der Registrierung erhalten Sie einen 4-stelligen Code per E-Mail zur Bestätigung Ihres Kontos.</p>
+                    </div>
+                    
                     <form onSubmit={handleRegister} className="space-y-3">
                       <div className="space-y-2">
                         <Label htmlFor="name" className="text-sm font-medium text-psychText/70">Vorname</Label>

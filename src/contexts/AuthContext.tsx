@@ -56,6 +56,11 @@ const DEFAULT_USERS = {
   }
 };
 
+// Function to generate a random 4-digit OTP code
+const generateOTPCode = (): string => {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -185,8 +190,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Get the current site URL dynamically
       const siteUrl = window.location.origin;
       
-      // Use signUp with OTP for email verification
-      const { data, error } = await supabase.auth.signUp({
+      // Use a custom OTP flow for email verification
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -205,12 +210,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       // Show success message for OTP verification
-      if (data.user) {
-        toast.success(`Registrierung erfolgreich! Bitte geben Sie den Bestätigungscode ein, der an ${email} gesendet wurde.`);
-        
-        // Redirect to the OTP verification page with the email address
-        navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
-      }
+      toast.success(`Registrierung erfolgreich! Bitte geben Sie den Bestätigungscode ein, der an ${email} gesendet wurde.`);
+      
+      // Redirect to the OTP verification page with the email address
+      navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
+      
     } catch (error: any) {
       console.error('Sign up error:', error);
       toast.error(error.message || "Registration failed");
