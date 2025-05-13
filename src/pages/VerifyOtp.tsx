@@ -70,9 +70,21 @@ export default function VerifyOtp() {
     setCanResend(false);
     setCountdown(60);
     
-    // Request password reset which will send a new OTP
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/verify-otp?email=' + encodeURIComponent(email)
+    const pendingRegistration = sessionStorage.getItem('pendingRegistration');
+    let password = '';
+    
+    if (pendingRegistration) {
+      const userData = JSON.parse(pendingRegistration);
+      password = userData.password;
+    }
+    
+    // Resend signup OTP
+    const { error } = await supabase.auth.signUp({
+      email,
+      password: password || 'dummy-password', // Use stored password or a dummy one for resending
+      options: {
+        emailRedirectTo: `${window.location.origin}/verify-otp?email=${encodeURIComponent(email)}`,
+      }
     });
     
     if (error) {
