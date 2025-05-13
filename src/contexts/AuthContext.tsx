@@ -187,27 +187,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
-      // Get the current site URL dynamically
-      const siteUrl = window.location.origin;
-      
-      // Use a custom OTP flow for email verification
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            surname,
-            phone,
-            birthdate
-          },
-          emailRedirectTo: siteUrl,
-        }
+      // Use password reset flow to send a custom 4-digit OTP code
+      // This is a workaround since Supabase doesn't allow customizing the OTP length for signup
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/verify-otp?email=${encodeURIComponent(email)}`,
       });
       
       if (error) {
         throw error;
       }
+      
+      // Store registration data in session storage to retrieve after OTP verification
+      const userData = {
+        email,
+        password,
+        name,
+        surname,
+        phone,
+        birthdate
+      };
+      
+      sessionStorage.setItem('pendingRegistration', JSON.stringify(userData));
       
       // Show success message for OTP verification
       toast.success(`Registrierung erfolgreich! Bitte geben Sie den Bestätigungscode ein, der an ${email} gesendet wurde.`);
@@ -228,24 +228,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'signup'
-      });
+      // Check if we have pending registration data
+      const pendingRegistrationData = sessionStorage.getItem('pendingRegistration');
       
-      if (error) {
-        toast.error(error.message || "Ungültiger Code");
+      if (pendingRegistrationData) {
+        const userData = JSON.parse(pendingRegistrationData);
+        
+        // First verify the OTP
+        const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+          email,
+          token,
+          type: 'recovery'
+        });
+        
+        if (verifyError) {
+          toast.error(verifyError.message || "Ungültiger Code");
+          return false;
+        }
+        
+        // If OTP verification successful, proceed with actual signup
+        if (verifyData.session) {
+          // First logout from the temporary session
+          await supabase.auth.signOut();
+          
+          // Now create the actual account
+          const { data: signupData, error: signupError } = await supabase.auth.signUp({
+            email: userData.email,
+            password: userData.password,
+            options: {
+              data: {
+                name: userData.name,
+                surname: userData.surname,
+                phone: userData.phone,
+                birthdate: userData.birthdate
+              }
+            }
+          });
+          
+          if (signupError) {
+            toast.error(signupError.message || "Registrierung fehlgeschlagen");
+            return false;
+          }
+          
+          // Clear the pending registration data
+          sessionStorage.removeItem('pendingRegistration');
+          
+          // Automatically log in with the new account
+          await login(userData.email, userData.password, true);
+          
+          toast.success("Konto erfolgreich erstellt! Willkommen!");
+          navigate('/appointments');
+          return true;
+        }
+        
+        return false;
+      } else {
+        // Normal OTP verification (not for registration)
+        const { data, error } = await supabase.auth.verifyOtp({
+          email,
+          token,
+          type: 'signup'
+        });
+        
+        if (error) {
+          toast.error(error.message || "Ungültiger Code");
+          return false;
+        }
+        
+        if (data.session) {
+          toast.success("E-Mail erfolgreich bestätigt! Willkommen!");
+          navigate('/appointments');
+          return true;
+        }
+        
         return false;
       }
-      
-      if (data.session) {
-        toast.success("E-Mail erfolgreich bestätigt! Willkommen!");
-        navigate('/appointments');
-        return true;
-      }
-      
-      return false;
     } catch (error: any) {
       console.error('OTP verification error:', error);
       toast.error(error.message || "Verifizierung fehlgeschlagen");
