@@ -35,19 +35,23 @@ export interface RescheduleAppointmentData {
   metadata?: Record<string, unknown>;
 }
 
-// Create Axios instance with default configuration
+// Create Axios instance with default configuration using Basic Auth
 const createApiClient = () => {
-  const apiKey = import.meta.env.VITE_EPAT_API_KEY;
+  const username = import.meta.env.VITE_EPAT_USERNAME;
+  const password = import.meta.env.VITE_EPAT_PASSWORD;
   
-  if (!apiKey) {
-    console.error('API key is not defined in environment variables');
-    throw new Error('API key is missing');
+  if (!username || !password) {
+    console.error('API credentials are not defined in environment variables');
+    throw new Error('API credentials are missing');
   }
+  
+  // Create Base64 encoded credentials
+  const token = btoa(`${username}:${password}`);
   
   return axios.create({
     baseURL: 'https://dev.vitabyte.ch/v1',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Basic ${token}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     },
@@ -79,8 +83,8 @@ const handleApiError = (error: unknown): never => {
 };
 
 /**
- * Verifies if the API key is valid by calling the verify endpoint
- * @returns Promise with boolean indicating if the API key is valid
+ * Verifies if the API credentials are valid by calling the verify endpoint
+ * @returns Promise with boolean indicating if the credentials are valid
  */
 export const verifyApiKey = async (): Promise<boolean> => {
   const apiClient = createApiClient();
@@ -92,7 +96,7 @@ export const verifyApiKey = async (): Promise<boolean> => {
   } catch (error) {
     // For this specific function, we return false instead of throwing
     // since it's used to check authentication
-    console.error('Failed to verify API key');
+    console.error('Failed to verify API credentials');
     return false;
   }
 };
@@ -105,6 +109,7 @@ export const getAvailableAppointments = async (): Promise<AvailableAppointment[]
   const apiClient = createApiClient();
   
   try {
+    // This is a placeholder endpoint - replace with actual endpoint when available
     const response = await apiClient.get<ApiResponse<AvailableAppointment[]>>('/appointments/available');
     
     if (!response.data.success || !response.data.data) {
@@ -147,6 +152,7 @@ export const cancelAppointment = async (appointmentId: string): Promise<Appointm
   const apiClient = createApiClient();
   
   try {
+    // This is a placeholder endpoint - replace with actual endpoint when available
     const response = await apiClient.post<ApiResponse<Appointment>>(`/appointments/${appointmentId}/cancel`);
     
     if (!response.data.success || !response.data.data) {
@@ -160,7 +166,7 @@ export const cancelAppointment = async (appointmentId: string): Promise<Appointm
 };
 
 /**
- * Reschedules an appointment
+ * Reschedules an appointment by cancelling the old one and booking a new one
  * @param appointmentId ID of the appointment to reschedule
  * @param newData New appointment data
  * @returns Promise with the rescheduled appointment details
@@ -172,16 +178,18 @@ export const rescheduleAppointment = async (
   const apiClient = createApiClient();
   
   try {
-    const response = await apiClient.post<ApiResponse<Appointment>>(
-      `/appointments/${appointmentId}/reschedule`, 
-      newData
-    );
+    // First cancel the existing appointment
+    await cancelAppointment(appointmentId);
     
-    if (!response.data.success || !response.data.data) {
-      throw new Error('Failed to reschedule appointment');
-    }
+    // Then book the new appointment
+    const bookingData: BookAppointmentData = {
+      appointmentId: newData.newAppointmentId,
+      patientId: '', // This should be obtained from the original appointment or context
+      metadata: newData.metadata,
+    };
     
-    return response.data.data;
+    // Book the new appointment
+    return await bookAppointment(bookingData);
   } catch (error) {
     return handleApiError(error);
   }

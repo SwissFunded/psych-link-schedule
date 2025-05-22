@@ -23,7 +23,15 @@ export interface TimeSlot {
   available: boolean;
 }
 
-// Mock therapists data
+import { vitabyteService } from './vitabyteService';
+
+/**
+ * USE_MOCK_DATA controls whether to use mock data or the real API.
+ * Set to false to use the Vitabyte ePAD API.
+ */
+const USE_MOCK_DATA = false;
+
+// Mock therapists data (used only if USE_MOCK_DATA is true)
 const therapists: Therapist[] = [
   {
     id: "t1",
@@ -42,7 +50,7 @@ const therapists: Therapist[] = [
   }
 ];
 
-// Mock appointments for the current patient
+// Mock appointments for the current patient (used only if USE_MOCK_DATA is true)
 const patientAppointments: Appointment[] = [
   {
     id: "apt1",
@@ -73,7 +81,7 @@ const patientAppointments: Appointment[] = [
   }
 ];
 
-// Mock available time slots
+// Mock available time slots (used only if USE_MOCK_DATA is true)
 const generateAvailableSlots = (): TimeSlot[] => {
   const slots: TimeSlot[] = [];
   const startDate = new Date();
@@ -126,7 +134,7 @@ const generateAvailableSlots = (): TimeSlot[] => {
 
 const availableSlots = generateAvailableSlots();
 
-// Generate a guaranteed list of fixed available time slots for the next 7 days
+// Generate a guaranteed list of fixed available time slots for the next 7 days (used only if USE_MOCK_DATA is true)
 const generateFixedAvailableSlots = (): TimeSlot[] => {
   const fixedSlots: TimeSlot[] = [];
   const startDate = new Date();
@@ -165,109 +173,154 @@ const generateFixedAvailableSlots = (): TimeSlot[] => {
 
 const fixedAvailableSlots = generateFixedAvailableSlots();
 
-// Service functions
+// Service functions - automatically uses the right data source based on USE_MOCK_DATA
 export const appointmentService = {
   getTherapists: async (): Promise<Therapist[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [...therapists];
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return [...therapists];
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.getTherapists();
+    }
   },
   
   getTherapistById: async (id: string): Promise<Therapist | undefined> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return therapists.find(t => t.id === id);
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return therapists.find(t => t.id === id);
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.getTherapistById(id);
+    }
   },
   
   getPatientAppointments: async (patientId: string): Promise<Appointment[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 700));
-    return patientAppointments.filter(apt => apt.patientId === patientId);
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 700));
+      return patientAppointments.filter(apt => apt.patientId === patientId);
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.getPatientAppointments(patientId);
+    }
   },
   
   getUpcomingAppointments: async (patientId: string): Promise<Appointment[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const now = new Date();
-    return patientAppointments.filter(apt => 
-      apt.patientId === patientId && 
-      apt.status === 'scheduled' && 
-      new Date(apt.date) > now
-    );
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const now = new Date();
+      return patientAppointments.filter(apt => 
+        apt.patientId === patientId && 
+        apt.status === 'scheduled' && 
+        new Date(apt.date) > now
+      );
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.getUpcomingAppointments(patientId);
+    }
   },
   
   getPastAppointments: async (patientId: string): Promise<Appointment[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const now = new Date();
-    return patientAppointments.filter(apt => 
-      apt.patientId === patientId && 
-      (apt.status === 'completed' || apt.status === 'no-show' || new Date(apt.date) < now)
-    );
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const now = new Date();
+      return patientAppointments.filter(apt => 
+        apt.patientId === patientId && 
+        (apt.status === 'completed' || apt.status === 'no-show' || new Date(apt.date) < now)
+      );
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.getPastAppointments(patientId);
+    }
   },
   
   getAvailableTimeSlots: async (therapistId: string, startDate: Date, endDate: Date): Promise<TimeSlot[]> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Filter available slots
-    const filteredSlots = availableSlots.filter(slot => 
-      slot.therapistId === therapistId &&
-      slot.available &&
-      new Date(slot.date) >= startDate &&
-      new Date(slot.date) <= endDate
-    );
-    
-    // If no slots are available, return fixed guaranteed slots
-    if (filteredSlots.length === 0) {
-      return fixedAvailableSlots.filter(slot => 
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Filter available slots
+      const filteredSlots = availableSlots.filter(slot => 
         slot.therapistId === therapistId &&
+        slot.available &&
         new Date(slot.date) >= startDate &&
         new Date(slot.date) <= endDate
       );
+      
+      // If no slots are available, return fixed guaranteed slots
+      if (filteredSlots.length === 0) {
+        return fixedAvailableSlots.filter(slot => 
+          slot.therapistId === therapistId &&
+          new Date(slot.date) >= startDate &&
+          new Date(slot.date) <= endDate
+        );
+      }
+      
+      return filteredSlots;
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.getAvailableTimeSlots(therapistId, startDate, endDate);
     }
-    
-    return filteredSlots;
   },
   
   bookAppointment: async (appointment: Omit<Appointment, 'id'>): Promise<Appointment> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newAppointment: Appointment = {
-      ...appointment,
-      id: 'apt' + Math.random().toString(36).substr(2, 9)
-    };
-    
-    // Update our mock data
-    patientAppointments.push(newAppointment);
-    
-    return newAppointment;
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const newAppointment: Appointment = {
+        ...appointment,
+        id: 'apt' + Math.random().toString(36).substr(2, 9)
+      };
+      
+      // Update our mock data
+      patientAppointments.push(newAppointment);
+      
+      return newAppointment;
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.bookAppointment(appointment);
+    }
   },
   
   cancelAppointment: async (appointmentId: string): Promise<boolean> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const appointmentIndex = patientAppointments.findIndex(apt => apt.id === appointmentId);
-    if (appointmentIndex !== -1) {
-      patientAppointments[appointmentIndex].status = 'cancelled';
-      return true;
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const appointmentIndex = patientAppointments.findIndex(apt => apt.id === appointmentId);
+      if (appointmentIndex !== -1) {
+        patientAppointments[appointmentIndex].status = 'cancelled';
+        return true;
+      }
+      
+      return false;
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.cancelAppointment(appointmentId);
     }
-    
-    return false;
   },
   
   rescheduleAppointment: async (appointmentId: string, newDate: string): Promise<Appointment | null> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const appointmentIndex = patientAppointments.findIndex(apt => apt.id === appointmentId);
-    if (appointmentIndex !== -1) {
-      patientAppointments[appointmentIndex].date = newDate;
-      return patientAppointments[appointmentIndex];
+    if (USE_MOCK_DATA) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const appointmentIndex = patientAppointments.findIndex(apt => apt.id === appointmentId);
+      if (appointmentIndex !== -1) {
+        patientAppointments[appointmentIndex].date = newDate;
+        return patientAppointments[appointmentIndex];
+      }
+      
+      return null;
+    } else {
+      // Use Vitabyte ePAD API
+      return vitabyteService.rescheduleAppointment(appointmentId, newDate);
     }
-    
-    return null;
   }
 };

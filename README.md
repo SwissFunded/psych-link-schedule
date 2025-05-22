@@ -59,6 +59,7 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Vitabyte ePAD API Integration
 
 ## How can I deploy this project?
 
@@ -71,3 +72,20 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Vitabyte ePAD API Integration
+
+This project integrates with the Vitabyte ePAD API for appointment management. To use this integration:
+
+1. Create a `.env` file in the root directory of the project
+2. Add your Vitabyte ePAD API credentials to the `.env` file:
+
+```
+VITE_VITABYTE_API_URL=<your Vitabyte ePAD API URL>
+VITE_VITABYTE_API_KEY=<your Vitabyte ePAD API key>
+VITE_VITABYTE_API_SECRET=<your Vitabyte ePAD API secret>
+```
+
+3. Restart the development server if it's already running
+
+If you don't have Vitabyte ePAD API credentials, you can still use the app with mock data by setting `USE_MOCK_DATA = true` in `src/services/appointmentService.ts`.
