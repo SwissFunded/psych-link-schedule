@@ -1,9 +1,8 @@
-
 import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, Calendar, Clock, LogOut, UserCircle } from 'lucide-react';
+import { User, Calendar, Clock, LogOut, UserCircle, Code } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/PageTransition';
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem } from "@/components/ui/navigation-menu";
@@ -88,7 +87,8 @@ export default function Layout({ children }: LayoutProps) {
   const navItems = [
     { name: "Termine", path: "/termine", icon: <Calendar size={18} className="mr-1.5" /> },
     { name: "Buchen", path: "/buchen", icon: <Clock size={18} className="mr-1.5" /> },
-    { name: "Profil", path: "/profil", icon: <UserCircle size={18} className="mr-1.5" /> }
+    { name: "Profil", path: "/profil", icon: <UserCircle size={18} className="mr-1.5" /> },
+    { name: "Development", path: "/development", icon: <Code size={18} className="mr-1.5" /> }
   ];
   
   return (

@@ -23,7 +23,19 @@ export interface TimeSlot {
   available: boolean;
 }
 
-import { vitabyteService } from './vitabyteService';
+import * as epatApi from '../lib/epatApi';
+
+// Helper function to convert epatApi Appointment to appointmentService Appointment
+const convertEpatAppointment = (epatAppointment: epatApi.Appointment): Appointment => ({
+  id: epatAppointment.id,
+  patientId: epatAppointment.patientId,
+  therapistId: epatAppointment.therapistId || '',
+  date: epatAppointment.dateTime,
+  duration: epatAppointment.duration,
+  status: epatAppointment.status as 'scheduled' | 'completed' | 'cancelled' | 'no-show',
+  type: epatAppointment.type || 'in-person',
+  notes: epatAppointment.notes,
+});
 
 /**
  * USE_MOCK_DATA controls whether to use mock data or the real API.
@@ -182,7 +194,7 @@ export const appointmentService = {
       return [...therapists];
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.getTherapists();
+      return epatApi.getTherapists();
     }
   },
   
@@ -193,7 +205,7 @@ export const appointmentService = {
       return therapists.find(t => t.id === id);
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.getTherapistById(id);
+      return epatApi.getTherapistById(id);
     }
   },
   
@@ -204,7 +216,8 @@ export const appointmentService = {
       return patientAppointments.filter(apt => apt.patientId === patientId);
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.getPatientAppointments(patientId);
+      const epatAppointments = await epatApi.getPatientAppointments({ patientId });
+      return epatAppointments.map(convertEpatAppointment);
     }
   },
   
@@ -220,7 +233,13 @@ export const appointmentService = {
       );
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.getUpcomingAppointments(patientId);
+      const now = new Date();
+      const epatAppointments = await epatApi.getPatientAppointments({ 
+        patientId,
+        startDate: now.toISOString(),
+        status: 'scheduled'
+      });
+      return epatAppointments.map(convertEpatAppointment);
     }
   },
   
@@ -235,7 +254,24 @@ export const appointmentService = {
       );
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.getPastAppointments(patientId);
+      const now = new Date();
+      const epatAppointments = await epatApi.getPatientAppointments({ 
+        patientId,
+        endDate: now.toISOString()
+      });
+      
+      // Filter and sort by date (most recent first)
+      const pastAppointments = epatAppointments
+        .map(convertEpatAppointment)
+        .filter(apt => 
+          apt.status === 'completed' || 
+          apt.status === 'cancelled' || 
+          apt.status === 'no-show' ||
+          new Date(apt.date) < now
+        )
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      return pastAppointments;
     }
   },
   
@@ -264,7 +300,21 @@ export const appointmentService = {
       return filteredSlots;
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.getAvailableTimeSlots(therapistId, startDate, endDate);
+      const availableAppointments = await epatApi.getAvailableAppointments();
+      
+      // Convert available appointments to time slots and filter by therapist and date range
+      return availableAppointments
+        .filter(appointment => 
+          appointment.isAvailable &&
+          new Date(appointment.dateTime) >= startDate &&
+          new Date(appointment.dateTime) <= endDate
+        )
+        .map(appointment => ({
+          therapistId: therapistId, // Use the requested therapistId
+          date: appointment.dateTime,
+          duration: appointment.duration,
+          available: appointment.isAvailable
+        }));
     }
   },
   
@@ -284,7 +334,18 @@ export const appointmentService = {
       return newAppointment;
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.bookAppointment(appointment);
+      const bookingData: epatApi.BookAppointmentData = {
+        appointmentId: '', // This might need to be derived from available appointments
+        patientId: appointment.patientId,
+        metadata: {
+          therapistId: appointment.therapistId,
+          type: appointment.type,
+          notes: appointment.notes
+        }
+      };
+      
+      const epatAppointment = await epatApi.bookAppointment(bookingData);
+      return convertEpatAppointment(epatAppointment);
     }
   },
   
@@ -302,7 +363,13 @@ export const appointmentService = {
       return false;
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.cancelAppointment(appointmentId);
+      try {
+        await epatApi.cancelAppointment(appointmentId);
+        return true;
+      } catch (error) {
+        console.error('Error cancelling appointment:', error);
+        return false;
+      }
     }
   },
   
@@ -320,7 +387,20 @@ export const appointmentService = {
       return null;
     } else {
       // Use Vitabyte ePAD API
-      return vitabyteService.rescheduleAppointment(appointmentId, newDate);
+      try {
+        const rescheduleData: epatApi.RescheduleAppointmentData = {
+          newAppointmentId: '', // This might need to be derived from available appointments for the new date
+          metadata: {
+            newDate: newDate
+          }
+        };
+        
+        const epatAppointment = await epatApi.rescheduleAppointment(appointmentId, rescheduleData);
+        return convertEpatAppointment(epatAppointment);
+      } catch (error) {
+        console.error('Error rescheduling appointment:', error);
+        return null;
+      }
     }
   }
 };

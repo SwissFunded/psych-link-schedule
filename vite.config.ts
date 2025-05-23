@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -15,6 +14,20 @@ export default defineConfig(({ mode }) => ({
       "*.lovable.dev",
       "*.lovableproject.com",
     ],
+    proxy: {
+      '/api/system': {
+        target: 'https://psych.vitabyte.ch/v1/system',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/system/, ''),
+        secure: true,
+      },
+      '/api/agenda': {
+        target: 'https://psych.vitabyte.ch/v1/agenda',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/agenda/, ''),
+        secure: true,
+      },
+    },
   },
   plugins: [
     react(),

@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +17,7 @@ const Appointments = lazy(() => import("./pages/Appointments"));
 const Book = lazy(() => import("./pages/Book"));
 const Reschedule = lazy(() => import("./pages/Reschedule"));
 const Profile = lazy(() => import("./pages/Profile"));
+const Development = lazy(() => import("./pages/Development"));
 
 // Create a fallback loading component
 const PageLoading = () => (
@@ -69,6 +69,11 @@ const AnimationRoutes = () => {
           </Suspense>
         } />
         <Route path="/profil" element={<Navigate to="/profile" replace />} />
+        <Route path="/development" element={
+          <Suspense fallback={<PageLoading />}>
+            <Development />
+          </Suspense>
+        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>

@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_VITABYTE_API_URL: string;
-  readonly VITE_VITABYTE_API_KEY: string;
-  readonly VITE_VITABYTE_API_SECRET: string;
+  readonly VITE_EPAT_USERNAME: string;
+  readonly VITE_EPAT_PASSWORD: string;
+  readonly VITE_EPAT_API_URL?: string;
   // more env variables...
 }
 

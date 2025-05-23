@@ -75,17 +75,20 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-trick
 
 ## Vitabyte ePAD API Integration
 
-This project integrates with the Vitabyte ePAD API for appointment management. To use this integration:
+This project integrates with the Vitabyte ePAD API for appointment management using Basic Authentication. To use this integration:
 
-1. Create a `.env` file in the root directory of the project
+1. Create a `.env` file in the root directory of the project (or copy from `.env.example`)
 2. Add your Vitabyte ePAD API credentials to the `.env` file:
 
 ```
-VITE_VITABYTE_API_URL=<your Vitabyte ePAD API URL>
-VITE_VITABYTE_API_KEY=<your Vitabyte ePAD API key>
-VITE_VITABYTE_API_SECRET=<your Vitabyte ePAD API secret>
+VITE_EPAT_USERNAME=<your Vitabyte ePAD username>
+VITE_EPAT_PASSWORD=<your Vitabyte ePAD password>
 ```
 
 3. Restart the development server if it's already running
 
+The API client automatically encodes your credentials using Basic Authentication (Base64 encoding of `username:password`).
+
 If you don't have Vitabyte ePAD API credentials, you can still use the app with mock data by setting `USE_MOCK_DATA = true` in `src/services/appointmentService.ts`.
+
+For deployment on Vercel, add these environment variables in your project settings under "Environment Variables".
