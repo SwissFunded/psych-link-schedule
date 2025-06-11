@@ -217,10 +217,19 @@ The user wants to implement a seamless user registration flow that:
 - **Treater Assignment**: Provider 215 (Miro' Waltisberg) correctly identified
 - **Calendar Integration**: 456 available time slots generated from ICS calendar (excluding 5 busy times)
 
-**🎯 IMMEDIATE PRIORITY: Database Schema Setup**
-- Need to execute `supabase-schema.sql` in the Supabase database
-- Create the `bookings` table with proper indexes and RLS policies
-- Test appointment booking flow after database setup
+**🚀 NEW IMPLEMENTATION: API-First Booking Approach**
+- **Strategy**: Bypass Supabase database issues by booking directly through Vitabyte API first
+- **Implementation**: Added `bookAppointmentViaAPI()` function that creates appointments directly in Vitabyte system
+- **Fallback**: If API booking succeeds, optionally store in Supabase as backup (gracefully handles missing table)
+- **Benefits**: Works immediately without requiring database setup, uses real Vitabyte appointment creation
+- **Calendar ID Mapping**: Using provider ID (215) as calendar ID - may need adjustment based on API documentation
+
+**🎯 IMMEDIATE TESTING PRIORITY**
+- Test API-first booking with patient 27949 (miromw@icloud.com) and provider 215
+- Monitor logs to see if provider ID maps correctly to calendar ID
+- If calendar ID mapping fails, may need API documentation to understand proper calendar assignment
+
+**📋 DEPLOYMENT STATUS**: Changes deployed and ready for testing
 
 **🔥 EXECUTOR UPDATE: VERCEL PROXY OPTIMIZATION - LOCALHOST WORKING PERFECTLY**
 

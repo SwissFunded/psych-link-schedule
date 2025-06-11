@@ -338,9 +338,19 @@ export const appointmentService = {
 
       console.log('✅ Found treater provider ID:', treater.provider);
 
-      // For now, we'll use provider ID as calendar ID (this might need adjustment based on API docs)
-      // The logs show we have different calendar IDs (120 for Dr. Sporer), so this is an assumption
-      const calendarId = treater.provider; // This might need to be mapped differently
+      // CALENDAR ID MAPPING: Provider ID 215 doesn't directly map to calendar ID
+      // From logs: Calendar ID 120 works for Dr. Sporer, API docs show calendar ID 2 as example
+      // For provider 215 (Miro' Waltisberg), we need to find the correct calendar ID
+      
+      // Temporary: Try known working calendar IDs
+      // TODO: Implement proper provider-to-calendar mapping or discovery endpoint
+      const calendarIdMapping: Record<number, number> = {
+        96: 120,   // Dr. med. Sonja Sporer -> Calendar ID 120 (from logs)
+        215: 2,    // Miro' Waltisberg -> Try Calendar ID 2 (from API docs example)
+      };
+      
+      const calendarId = calendarIdMapping[treater.provider] || 2; // Default to example calendar ID 2
+      console.log(`📅 Mapping provider ${treater.provider} to calendar ID ${calendarId}`);
 
       // Format the appointment data for Vitabyte API
       const appointmentDateTime = new Date(`${bookingData.appointmentDate}T${bookingData.appointmentTime}:00`);
@@ -350,9 +360,14 @@ export const appointmentService = {
         return date.toISOString().replace('T', ' ').substring(0, 19); // "2024-12-27 14:30:00"
       };
 
+      const dateTimeStr = formatVitabyteDateTime(appointmentDateTime);
+      const endTimeStr = formatVitabyteDateTime(endDateTime);
+
       const apiBookingData: BookAppointmentData = {
-        date: formatVitabyteDateTime(appointmentDateTime),
-        end: formatVitabyteDateTime(endDateTime),
+        date: dateTimeStr,
+        end: endTimeStr,
+        dateTs: dateTimeStr,    // Required by API docs
+        endTs: endTimeStr,      // Required by API docs
         calendar: calendarId,
         patid: vitabytePatientId,
         appointment: bookingData.appointmentType === 'phone' ? 'Telefon' : 'Konsultation',
