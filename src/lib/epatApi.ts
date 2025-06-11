@@ -183,14 +183,27 @@ const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
     },
   });
 
-  // For production, add the endpoint parameter to all requests
+  // For production, intercept requests to add endpoint and path parameters
   if (!isDevelopment) {
     client.interceptors.request.use((config) => {
-      // Add endpoint parameter to all requests in production
+      // Extract the path from the request URL (like /verify, /getCustomerByMail)
+      const path = config.url || '';
+      
+      // For proxy, we send everything to /api/proxy with endpoint and path as parameters
+      config.url = ''; // Clear the URL since we're using query params
       config.params = {
         ...config.params,
-        endpoint: appName
+        endpoint: appName,
+        path: path  // Add the path as a parameter
       };
+      
+      console.log('🔧 Request interceptor:', {
+        originalPath: path,
+        endpoint: appName,
+        finalUrl: `${client.defaults.baseURL}`,
+        params: config.params
+      });
+      
       return config;
     });
   }

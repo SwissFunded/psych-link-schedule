@@ -21,15 +21,26 @@ export default async function handler(
   }
 
   try {
-    // Extract the endpoint from the query parameter
-    const { endpoint } = req.query;
+    // Extract the endpoint and path from the query parameters
+    const { endpoint, path } = req.query;
     
     if (!endpoint || Array.isArray(endpoint)) {
       return res.status(400).json({ error: 'Endpoint parameter is required and must be a string' });
     }
 
-    // Get the path from the request URL (everything after /api/proxy)
-    const requestPath = req.url?.split('?')[0]?.replace('/api/proxy', '') || '';
+    // Use the path parameter if provided, otherwise try to extract from URL
+    let requestPath = '';
+    if (path && !Array.isArray(path)) {
+      requestPath = path as string;
+    } else {
+      // Fallback: Get the path from the request URL (everything after /api/proxy)
+      requestPath = req.url?.split('?')[0]?.replace('/api/proxy', '') || '';
+    }
+    
+    // Ensure path starts with / if not empty
+    if (requestPath && !requestPath.startsWith('/')) {
+      requestPath = '/' + requestPath;
+    }
     
     // Construct the full API URL: https://psych.vitabyte.ch/v1/{endpoint}{path}
     // For example: endpoint=system, path=/verify -> https://psych.vitabyte.ch/v1/system/verify
@@ -38,15 +49,13 @@ export default async function handler(
     console.log('🔧 Proxy URL construction:', {
       originalUrl: req.url,
       endpoint,
+      pathParam: path,
       requestPath,
       finalApiUrl: apiUrl,
       method: req.method,
       hasBody: !!req.body,
       bodyContent: req.body,
-      queryParams: req.query,
-      splitUrl: req.url?.split('?'),
-      urlWithoutQuery: req.url?.split('?')[0],
-      pathReplacement: req.url?.split('?')[0]?.replace('/api/proxy', '')
+      queryParams: req.query
     });
     
     // Get query parameters except 'endpoint'
