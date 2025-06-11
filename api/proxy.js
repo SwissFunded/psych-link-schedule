@@ -1,17 +1,12 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-
 // API proxy for Vitabyte ePAD API to handle CORS issues
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
 
   // Handle OPTIONS request (preflight)
@@ -31,7 +26,7 @@ export default async function handler(
     // Use the path parameter if provided, otherwise try to extract from URL
     let requestPath = '';
     if (path && !Array.isArray(path)) {
-      requestPath = path as string;
+      requestPath = path;
     } else {
       // Fallback: Get the path from the request URL (everything after /api/proxy)
       requestPath = req.url?.split('?')[0]?.replace('/api/proxy', '') || '';
@@ -55,18 +50,19 @@ export default async function handler(
       method: req.method,
       hasBody: !!req.body,
       bodyContent: req.body,
-      queryParams: req.query
+      queryParams: req.query,
+      authHeader: req.headers.authorization ? '[REDACTED]' : 'Missing'
     });
     
-    // Get query parameters except 'endpoint'
+    // Get query parameters except 'endpoint' and 'path'
     const queryParams = new URLSearchParams();
     Object.entries(req.query).forEach(([key, value]) => {
-      if (key !== 'endpoint' && value !== undefined) {
+      if (key !== 'endpoint' && key !== 'path' && value !== undefined) {
         if (Array.isArray(value)) {
           // If the value is an array, use the first element
-          queryParams.append(key, value[0] as string);
+          queryParams.append(key, value[0]);
         } else {
-          queryParams.append(key, value as string);
+          queryParams.append(key, value);
         }
       }
     });
@@ -75,33 +71,40 @@ export default async function handler(
     const queryString = queryParams.toString();
     const fullUrl = queryString ? `${apiUrl}?${queryString}` : apiUrl;
 
-    // Get Basic Auth credentials - TEMPORARY HARDCODED (REMOVE IN PRODUCTION!)
-    const username = process.env.VITE_VITABYTE_USERNAME || 'miro';
-    const password = process.env.VITE_VITABYTE_PASSWORD || 'Mu%zN.^(?gA{@2rbF#Ke';
-    
-    console.warn('🚨 WARNING: Using hardcoded credentials in proxy for debugging. Remove before production!');
-    
-    if (!username || !password) {
-      console.error('Missing Vitabyte credentials');
-      return res.status(500).json({ error: 'Server configuration error' });
+    // Create headers - prioritize client headers, fallback to hardcoded auth
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (compatible; PsychLink/1.0)',
+    };
+
+    // Use client's authorization header if present, otherwise use fallback
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+      console.log('🔧 Using client authorization header');
+    } else {
+      // Fallback to hardcoded credentials
+      const username = process.env.VITE_VITABYTE_USERNAME || 'miro';
+      const password = process.env.VITE_VITABYTE_PASSWORD || 'Mu%zN.^(?gA{@2rbF#Ke';
+      const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+      headers['Authorization'] = `Basic ${basicAuth}`;
+      console.log('🔧 Using fallback authorization');
     }
 
-    // Create Basic Auth header
-    const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+    // Forward content-type from client if present
+    if (req.headers['content-type']) {
+      headers['Content-Type'] = req.headers['content-type'];
+    }
     
     console.log('🔧 Proxy forwarding headers:', { 
       authorization: '[REDACTED]', 
-      contentType: req.headers['content-type'] 
+      contentType: headers['Content-Type']
     });
 
     // Set request options
-    const fetchOptions: RequestInit = {
+    const fetchOptions = {
       method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Basic ${basicAuth}`,
-      },
+      headers,
     };
 
     // Add body for non-GET requests

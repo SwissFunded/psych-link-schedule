@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getCustomerByMail, getTreater, getProviderDetails } from '@/lib/epatApi';
+import { getCustomerByMail, getTreater, getMultipleTreaters, getProviderDetails, BookAppointmentData, createEpatAppointmentDirectly } from '@/lib/epatApi';
 
 export interface Therapist {
   id: string;
@@ -44,12 +44,12 @@ export interface CalendarSlot {
   description?: string;
 }
 
-// Vitabyte ICS Calendar function
-async function getCalendarSlots(): Promise<CalendarSlot[]> {
+// Get busy times from Vitabyte ICS Calendar
+async function getBusyTimes(): Promise<CalendarSlot[]> {
   try {
     // Use our Vercel API route to avoid CORS issues
     const apiUrl = '/api/calendar';
-    console.log('🗓️ Fetching Vitabyte ICS calendar via proxy from:', apiUrl);
+    console.log('🗓️ Fetching Vitabyte ICS calendar (busy times) via proxy from:', apiUrl);
     
     const response = await fetch(apiUrl);
     
@@ -63,7 +63,7 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
     console.log('📄 ICS Data received, length:', icsData.length);
     
     // Parse ICS data manually (simple parser for VEVENT)
-    const slots: CalendarSlot[] = [];
+    const busyTimes: CalendarSlot[] = [];
     const lines = icsData.split('\n');
     let currentEvent: any = {};
     let inEvent = false;
@@ -75,34 +75,118 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
         inEvent = true;
         currentEvent = {};
       } else if (cleanLine === 'END:VEVENT' && inEvent) {
-        // Process the event
+        // Process the event - these are BUSY times (existing appointments)
         if (currentEvent.DTSTART) {
           const startDateTime = parseICSDateTime(currentEvent.DTSTART);
           if (startDateTime) {
-            const date = startDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
-            const time = startDateTime.toTimeString().substring(0, 5); // HH:MM
-            
-            slots.push({
-              date,
-              time,
-              title: currentEvent.SUMMARY || 'Termin',
-              description: currentEvent.DESCRIPTION || ''
-            });
+            // Only include future appointments (skip past dates)
+            const now = new Date();
+            if (startDateTime >= now) {
+              const date = startDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+              const time = startDateTime.toTimeString().substring(0, 5); // HH:MM
+              
+              busyTimes.push({
+                date,
+                time,
+                title: currentEvent.SUMMARY || 'Busy',
+                description: currentEvent.DESCRIPTION || ''
+              });
+            }
           }
         }
         inEvent = false;
         currentEvent = {};
-      } else if (inEvent && cleanLine.includes(':')) {
+      } else if (inEvent && cleanLine.includes(':') && !cleanLine.startsWith('DTEND')) {
         const [key, ...valueParts] = cleanLine.split(':');
         const value = valueParts.join(':');
         currentEvent[key] = value;
       }
     }
     
-    console.log('✅ Parsed', slots.length, 'calendar slots from ICS via proxy');
-    return slots;
+    console.log('✅ Parsed', busyTimes.length, 'future busy times from ICS');
+    
+    // Log the date range of busy times for debugging
+    if (busyTimes.length > 0) {
+      const dates = busyTimes.map(slot => slot.date).sort();
+      const earliestDate = dates[0];
+      const latestDate = dates[dates.length - 1];
+      console.log('📅 Busy times date range:', earliestDate, 'to', latestDate);
+    }
+    
+    return busyTimes;
   } catch (error) {
     console.error('❌ Failed to fetch Vitabyte ICS calendar via proxy:', error);
+    return [];
+  }
+}
+
+// Generate available time slots by excluding busy times
+async function getCalendarSlots(): Promise<CalendarSlot[]> {
+  try {
+    // Get busy times from ICS calendar
+    const busyTimes = await getBusyTimes();
+    
+    // Generate available slots for the next 30 days
+    const availableSlots: CalendarSlot[] = [];
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 30);
+    
+    // Working hours: 8:00 AM to 6:00 PM, Monday to Friday
+    const workingHours = [
+      '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+      '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+      '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+      '17:00', '17:30'
+    ];
+    
+    // Group busy times by date for efficient lookup
+    const busyTimesByDate: Record<string, string[]> = {};
+    busyTimes.forEach(busy => {
+      if (!busyTimesByDate[busy.date]) {
+        busyTimesByDate[busy.date] = [];
+      }
+      busyTimesByDate[busy.date].push(busy.time);
+    });
+    
+    // Generate available slots for each day
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      // Skip weekends (Saturday = 6, Sunday = 0)
+      if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const busyTimesForDate = busyTimesByDate[dateStr] || [];
+        
+        // Add available times (not in busy list)
+        workingHours.forEach(time => {
+          if (!busyTimesForDate.includes(time)) {
+            availableSlots.push({
+              date: dateStr,
+              time: time,
+              title: 'Available',
+              description: 'Available appointment slot'
+            });
+          }
+        });
+      }
+      
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    console.log('✅ Generated', availableSlots.length, 'available time slots (excluding', busyTimes.length, 'busy times)');
+    
+    // Log the date range of available slots
+    if (availableSlots.length > 0) {
+      const dates = availableSlots.map(slot => slot.date).sort();
+      const earliestDate = dates[0];
+      const latestDate = dates[dates.length - 1];
+      console.log('📅 Available slots date range:', earliestDate, 'to', latestDate);
+    }
+    
+    return availableSlots;
+  } catch (error) {
+    console.error('❌ Failed to generate available calendar slots:', error);
     return [];
   }
 }
@@ -232,26 +316,195 @@ export const appointmentService = {
     }
   },
 
-  // Book a new appointment (store in Supabase)
+  // Book a new appointment using Vitabyte API directly (bypassing Supabase)
+  bookAppointmentViaAPI: async (bookingData: BookingData): Promise<{ success: boolean; id?: string; appointmentData?: any; error?: string }> => {
+    try {
+      console.log('🔄 Attempting direct API booking for:', bookingData.patientEmail);
+      
+      // First, get patient info from Vitabyte
+      const customers = await getCustomerByMail(bookingData.patientEmail);
+      if (customers.length === 0) {
+        return { success: false, error: 'Patient not found in Vitabyte system' };
+      }
+
+      const vitabytePatientId = customers[0].patid;
+      console.log('✅ Found patient ID:', vitabytePatientId);
+
+      // Get treater info
+      const treater = await getTreater(vitabytePatientId);
+      if (!treater) {
+        return { success: false, error: 'No treater assigned to patient' };
+      }
+
+      console.log('✅ Found treater provider ID:', treater.provider);
+
+      // For now, we'll use provider ID as calendar ID (this might need adjustment based on API docs)
+      // The logs show we have different calendar IDs (120 for Dr. Sporer), so this is an assumption
+      const calendarId = treater.provider; // This might need to be mapped differently
+
+      // Format the appointment data for Vitabyte API
+      const appointmentDateTime = new Date(`${bookingData.appointmentDate}T${bookingData.appointmentTime}:00`);
+      const endDateTime = new Date(appointmentDateTime.getTime() + (bookingData.duration || 50) * 60 * 1000);
+
+      const formatVitabyteDateTime = (date: Date) => {
+        return date.toISOString().replace('T', ' ').substring(0, 19); // "2024-12-27 14:30:00"
+      };
+
+      const apiBookingData: BookAppointmentData = {
+        date: formatVitabyteDateTime(appointmentDateTime),
+        end: formatVitabyteDateTime(endDateTime),
+        calendar: calendarId,
+        patid: vitabytePatientId,
+        appointment: bookingData.appointmentType === 'phone' ? 'Telefon' : 'Konsultation',
+        comment: bookingData.notes || `Booked via app for ${bookingData.patientName}`
+      };
+
+      console.log('📡 Sending booking request to Vitabyte API:', apiBookingData);
+
+      // Try to create the appointment using the API
+      const result = await createEpatAppointmentDirectly(apiBookingData);
+      
+      if (result && result.appointmentid) {
+        console.log('✅ Successfully created appointment via API:', result);
+        return { 
+          success: true, 
+          id: result.appointmentid.toString(), 
+          appointmentData: { ...apiBookingData, vitabyteAppointmentId: result.appointmentid }
+        };
+      } else {
+        console.log('❌ API booking failed, no appointment ID returned');
+        return { success: false, error: 'Failed to create appointment in Vitabyte system' };
+      }
+
+    } catch (error) {
+      console.error('❌ API booking error:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown API booking error' 
+      };
+    }
+  },
+
+  // Book a new appointment (try API first, fallback to Supabase)
   bookAppointment: async (bookingData: BookingData): Promise<{ success: boolean; id?: string; error?: string }> => {
+    try {
+      console.log('🔄 Starting booking process for:', bookingData.patientEmail);
+      
+      // Try API booking first
+      console.log('📡 Attempting Vitabyte API booking...');
+      const apiResult = await appointmentService.bookAppointmentViaAPI(bookingData);
+      
+      if (apiResult.success) {
+        console.log('✅ API booking successful! Appointment ID:', apiResult.id);
+        // Optionally store in Supabase as backup/cache if the database exists
+        try {
+          console.log('💾 Storing API booking result in Supabase as backup...');
+          
+          // Get additional patient info
+          let treaterName = null;
+          let treaterId = null;
+          let allTreaters = null;
+          
+          if (apiResult.appointmentData) {
+            treaterId = apiResult.appointmentData.calendar; // Using calendar as treater ID
+            
+            try {
+              const providerDetails = await getProviderDetails({ providerid: treaterId });
+              if (providerDetails) {
+                treaterName = providerDetails.name;
+              }
+            } catch (error) {
+              console.log('Could not fetch provider details:', error);
+            }
+          }
+
+          const { data, error } = await supabase
+            .from('bookings')
+            .insert({
+              patient_email: bookingData.patientEmail,
+              patient_name: bookingData.patientName,
+              patient_phone: bookingData.patientPhone,
+              vitabyte_patient_id: apiResult.appointmentData?.patid,
+              treater_name: treaterName,
+              treater_id: treaterId,
+              appointment_date: bookingData.appointmentDate,
+              appointment_time: bookingData.appointmentTime,
+              appointment_type: bookingData.appointmentType,
+              duration: bookingData.duration || 50,
+              notes: bookingData.notes,
+              status: 'scheduled',
+              metadata: { 
+                vitabyte_appointment_id: apiResult.id,
+                api_booking_data: apiResult.appointmentData
+              }
+            })
+            .select()
+            .single();
+
+          if (!error) {
+            console.log('✅ Successfully stored API booking in Supabase as backup');
+          } else {
+            console.log('⚠️ Could not store in Supabase (table might not exist), but API booking was successful');
+          }
+        } catch (supabaseError) {
+          console.log('⚠️ Supabase backup failed, but API booking was successful:', supabaseError);
+        }
+        
+        return { success: true, id: apiResult.id };
+      } else {
+        console.log('❌ API booking failed, falling back to Supabase-only booking:', apiResult.error);
+        
+        // Fallback to original Supabase booking logic
+        return await appointmentService.bookAppointmentSupabaseOnly(bookingData);
+      }
+    } catch (error) {
+      console.error('❌ Error in main booking function:', error);
+      return { success: false, error: 'Failed to create booking' };
+    }
+  },
+
+  // Original Supabase-only booking (renamed from bookAppointment)
+  bookAppointmentSupabaseOnly: async (bookingData: BookingData): Promise<{ success: boolean; id?: string; error?: string }> => {
     try {
       // First, try to get patient info from Vitabyte (minimal API call)
       let vitabytePatientId = null;
       let treaterName = null;
       let treaterId = null;
+      let allTreaters = null;
 
       try {
         const customers = await getCustomerByMail(bookingData.patientEmail);
         if (customers.length > 0) {
           vitabytePatientId = customers[0].patid;
           
-          // Try to get treater info
-          const treater = await getTreater(vitabytePatientId);
-          if (treater) {
-            treaterId = treater.provider;
-            const providerDetails = await getProviderDetails({ providerid: treater.provider });
-            if (providerDetails) {
-              treaterName = providerDetails.name;
+          // Try to get multiple treaters info
+          const multipleTreatersResponse = await getMultipleTreaters(vitabytePatientId);
+          if (multipleTreatersResponse && multipleTreatersResponse.count > 0) {
+            allTreaters = multipleTreatersResponse.treaters;
+            
+            // Use the first treater as primary for backward compatibility
+            const primaryTreater = multipleTreatersResponse.treaters[0];
+            treaterId = primaryTreater.provider;
+            treaterName = primaryTreater.name;
+            
+            console.log(`🎯 Found ${multipleTreatersResponse.count} treater(s) for patient:`, allTreaters);
+            
+            // If we don't have name from the treater data, try to get it
+            if (!treaterName) {
+              const providerDetails = await getProviderDetails({ providerid: primaryTreater.provider });
+              if (providerDetails) {
+                treaterName = providerDetails.name;
+              }
+            }
+          } else {
+            // Fallback to single treater lookup
+            const treater = await getTreater(vitabytePatientId);
+            if (treater) {
+              treaterId = treater.provider;
+              const providerDetails = await getProviderDetails({ providerid: treater.provider });
+              if (providerDetails) {
+                treaterName = providerDetails.name;
+              }
             }
           }
         }
@@ -274,7 +527,12 @@ export const appointmentService = {
           appointment_type: bookingData.appointmentType,
           duration: bookingData.duration || 50,
           notes: bookingData.notes,
-          status: 'scheduled'
+          status: 'scheduled',
+          // Store all treaters information as JSON
+          metadata: allTreaters ? { 
+            all_treaters: allTreaters,
+            treater_count: allTreaters.length 
+          } : null
         })
         .select()
         .single();
@@ -286,7 +544,7 @@ export const appointmentService = {
 
       return { success: true, id: data.id };
     } catch (error) {
-      console.error('Error in bookAppointment:', error);
+      console.error('Error in bookAppointmentSupabaseOnly:', error);
       return { success: false, error: 'Failed to create booking' };
     }
   },

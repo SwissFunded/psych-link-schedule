@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/layout/Layout';
-import { getTherapists, verifyApiKey, getServices, getAvailableAppointments, getCustomerByMail, getTreater, getAppointments, testGetSlots, testLeistungenabfragen, testCreateAppointment, Therapist, Service, Customer, Treater } from '@/lib/epatApi';
+import { getTherapists, verifyApiKey, getServices, getCustomerByMail, getTreater, getMultipleTreaters, getAppointments, testLeistungenabfragen, testCreateAppointment, Therapist, Service, Customer, Treater, MultipleTreatersResponse } from '@/lib/epatApi';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, User, Stethoscope, AlertCircle, RefreshCw, Calendar, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -14,6 +14,7 @@ export default function Development() {
   const [slots, setSlots] = useState<any[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [treater, setTreater] = useState<Treater | null>(null);
+  const [multipleTreaters, setMultipleTreaters] = useState<MultipleTreatersResponse | null>(null);
   const [appointments, setAppointments] = useState<any>(null);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [patientAppointments, setPatientAppointments] = useState<{[key: number]: any}>({});
@@ -63,7 +64,7 @@ export default function Development() {
       setServices(servicesData);
       
       console.log('📅 Fetching available slots...');
-      const slotsData = await getAvailableAppointments();
+      const slotsData = [];
       setSlots(slotsData);
       
       console.log('👤 Testing customer lookup...');
@@ -117,12 +118,34 @@ export default function Development() {
     setSelectedPatientId(patid);
     
     try {
-      console.log('🔍 Looking up treater for patient ID:', patid);
+      console.log('🔍 Looking up treater(s) for patient ID:', patid);
+      
+      // Test single treater lookup (original)
       const treaterData = await getTreater(patid);
       setTreater(treaterData);
       
-      if (treaterData) {
-        console.log('🔍 Treater found, checking if therapist exists in our list...');
+      // Test multiple treaters lookup (new)
+      console.log('🔍 Testing MULTIPLE treaters lookup...');
+      const multipleTreatersData = await getMultipleTreaters(patid);
+      setMultipleTreaters(multipleTreatersData);
+      
+      if (multipleTreatersData && multipleTreatersData.count > 0) {
+        console.log(`✅ Found ${multipleTreatersData.count} treater(s):`, multipleTreatersData.treaters);
+        
+        // Check if we can match multiple treaters with therapists in our list
+        const matchedTreaters = multipleTreatersData.treaters.map(treater => {
+          const matchingTherapist = therapists.find(t => t.id === treater.provider.toString());
+          return {
+            ...treater,
+            matched: !!matchingTherapist,
+            therapistName: matchingTherapist?.name
+          };
+        });
+        
+        const matchedCount = matchedTreaters.filter(t => t.matched).length;
+        toast.success(`Found ${multipleTreatersData.count} treater(s), ${matchedCount} matched with therapist list`);
+      } else if (treaterData) {
+        console.log('🔍 Single treater found, checking if therapist exists in our list...');
         const matchingTherapist = therapists.find(t => t.id === treaterData.provider.toString());
         
         if (matchingTherapist) {
@@ -136,12 +159,13 @@ export default function Development() {
           toast.warning(`Found treater (Provider ID: ${treaterData.provider}) but no matching therapist in list`);
         }
       } else {
-        toast.info(`No treater assigned to patient ${patid}`);
+        toast.info(`No treaters found for patient ${patid}`);
       }
     } catch (error) {
       console.error('❌ Treater lookup error:', error);
-      toast.error('Failed to lookup treater');
+      toast.error('Failed to lookup treater(s)');
       setTreater(null);
+      setMultipleTreaters(null);
     } finally {
       setSearchingTreater(false);
     }
@@ -738,172 +762,7 @@ export default function Development() {
           </CardContent>
         </Card>
 
-        {/* GetSlots Testing with Sonja Sporer */}
-        <Card className="mb-6 border-psychPurple/10">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-psychPurple" />
-              GetSlots Testing - Sonja Sporer Calendar
-            </CardTitle>
-            <CardDescription>
-              Testing /v1/agenda/getSlots with Massage service (ID: 2) and "sonja sporer" as provider
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-800 mb-2">🧪 Test Parameters</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <strong>Service ID:</strong> 2 (Massage)
-                  </div>
-                  <div>
-                    <strong>Provider:</strong> Calendar ID 2 (Sonja Sporer)
-                  </div>
-                  <div>
-                    <strong>Duration:</strong> 50 minutes
-                  </div>
-                  <div>
-                    <strong>Date Range:</strong> Next 30 days
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <Button
-                  onClick={async () => {
-                    try {
-                      // Find massage service (should be ID 2)
-                      const massageService = services.find(s => s.serviceid === 2 || s.name.toLowerCase().includes('massage'));
-                      if (!massageService) {
-                        toast.error('Massage service not found');
-                        return;
-                      }
-                      
-                      const today = new Date();
-                      const nextMonth = new Date(today);
-                      nextMonth.setMonth(today.getMonth() + 1);
-                      
-                      const params = {
-                        serviceid: massageService.serviceid,
-                        provider: 2, // Calendar ID for Sonja Sporer
-                        duration: 50,
-                        from: today.toISOString().slice(0, 19).replace('T', ' '),
-                        to: nextMonth.toISOString().slice(0, 19).replace('T', ' ')
-                      };
-                      
-                      console.log('🧪 Testing getSlots with Sonja Sporer calendar:', params);
-                      const result = await testGetSlots(params);
-                      console.log('📋 GetSlots result:', result);
-                      
-                      toast.success('GetSlots test completed - check console for details');
-                    } catch (error) {
-                      console.error('❌ GetSlots test failed:', error);
-                      toast.error('GetSlots test failed - check console for details');
-                    }
-                  }}
-                  className="bg-psychPurple hover:bg-psychPurple/90 text-white"
-                >
-                  Test with Sonja Sporer
-                </Button>
-                
-                <Button
-                  onClick={async () => {
-                    try {
-                      // Test without provider to see all available slots
-                      const massageService = services.find(s => s.serviceid === 2 || s.name.toLowerCase().includes('massage'));
-                      if (!massageService) {
-                        toast.error('Massage service not found');
-                        return;
-                      }
-                      
-                      const today = new Date();
-                      const nextMonth = new Date(today);
-                      nextMonth.setMonth(today.getMonth() + 1);
-                      
-                      const params = {
-                        serviceid: massageService.serviceid,
-                        duration: 50,
-                        from: today.toISOString().slice(0, 19).replace('T', ' '),
-                        to: nextMonth.toISOString().slice(0, 19).replace('T', ' ')
-                      };
-                      
-                      console.log('🧪 Testing getSlots without specific provider:', params);
-                      const result = await testGetSlots(params);
-                      console.log('📋 GetSlots result (all providers):', result);
-                      
-                      toast.success('GetSlots test (all providers) completed - check console');
-                    } catch (error) {
-                      console.error('❌ GetSlots test failed:', error);
-                      toast.error('GetSlots test failed - check console for details');
-                    }
-                  }}
-                  variant="outline"
-                  className="border-psychPurple/20"
-                >
-                  Test All Providers
-                </Button>
-                
-                <Button
-                  onClick={async () => {
-                    try {
-                      // Test with different provider names we've seen in appointments
-                      const massageService = services.find(s => s.serviceid === 2 || s.name.toLowerCase().includes('massage'));
-                      if (!massageService) {
-                        toast.error('Massage service not found');
-                        return;
-                      }
-                      
-                      const today = new Date();
-                      const nextMonth = new Date(today);
-                      nextMonth.setMonth(today.getMonth() + 1);
-                      
-                      const providerVariations = [
-                        2, // Calendar ID for Sonja Sporer (most likely)
-                        1, // Try other calendar IDs
-                        3,
-                        4,
-                        5
-                      ];
-                      
-                      for (const provider of providerVariations) {
-                        const params = {
-                          serviceid: massageService.serviceid,
-                          provider: provider,
-                          duration: 50,
-                          from: today.toISOString().slice(0, 19).replace('T', ' '),
-                          to: nextMonth.toISOString().slice(0, 19).replace('T', ' ')
-                        };
-                        
-                        console.log(`🧪 Testing getSlots with calendar ID: ${provider}`);
-                        try {
-                          const result = await testGetSlots(params);
-                          console.log(`📋 Result for calendar ID ${provider}:`, result);
-                        } catch (error) {
-                          console.log(`❌ Failed for calendar ID ${provider}:`, error);
-                        }
-                      }
-                      
-                      toast.success('Provider variation tests completed - check console');
-                    } catch (error) {
-                      console.error('❌ Provider variation tests failed:', error);
-                      toast.error('Provider tests failed - check console');
-                    }
-                  }}
-                                     variant="outline"
-                   className="border-yellow-500/20 text-yellow-700"
-                 >
-                   Test Calendar IDs (1-5)
-                 </Button>
-              </div>
-              
-              <div className="text-xs text-psychText/60 mt-3">
-                <strong>Note:</strong> Based on the appointment data, we found calendar ID "2" with name "Sonja Sporer". 
-                This test will help us determine if calendar ID 2 can be used as a provider parameter to get available slots for that calendar.
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Old GetSlots functionality removed - now using ICS calendar */}
 
         {/* Services Display */}
         {!loading && services.length > 0 && (
@@ -1259,6 +1118,90 @@ export default function Development() {
                 ) : null}
               </CardContent>
             )}
+          </Card>
+        )}
+
+        {/* Multiple Treaters Results Section */}
+        {multipleTreaters && (
+          <Card className="mb-6 border-psychPurple/10">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Stethoscope className="w-5 h-5 text-blue-500" />
+                    Multiple Treaters Results
+                  </CardTitle>
+                  <CardDescription>
+                    🧪 NEW: Testing multiple treaters lookup for Patient ID: {selectedPatientId}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="border border-blue-200 bg-blue-50 rounded-lg p-4"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-semibold text-blue-800">
+                    Found {multipleTreaters.count} Treater(s)
+                  </h3>
+                </div>
+                
+                <div className="space-y-3">
+                  {multipleTreaters.treaters.map((treater, index) => {
+                    const matchingTherapist = therapists.find(t => t.id === treater.provider.toString());
+                    
+                    return (
+                      <div key={index} className="bg-white p-4 rounded-lg border border-blue-200">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="text-sm font-medium text-blue-800">
+                            Treater #{index + 1}
+                          </div>
+                          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                            Provider ID: {treater.provider}
+                          </Badge>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {treater.name && (
+                            <div className="text-sm">
+                              <strong>Name:</strong> {treater.name}
+                            </div>
+                          )}
+                          {treater.specialty && (
+                            <div className="text-sm">
+                              <strong>Specialty:</strong> {treater.specialty}
+                            </div>
+                          )}
+                          
+                          {matchingTherapist ? (
+                            <div className="mt-2 p-2 bg-green-100 rounded border border-green-200">
+                              <div className="text-xs font-medium text-green-800">✅ Matched Therapist:</div>
+                              <div className="text-xs text-green-700">{matchingTherapist.name}</div>
+                              <div className="text-xs text-green-600">{matchingTherapist.specialty}</div>
+                            </div>
+                          ) : (
+                            <div className="mt-2 p-2 bg-yellow-100 rounded border border-yellow-200">
+                              <div className="text-xs font-medium text-yellow-800">⚠️ No Match Found</div>
+                              <div className="text-xs text-yellow-700">
+                                Provider ID {treater.provider} not in therapist list
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <div className="text-xs text-blue-600 mt-3">
+                  🧪 This tests the new getMultipleTreaters() function to handle patients with multiple assigned therapists.
+                </div>
+              </motion.div>
+            </CardContent>
           </Card>
         )}
 

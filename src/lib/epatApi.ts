@@ -20,21 +20,9 @@ export interface Service {
   calendars?: number[];
 }
 
-// Types for slots (from API documentation)
-export interface VitabyteSlot {
-  ymd: string;
-  from: string; // timestamp
-  to: string;   // timestamp  
-  provider: string;
-}
 
-export interface GetSlotsParams {
-  serviceid: number;
-  provider?: number;
-  duration?: number;
-  from?: string; // "2022-12-01 12:00:00" format
-  to?: string;   // "2022-12-01 18:00:00" format
-}
+
+
 
 // API Response types for Vitabyte API
 interface VitabyteApiResponse<T> {
@@ -57,12 +45,7 @@ export interface Appointment {
   metadata?: Record<string, unknown>;
 }
 
-export interface AvailableAppointment {
-  id: string;
-  dateTime: string; 
-  duration: number;
-  isAvailable: boolean;
-}
+
 
 export interface BookAppointmentData {
   date: string;        // "2022-12-04 14:00:00" format
@@ -116,6 +99,13 @@ export interface GetCustomerByMailParams {
 // Types for treater/therapist lookup
 export interface Treater {
   provider: number;
+  name?: string;
+  specialty?: string;
+}
+
+export interface MultipleTreatersResponse {
+  treaters: Treater[];
+  count: number;
 }
 
 export interface GetTreaterParams {
@@ -456,93 +446,9 @@ export const testLeistungenabfragen = async (): Promise<any> => {
   return results;
 };
 
-/**
- * Fetches available time slots using the correct booking API
- * @param params The slot search parameters
- * @returns Promise with array of available appointments
- */
-export const getAvailableAppointments = async (params?: GetSlotsParams): Promise<AvailableAppointment[]> => {
-  const apiClient = createApiClient('agenda');
-  
-  try {
-    // If no params provided, get services first and use the first available service
-    let slotsParams = params;
-    if (!slotsParams) {
-      const services = await getServices();
-      if (services.length === 0) {
-        console.warn('⚠️ No services available for slot search');
-        return [];
-      }
-      
-      // Use the first available service with default date range
-      const today = new Date();
-      const nextMonth = new Date(today);
-      nextMonth.setMonth(today.getMonth() + 1);
-      
-      slotsParams = {
-        serviceid: services[0].serviceid,
-        from: today.toISOString().slice(0, 19).replace('T', ' '),
-        to: nextMonth.toISOString().slice(0, 19).replace('T', ' ')
-      };
-    }
-    
-    console.log('📡 Fetching slots with params:', slotsParams);
-    const response = await apiClient.post('/getSlots', slotsParams);
-    
-    console.log('📥 Slots response received:', {
-      status: response.status,
-      resultCount: (response.data as VitabyteApiResponse<VitabyteSlot[]>)?.result?.length || 0
-    });
-    
-    const apiData = response.data as VitabyteApiResponse<VitabyteSlot[]>;
-    if (apiData?.status && apiData?.result) {
-      const slots = apiData.result;
-      
-      // Convert Vitabyte slots to our AvailableAppointment format
-      return slots.map((slot: VitabyteSlot, index: number) => ({
-        id: `slot-${slot.from}-${slot.provider}`,
-        dateTime: new Date(parseInt(slot.from) * 1000).toISOString(),
-        duration: slotsParams?.duration || 50,
-        isAvailable: true
-      }));
-    }
-    
-    return [];
-  } catch (error) {
-    console.error('❌ Error fetching slots:', error);
-    return handleApiError(error);
-  }
-};
 
-/**
- * Tests available slots with specific parameters (for testing with Sonja Sporer calendar)
- * @param params The slot search parameters
- * @returns Promise with raw API response for debugging
- */
-export const testGetSlots = async (params: GetSlotsParams): Promise<any> => {
-  const apiClient = createApiClient('agenda');
-  
-  try {
-    console.log('📡 Testing getSlots with specific params:', params);
-    const response = await apiClient.post('/getSlots', params);
-    
-    console.log('📥 getSlots test response received:', {
-      status: response.status,
-      data: response.data
-    });
-    
-    console.log('🔍 getSlots response details:', {
-      dataType: typeof response.data,
-      dataContent: response.data,
-      dataJSON: JSON.stringify(response.data, null, 2)
-    });
-    
-    return response.data;
-  } catch (error) {
-    console.error('❌ Error testing getSlots:', error);
-    throw error;
-  }
-};
+
+
 
 /**
  * Books an appointment using the booking API
@@ -886,6 +792,150 @@ export const getTreater = async (patid: number): Promise<Treater | null> => {
   } catch (error) {
     console.error('❌ Error looking up treater:', error);
     // Return null instead of throwing to handle cases where patient has no assigned treater
+    return null;
+  }
+};
+
+/**
+ * Gets all treaters/therapists for a patient (supports multiple treaters)
+ * @param patid Patient ID
+ * @returns Promise with array of treaters or null if none found
+ */
+export const getMultipleTreaters = async (patid: number): Promise<MultipleTreatersResponse | null> => {
+  const apiClient = createApiClient('system');
+  
+  try {
+    console.log('📡 Looking up multiple treaters for patient ID:', patid);
+    
+    // First try with getTreater to see if API returns multiple
+    const payload = { patid };
+    console.log('📤 Sending payload to getTreater:', payload);
+    
+    const response = await apiClient.post('/getTreater', payload);
+    
+    console.log('📥 Multiple treaters lookup response received:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    console.log('🔍 Multiple treaters response details:', {
+      dataType: typeof response.data,
+      dataContent: response.data,
+      dataJSON: JSON.stringify(response.data, null, 2)
+    });
+    
+    const responseData = response.data as any;
+    
+    // Check for success
+    const isSuccess = response.status === 200 && 
+                     (responseData.status === true || responseData.status === "ok") && 
+                     responseData.result;
+    
+    if (isSuccess) {
+      const treaterData = responseData.result;
+      console.log('🎯 Successfully found treater data:', treaterData);
+      
+      // Handle different response formats
+      let treaters: Treater[] = [];
+      
+      if (Array.isArray(treaterData)) {
+        // If result is already an array
+        treaters = treaterData.map((item: any) => {
+          if (typeof item === 'number') {
+            return { provider: item };
+          } else if (typeof item === 'object' && item.provider) {
+            return {
+              provider: typeof item.provider === 'string' ? parseInt(item.provider) : item.provider,
+              name: item.name,
+              specialty: item.specialty
+            };
+          }
+          return null;
+        }).filter(Boolean);
+      } else if (typeof treaterData === 'number') {
+        // Single provider number
+        treaters = [{ provider: treaterData }];
+      } else if (typeof treaterData === 'object' && treaterData.provider) {
+        // Single provider object
+        treaters = [{
+          provider: typeof treaterData.provider === 'string' ? parseInt(treaterData.provider) : treaterData.provider,
+          name: treaterData.name,
+          specialty: treaterData.specialty
+        }];
+      }
+      
+      if (treaters.length > 0) {
+        console.log(`🎯 Found ${treaters.length} treater(s):`, treaters);
+        
+        // Try to get additional details for each treater
+        const enrichedTreaters = await Promise.all(
+          treaters.map(async (treater) => {
+            try {
+              const details = await getProviderDetails({ providerid: treater.provider });
+              return {
+                ...treater,
+                name: details?.name || treater.name,
+                specialty: details?.specialty || treater.specialty
+              };
+            } catch (error) {
+              console.warn(`Could not get details for provider ${treater.provider}`);
+              return treater;
+            }
+          })
+        );
+        
+        return {
+          treaters: enrichedTreaters,
+          count: enrichedTreaters.length
+        };
+      }
+    }
+    
+    // If no treaters found, try alternative endpoints
+    console.log('🔍 Trying alternative endpoints for multiple treaters...');
+    
+    const alternativeEndpoints = [
+      '/getTreaters',
+      '/getProviders',
+      '/getPatientProviders',
+      '/getAssignedTreaters'
+    ];
+    
+    for (const endpoint of alternativeEndpoints) {
+      try {
+        console.log(`🧪 Testing endpoint: ${endpoint}`);
+        const altResponse = await apiClient.post(endpoint, payload);
+        
+        if (altResponse.status === 200 && altResponse.data) {
+          console.log(`✅ Alternative endpoint ${endpoint} returned data:`, altResponse.data);
+          
+          // Process alternative response
+          const altData = altResponse.data as any;
+          if (altData.result && Array.isArray(altData.result)) {
+            const treaters = altData.result.map((item: any) => ({
+              provider: typeof item.provider === 'string' ? parseInt(item.provider) : item.provider,
+              name: item.name,
+              specialty: item.specialty
+            })).filter((t: any) => t.provider);
+            
+            if (treaters.length > 0) {
+              return {
+                treaters,
+                count: treaters.length
+              };
+            }
+          }
+        }
+      } catch (error) {
+        console.log(`❌ Endpoint ${endpoint} failed:`, error);
+      }
+    }
+    
+    console.warn('⚠️ No treaters found with any method');
+    return null;
+    
+  } catch (error) {
+    console.error('❌ Error looking up multiple treaters:', error);
     return null;
   }
 };

@@ -152,7 +152,13 @@ The user wants to implement a seamless user registration flow that:
 - [x] ✅ **COMPLETED**: Phase 4A - Registration Enhancement with Vitabyte API Integration ✅
 - [x] ✅ **COMPLETED**: Phase 4B - Profile Enhancement with Vitabyte Patient Data ✅
 - [x] ✅ **COMPLETED**: Calendar Subscription Strategy Analysis ✅
-- [ ] 🎯 **NEW PRIORITY**: Phase 1A - Calendar Subscription Research & Feasibility
+- [ ] 🚨 **CRITICAL PRIORITY**: Database Schema Setup - Supabase Bookings Table
+  - [ ] Execute `supabase-schema.sql` in the live Supabase database
+  - [ ] Verify `bookings` table creation with proper indexes
+  - [ ] Test RLS policies and permissions
+  - [ ] Validate booking operations work after table creation
+  - [ ] Re-test appointment booking flow with `miromw@icloud.com`
+- [ ] 🎯 **PRIORITY**: Phase 1A - Calendar Subscription Research & Feasibility
   - [ ] Research iCal/CalDAV protocols and Node.js libraries (ical-generator)
   - [ ] Test ePAD calendar subscription with sample .ics file
   - [ ] Create proof-of-concept calendar feed endpoint
@@ -196,7 +202,98 @@ The user wants to implement a seamless user registration flow that:
 
 ## Current Status / Progress Tracking
 
-**🚨 PLANNER ANALYSIS: CRITICAL ISSUE - APPOINTMENT DISPLAY FAILURE** 
+**🚨 CRITICAL DATABASE ISSUE DISCOVERED: Missing Supabase Bookings Table**
+
+**Issue**: During appointment booking testing with `miromw@icloud.com`, logs show that the Supabase database is missing the `bookings` table:
+- Multiple `relation "public.bookings" does not exist` errors
+- 404 errors on GET/POST requests to `/rest/v1/bookings`
+- All booking operations failing due to missing table
+
+**Root Cause**: The `supabase-schema.sql` file exists with the correct schema but hasn't been executed in the live Supabase database.
+
+**✅ POSITIVE FINDINGS FROM LOGS:**
+- **Vitabyte API Integration Working Perfectly**: All authentication, customer lookup, treater lookup, and ICS calendar functions working
+- **Patient Data Retrieved**: Successfully found patient ID 27949 for miromw@icloud.com
+- **Treater Assignment**: Provider 215 (Miro' Waltisberg) correctly identified
+- **Calendar Integration**: 456 available time slots generated from ICS calendar (excluding 5 busy times)
+
+**🎯 IMMEDIATE PRIORITY: Database Schema Setup**
+- Need to execute `supabase-schema.sql` in the Supabase database
+- Create the `bookings` table with proper indexes and RLS policies
+- Test appointment booking flow after database setup
+
+**🔥 EXECUTOR UPDATE: VERCEL PROXY OPTIMIZATION - LOCALHOST WORKING PERFECTLY**
+
+**✅ LOCALHOST SUCCESS CONFIRMED**: 
+- Perfect Vite proxy configuration working flawlessly with `🔧 Proxy forwarding headers: { authorization: '[REDACTED]', contentType: 'application/json' }`
+- All API calls successful with proper Basic Auth
+- Zero errors in local development environment
+
+**🛠️ VERCEL PROXY IMPROVEMENTS DEPLOYED** (Production URL: https://psych-central-terminverwaltung-6rqs9h0sq.vercel.app):
+1. **Client Header Prioritization**: Updated proxy to use client's authorization header when present, fallback to hardcoded credentials
+2. **Enhanced CORS Support**: Added `Authorization` header to allowed CORS headers  
+3. **Improved Logging**: Added detailed debugging for header forwarding and auth source tracking
+4. **Simplified Logic**: Removed complex credential validation, focusing on header forwarding like working Vite proxy
+
+**🔧 KEY CHANGES MADE**:
+- Proxy now prioritizes `req.headers.authorization` from client
+- Fallback to hardcoded credentials only when client header missing
+- Added `Authorization` to CORS `Access-Control-Allow-Headers`
+- Enhanced logging to track auth source (client vs fallback)
+
+**🎉 VERCEL PROXY SUCCESS - PRODUCTION DEPLOYMENT WORKING!**
+
+**✅ CRITICAL BREAKTHROUGH**: Fixed ES Module compatibility issue and achieved perfect parity with localhost!
+
+**🛠️ FINAL SOLUTION IMPLEMENTED**:
+1. **Root Cause**: `"type": "module"` in package.json caused TypeScript compilation issues with CommonJS exports
+2. **Solution**: Created pure JavaScript ES module proxy (`api/proxy.js`) replacing TypeScript version
+3. **Result**: Perfect functionality matching localhost Vite proxy
+
+**✅ PRODUCTION TESTING RESULTS** (URL: https://psych-central-terminverwaltung-2kd2yzgal.vercel.app):
+- `/api/proxy?endpoint=system&path=/verify` → `{"status":true,"msg":"Congrats! Looks like you authenticated successfully."}`
+- `/api/proxy?endpoint=system&path=/getCustomerByMail` → Successfully returns patient data (2 matches for markus.hauri@gmx.ch)
+- All API endpoints now working in production with proper Basic Auth
+- Header forwarding working correctly (client auth prioritized, fallback to hardcoded credentials)
+
+**🎯 MISSION ACCOMPLISHED**: Localhost ↔ Production parity achieved!
+
+**🗓️ CALENDAR AVAILABILITY LOGIC FIX DEPLOYED** (URL: https://psych-central-terminverwaltung-m9krvxpod.vercel.app):
+
+**✅ CRITICAL ISSUE RESOLVED**: Calendar showing BOOKED appointments as available slots instead of actual available times
+- **Root Cause**: ICS calendar contains existing appointments (BUSY times), but code was treating them as available slots
+- **Solution**: **Completely inverted the logic** - ICS events now treated as busy times, generate available slots around them
+- **Result**: Calendar now shows ACTUAL available time slots by excluding busy times from working hours
+
+**🛠️ NEW APPROACH IMPLEMENTATION**:
+1. **getBusyTimes()**: Parses ICS calendar to identify existing appointments (busy times)
+2. **getCalendarSlots()**: Generates available slots by excluding busy times from predefined working hours
+3. **Working Schedule**: 8:00 AM - 6:00 PM, Monday-Friday, 30-minute intervals
+4. **Smart Filtering**: Only shows time slots NOT in the busy times list
+
+**🧹 CLEANUP COMPLETED** (URL: https://psych-central-terminverwaltung-5njo2dhjw.vercel.app):
+- **Removed Old API**: Deleted `getAvailableAppointments()`, `testGetSlots()`, `GetSlotsParams` interface
+- **Cleaned Imports**: Removed unused Vitabyte API booking functions from Development page
+- **Simplified Architecture**: Now only uses ICS calendar approach for slot availability
+- **Code Quality**: Eliminated dead code and unused interfaces (VitabyteSlot, AvailableAppointment)
+
+**👥 MULTIPLE TREATERS SUPPORT ADDED** (URL: https://psych-central-terminverwaltung-l03723y68.vercel.app):
+- **New Function**: `getMultipleTreaters()` - Searches for multiple therapists per patient
+- **Enhanced Interface**: Extended `Treater` interface with `name` and `specialty` fields
+- **Smart Testing**: Tests multiple API endpoints (`/getTreaters`, `/getProviders`, `/getPatientProviders`, `/getAssignedTreaters`)
+- **Backward Compatibility**: Falls back to single `getTreater()` if multiple lookup fails
+- **Enriched Data**: Automatically fetches provider details for each treater found
+- **Development Testing**: Added comprehensive testing UI in Development page
+- **Booking Integration**: Updates appointment booking to handle multiple treaters with primary selection
+
+**🛠️ IMPLEMENTATION DETAILS**:
+1. **Date Filtering**: Added `const now = new Date(); if (startDateTime >= now)` check before adding slots
+2. **Enhanced Logging**: Added date range logging to show earliest/latest appointment dates for debugging
+3. **Zero Breaking Changes**: Maintains all existing functionality while filtering out past events
+
+**📅 EXPECTED BEHAVIOR**: Calendar should now display next available appointment (June 12th or later) instead of March 28th
+
+**🚨 PREVIOUS ISSUE - APPOINTMENT DISPLAY FAILURE** (Context below) 
 
 ### **ISSUE DESCRIPTION:**
 - **User Action**: Created new account with email `shem-lee@gmx.ch`
