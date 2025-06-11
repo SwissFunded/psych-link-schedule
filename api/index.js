@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
     }
 
     // Forward the request to the Vitabyte API
-    const apiUrl = `https://dev.vitabyte.ch/v1/${endpoint}`;
+    const apiUrl = `https://psych.vitabyte.ch/v1/${endpoint}`;
     
     // Get query parameters except 'endpoint'
     const queryParams = new URLSearchParams();
