@@ -32,7 +32,7 @@ export default async function handler(
     const requestPath = req.url?.split('?')[0]?.replace('/api/proxy', '') || '';
     
     // Construct the full API URL: https://psych.vitabyte.ch/v1/{endpoint}{path}
-    // For example: endpoint=system, path=/getCustomerByMail -> https://psych.vitabyte.ch/v1/system/getCustomerByMail
+    // For example: endpoint=system, path=/verify -> https://psych.vitabyte.ch/v1/system/verify
     const apiUrl = `https://psych.vitabyte.ch/v1/${endpoint}${requestPath}`;
     
     console.log('🔧 Proxy URL construction:', {
@@ -42,7 +42,11 @@ export default async function handler(
       finalApiUrl: apiUrl,
       method: req.method,
       hasBody: !!req.body,
-      bodyContent: req.body
+      bodyContent: req.body,
+      queryParams: req.query,
+      splitUrl: req.url?.split('?'),
+      urlWithoutQuery: req.url?.split('?')[0],
+      pathReplacement: req.url?.split('?')[0]?.replace('/api/proxy', '')
     });
     
     // Get query parameters except 'endpoint'
