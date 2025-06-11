@@ -7,6 +7,43 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+// Types for services (newly discovered from API)
+export interface Service {
+  category: string;
+  serviceid: number;
+  name: string;
+  description: string;
+  price: number;
+  providers: number[];
+  duration: number;
+  hits: number;
+  calendars?: number[];
+}
+
+// Types for slots (from API documentation)
+export interface VitabyteSlot {
+  ymd: string;
+  from: string; // timestamp
+  to: string;   // timestamp  
+  provider: string;
+}
+
+export interface GetSlotsParams {
+  serviceid: number;
+  provider?: number;
+  duration?: number;
+  from?: string; // "2022-12-01 12:00:00" format
+  to?: string;   // "2022-12-01 18:00:00" format
+}
+
+// API Response types for Vitabyte API
+interface VitabyteApiResponse<T> {
+  status: boolean;
+  msg: string;
+  result: T;
+  servertime?: string;
+}
+
 // Types for appointments
 export interface Appointment {
   id: string;
@@ -28,14 +65,23 @@ export interface AvailableAppointment {
 }
 
 export interface BookAppointmentData {
-  appointmentId: string;
-  patientId: string;
-  metadata?: Record<string, unknown>;
+  date: string;        // "2022-12-04 14:00:00" format
+  end: string;         // "2022-12-04 15:00:00" format
+  dateTs?: string;       // "2022-12-04 14:00:00" format, as per API docs (page 12)
+  endTs?: string;         // "2022-12-04 15:00:00" format, as per API docs (page 12)
+  calendar: number;    // Calendar ID (required)
+  patid: number;       // Patient ID
+  appointment: string; // Appointment type (e.g., "Telefon", "Konsultation")
+  comment?: string;    // Optional comment
+  state?: string;      // Optional appointment state as per API docs (page 12)
 }
 
 export interface RescheduleAppointmentData {
-  newAppointmentId: string;
-  metadata?: Record<string, unknown>;
+  date: string;        // New appointment start time
+  end: string;         // New appointment end time
+  calendar: number;    // Calendar ID
+  appointment: string; // Appointment type
+  comment?: string;    // Optional comment
 }
 
 // Additional types for therapists and patient appointments
@@ -44,6 +90,36 @@ export interface Therapist {
   name: string;
   specialty: string;
   imageUrl?: string;
+}
+
+// Types for customer/patient data
+export interface Customer {
+  patid: number;
+  firstname: string;
+  lastname: string;
+  gender: string;
+  dob: string; // Date of birth in "YYYY-MM-DD" format
+  title?: string;
+  street?: string;
+  zip?: string;
+  city?: string;
+  mobile?: string;
+  mail: string;
+  ahv?: string; // Swiss social security number
+  deleted: number; // 0 = active, 1 = deleted
+}
+
+export interface GetCustomerByMailParams {
+  mail: string;
+}
+
+// Types for treater/therapist lookup
+export interface Treater {
+  provider: number;
+}
+
+export interface GetTreaterParams {
+  patid: number;
 }
 
 export interface GetAppointmentsParams {
@@ -55,20 +131,48 @@ export interface GetAppointmentsParams {
 
 // Create Axios instance with default configuration using Basic Auth
 const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
-  const username = import.meta.env.VITE_EPAT_USERNAME;
-  const password = import.meta.env.VITE_EPAT_PASSWORD;
-  const apiUrl = import.meta.env.VITE_EPAT_API_URL || 'https://psych.vitabyte.ch/v1';
+  // 🚨 TEMPORARY DEBUG: Hardcoded credentials (REMOVE IN PRODUCTION!)
+  const username = 'miro';
+  const password = 'Mu%zN.^(?gA{@2rbF#Ke';
+  const apiUrl = 'https://psych.vitabyte.ch/v1';
+  
+  // TODO: Switch back to environment variables once debugging is complete
+  // const username = import.meta.env.VITE_EPAT_USERNAME;
+  // const password = import.meta.env.VITE_EPAT_PASSWORD;
+  // const apiUrl = import.meta.env.VITE_EPAT_API_URL || 'https://psych.vitabyte.ch/v1';
+  
+  console.warn('🚨 WARNING: Using hardcoded credentials for debugging. Remove before production!');
   
   if (!username || !password) {
-    console.error('API credentials are not defined in environment variables');
+    console.error('API credentials are not defined');
     throw new Error('API credentials are missing');
   }
   
   // Create Base64 encoded credentials
   const token = btoa(`${username}:${password}`);
   
-  // Use proxy path in development mode to avoid CORS issues
-  const baseURL = import.meta.env.DEV ? `/api/${appName}` : `${apiUrl}/${appName}`;
+  console.log('🔧 Authorization debug:', {
+    username,
+    passwordLength: password.length,
+    expectedToken: 'bWlybzpNdSV6Ti5eKD9nQXtAMnJiRiNLZQ==',
+    actualToken: token,
+    tokenMatch: token === 'bWlybzpNdSV6Ti5eKD9nQXtAMnJiRiNLZQ=='
+  });
+  
+  // Always use proxy for both development and production
+  // In development: Vite proxy routes (/api/system, /api/agenda)
+  // In production: Vercel serverless function proxy with endpoint parameter
+  const isDevelopment = import.meta.env.DEV;
+  const baseURL = isDevelopment ? `/api/${appName}` : `/api/proxy?endpoint=${appName}`;
+  
+  console.log('🔧 Environment check:', {
+    hostname: window.location.hostname,
+    isDevelopment,
+    envDEV: import.meta.env.DEV,
+    usingProxy: true,
+    baseURL,
+    appName
+  });
   
   return axios.create({
     baseURL,
@@ -130,7 +234,39 @@ export const verifyApiKey = async (): Promise<boolean> => {
       data: response.data
     });
     
-    const isValid = response.status === 200 && (response.data as any)?.status === true;
+    // Log response details separately to avoid object collapsing
+    console.log('🔍 Response data type:', typeof response.data);
+    console.log('🔍 Response data content:', response.data);
+    console.log('🔍 Response data JSON:', JSON.stringify(response.data, null, 2));
+    console.log('🔍 Has status field:', (response.data as any)?.status);
+    console.log('🔍 Status value:', (response.data as any)?.status === true);
+    console.log('🔍 Status type:', typeof (response.data as any)?.status);
+    
+    // Handle multiple possible response formats
+    const responseData = response.data as any;
+    
+    // Check for different possible formats:
+    // 1. Standard: {"status": true, "msg": "..."}
+    // 2. String response that needs parsing
+    // 3. Nested response structure
+    let isValid = false;
+    
+    if (response.status === 200) {
+      if (typeof responseData === 'object' && responseData !== null) {
+        // Standard object response
+        isValid = responseData.status === true;
+      } else if (typeof responseData === 'string') {
+        // String response - try to parse as JSON
+        try {
+          const parsed = JSON.parse(responseData);
+          isValid = parsed.status === true;
+        } catch {
+          // If not JSON, check for success message
+          isValid = responseData.includes('authenticated successfully') || responseData.includes('Congrats');
+        }
+      }
+    }
+    
     console.log('✅ API verification result:', isValid);
     
     return isValid;
@@ -153,30 +289,236 @@ export const verifyApiKey = async (): Promise<boolean> => {
 };
 
 /**
- * Fetches available time slots
- * @returns Promise with array of available appointments
+ * Fetches available services from the Vitabyte API
+ * @returns Promise with array of available services
  */
-export const getAvailableAppointments = async (): Promise<AvailableAppointment[]> => {
-  const apiClient = createApiClient('agenda');
+export const getServices = async (): Promise<Service[]> => {
+  const apiClient = createApiClient('system'); // Use system API instead of agenda
   
   try {
-    const response = await apiClient.post('/getSlots');
+    console.log('📡 Fetching services from /v1/booking/getServices...');
     
-    // Convert response to our format
-    const slots = Array.isArray(response.data) ? response.data : [];
-    return slots.map((slot: any) => ({
-      id: slot.id || `slot-${slot.start}`,
-      dateTime: slot.start || slot.dateTime,
-      duration: slot.duration || 50,
-      isAvailable: true
-    }));
+    // Send the correct payload according to API documentation
+    const payload = { location: 0 };
+    console.log('📤 Sending payload:', payload);
+    
+    const response = await apiClient.post('/booking/getServices', payload); // Correct path
+    
+    console.log('📥 Services response received:', {
+      status: response.status,
+      resultCount: (response.data as VitabyteApiResponse<Service[]>)?.result?.length || 0
+    });
+    
+    console.log('🔍 Services response details:', {
+      dataType: typeof response.data,
+      dataContent: response.data,
+      dataJSON: JSON.stringify(response.data, null, 2),
+      hasStatus: (response.data as VitabyteApiResponse<Service[]>)?.status,
+      hasResult: (response.data as VitabyteApiResponse<Service[]>)?.result,
+      resultLength: (response.data as VitabyteApiResponse<Service[]>)?.result?.length
+    });
+    
+    // Handle the expected Vitabyte API response format
+    const responseData = response.data as VitabyteApiResponse<Service[]>;
+    
+    if (response.status === 200 && responseData.status === true && Array.isArray(responseData.result)) {
+      const services = responseData.result;
+      console.log('🎯 Successfully parsed services count:', services.length);
+      
+      if (services.length > 0) {
+        console.log('🎯 Sample services:', services.slice(0, 3).map(s => ({
+          serviceid: s.serviceid,
+          name: s.name,
+          category: s.category,
+          duration: s.duration
+        })));
+      }
+      
+      return services;
+    } else {
+      console.warn('⚠️ Unexpected response format:', {
+        status: response.status,
+        responseStatus: responseData.status,
+        hasResult: Array.isArray(responseData.result)
+      });
+      return [];
+    }
   } catch (error) {
+    console.error('❌ Error fetching services:', error);
     return handleApiError(error);
   }
 };
 
 /**
- * Books an appointment
+ * Tests comprehensive service discovery (Leistungenabfragen) with different location IDs
+ * @returns Promise with raw API response for debugging
+ */
+export const testLeistungenabfragen = async (): Promise<any> => {
+  const results: any = {};
+  
+  // Test /booking/getServices with different location IDs (1, 2, 3)
+  // We already know location 0 returns only Massage service
+  const locationTests = [
+    { location: 1, description: 'Location 1 - Zähringerstr' },
+    { location: 2, description: 'Location 2 - Sihlcity' }, 
+    { location: 3, description: 'Location 3 - Cornelia Hatze' },
+    { location: 0, description: 'Location 0 - Central (baseline)' }
+  ];
+  
+  for (const test of locationTests) {
+    try {
+      console.log(`🧪 Testing /booking/getServices with location ${test.location}: ${test.description}`);
+      
+      const apiClient = createApiClient('system'); // Use system API instead of agenda
+      const payload = { location: test.location };
+      console.log(`📤 Sending payload:`, payload);
+      
+      const response = await apiClient.post('/booking/getServices', payload); // Correct path
+      
+      console.log(`📥 Location ${test.location} response:`, {
+        status: response.status,
+        data: response.data,
+        serviceCount: (response.data as any)?.result?.length || 0
+      });
+      
+      // Extract service details for comparison
+      const serviceDetails = (response.data as any)?.result?.map((service: any) => ({
+        serviceid: service.serviceid,
+        name: service.name,
+        category: service.category,
+        duration: service.duration,
+        price: service.price,
+        providers: service.providers
+      })) || [];
+      
+      results[`Location ${test.location}`] = {
+        description: test.description,
+        status: response.status,
+        serviceCount: serviceDetails.length,
+        services: serviceDetails,
+        rawData: response.data,
+        success: true
+      };
+      
+    } catch (error) {
+      console.log(`❌ Location ${test.location} failed:`, error);
+      results[`Location ${test.location}`] = {
+        description: test.description,
+        error: error,
+        success: false
+      };
+    }
+  }
+  
+  console.log('🔍 Complete location services test results:', results);
+  
+  // Summary analysis
+  const successfulLocations = Object.entries(results).filter(([, result]: [string, any]) => result.success);
+  const totalServices = successfulLocations.reduce((sum, [, result]: [string, any]) => sum + (result.serviceCount || 0), 0);
+  
+  console.log('📊 Location Services Summary:', {
+    successfulLocations: successfulLocations.length,
+    totalServices,
+    locationBreakdown: successfulLocations.map(([location, result]: [string, any]) => ({
+      location,
+      serviceCount: result.serviceCount,
+      services: result.services?.map((s: any) => s.name) || []
+    }))
+  });
+  
+  return results;
+};
+
+/**
+ * Fetches available time slots using the correct booking API
+ * @param params The slot search parameters
+ * @returns Promise with array of available appointments
+ */
+export const getAvailableAppointments = async (params?: GetSlotsParams): Promise<AvailableAppointment[]> => {
+  const apiClient = createApiClient('agenda');
+  
+  try {
+    // If no params provided, get services first and use the first available service
+    let slotsParams = params;
+    if (!slotsParams) {
+      const services = await getServices();
+      if (services.length === 0) {
+        console.warn('⚠️ No services available for slot search');
+        return [];
+      }
+      
+      // Use the first available service with default date range
+      const today = new Date();
+      const nextMonth = new Date(today);
+      nextMonth.setMonth(today.getMonth() + 1);
+      
+      slotsParams = {
+        serviceid: services[0].serviceid,
+        from: today.toISOString().slice(0, 19).replace('T', ' '),
+        to: nextMonth.toISOString().slice(0, 19).replace('T', ' ')
+      };
+    }
+    
+    console.log('📡 Fetching slots with params:', slotsParams);
+    const response = await apiClient.post('/getSlots', slotsParams);
+    
+    console.log('📥 Slots response received:', {
+      status: response.status,
+      resultCount: (response.data as VitabyteApiResponse<VitabyteSlot[]>)?.result?.length || 0
+    });
+    
+    const apiData = response.data as VitabyteApiResponse<VitabyteSlot[]>;
+    if (apiData?.status && apiData?.result) {
+      const slots = apiData.result;
+      
+      // Convert Vitabyte slots to our AvailableAppointment format
+      return slots.map((slot: VitabyteSlot, index: number) => ({
+        id: `slot-${slot.from}-${slot.provider}`,
+        dateTime: new Date(parseInt(slot.from) * 1000).toISOString(),
+        duration: slotsParams?.duration || 50,
+        isAvailable: true
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('❌ Error fetching slots:', error);
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Tests available slots with specific parameters (for testing with Sonja Sporer calendar)
+ * @param params The slot search parameters
+ * @returns Promise with raw API response for debugging
+ */
+export const testGetSlots = async (params: GetSlotsParams): Promise<any> => {
+  const apiClient = createApiClient('agenda');
+  
+  try {
+    console.log('📡 Testing getSlots with specific params:', params);
+    const response = await apiClient.post('/getSlots', params);
+    
+    console.log('📥 getSlots test response received:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    console.log('🔍 getSlots response details:', {
+      dataType: typeof response.data,
+      dataContent: response.data,
+      dataJSON: JSON.stringify(response.data, null, 2)
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Error testing getSlots:', error);
+    throw error;
+  }
+};
+
+/**
+ * Books an appointment using the booking API
  * @param data The appointment booking data
  * @returns Promise with the booked appointment details
  */
@@ -184,21 +526,29 @@ export const bookAppointment = async (data: BookAppointmentData): Promise<Appoin
   const apiClient = createApiClient('agenda');
   
   try {
+    console.log('📡 Creating appointment with data:', data);
     const response = await apiClient.post('/createAppointment', data);
     
-    // Convert response to our format
-    const appointmentData = response.data as any;
-    return {
-      id: appointmentData?.id || `apt-${Date.now()}`,
-      dateTime: appointmentData?.dateTime || appointmentData?.start,
-      duration: appointmentData?.duration || 50,
-      patientId: data.patientId,
-      therapistId: appointmentData?.therapistId,
-      status: 'scheduled',
-      type: 'in-person',
-      notes: appointmentData?.notes,
-      metadata: data.metadata
-    };
+    console.log('📥 Create appointment response:', response.data);
+    
+    // Handle the expected Vitabyte API response format
+    const responseData = response.data as VitabyteApiResponse<{ appointmentid: number }>;
+    
+    if (responseData.status === true && responseData.result?.appointmentid) {
+      return {
+        id: responseData.result.appointmentid.toString(),
+        dateTime: data.date,
+        duration: Math.round((new Date(data.end).getTime() - new Date(data.date).getTime()) / (1000 * 60)),
+        patientId: data.patid.toString(),
+        therapistId: undefined, // Will be determined by calendar
+        status: 'scheduled',
+        type: data.appointment === 'Telefon' ? 'phone' : 'in-person',
+        notes: data.comment,
+        metadata: { calendar: data.calendar }
+      };
+    } else {
+      throw new Error(`Failed to create appointment: ${responseData.msg || 'Unknown error'}`);
+    }
   } catch (error) {
     return handleApiError(error);
   }
@@ -282,9 +632,12 @@ export const rescheduleAppointment = async (
     
     // Then book the new appointment
     const bookingData: BookAppointmentData = {
-      appointmentId: newData.newAppointmentId,
-      patientId: originalAppointment.patientId,
-      metadata: newData.metadata,
+      date: newData.date,
+      end: newData.end,
+      calendar: newData.calendar,
+      patid: parseInt(originalAppointment.patientId),
+      appointment: newData.appointment,
+      comment: newData.comment,
     };
     
     // Book the new appointment
@@ -359,6 +712,327 @@ export const getTherapistById = async (therapistId: string): Promise<Therapist |
 };
 
 /**
+ * Looks up customer/patient by email address
+ * @param email Email address to search for
+ * @returns Promise with array of matching customers
+ */
+export const getCustomerByMail = async (email: string): Promise<Customer[]> => {
+  const apiClient = createApiClient('system');
+  
+  try {
+    console.log('📡 Looking up customer by email:', email);
+    
+    const payload = { mail: email };
+    console.log('📤 Sending payload:', payload);
+    
+    const response = await apiClient.post('/getCustomerByMail', payload);
+    
+    console.log('📥 Customer lookup response received:', {
+      status: response.status,
+      resultCount: (response.data as VitabyteApiResponse<Customer[]>)?.result?.length || 0
+    });
+    
+    console.log('🔍 Customer response details:', {
+      dataType: typeof response.data,
+      dataContent: response.data,
+      dataJSON: JSON.stringify(response.data, null, 2),
+      hasStatus: (response.data as VitabyteApiResponse<Customer[]>)?.status,
+      hasResult: (response.data as VitabyteApiResponse<Customer[]>)?.result,
+      resultLength: (response.data as VitabyteApiResponse<Customer[]>)?.result?.length
+    });
+    
+    // Handle the expected Vitabyte API response format
+    const responseData = response.data as any;
+    
+    // Check for both boolean true and string "ok" status formats
+    const isSuccess = response.status === 200 && 
+                     (responseData.status === true || responseData.status === "ok") && 
+                     Array.isArray(responseData.result);
+    
+    if (isSuccess) {
+      const rawCustomers = responseData.result;
+      console.log('🎯 Successfully parsed customers count:', rawCustomers.length);
+      console.log('🔍 Raw customer data:', rawCustomers);
+      
+      // Convert and normalize customer data to handle type mismatches
+      const customers: Customer[] = rawCustomers.map((rawCustomer: any) => ({
+        patid: typeof rawCustomer.patid === 'string' ? parseInt(rawCustomer.patid) : rawCustomer.patid,
+        firstname: rawCustomer.firstname || '',
+        lastname: rawCustomer.lastname || '',
+        gender: rawCustomer.gender || '',
+        dob: rawCustomer.dob || '',
+        title: rawCustomer.title || '',
+        street: rawCustomer.street || '',
+        zip: rawCustomer.zip || '',
+        city: rawCustomer.city || '',
+        mobile: rawCustomer.mobile || '',
+        mail: rawCustomer.mail || rawCustomer.email || '',
+        ahv: rawCustomer.ahv || rawCustomer.AHV || '',
+        deleted: typeof rawCustomer.deleted === 'string' ? parseInt(rawCustomer.deleted) : rawCustomer.deleted || 0
+      }));
+      
+      if (customers.length > 0) {
+        console.log('🎯 Processed customers:', customers.slice(0, 3).map(c => ({
+          patid: c.patid,
+          name: `${c.firstname} ${c.lastname}`,
+          email: c.mail,
+          deleted: c.deleted,
+          isActive: c.deleted === 0
+        })));
+      }
+      
+      return customers;
+    } else {
+      console.warn('⚠️ Unexpected response format:', {
+        status: response.status,
+        responseStatus: responseData.status,
+        hasResult: Array.isArray(responseData.result),
+        actualData: responseData
+      });
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Error looking up customer:', error);
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Gets the treater (therapist) assigned to a specific patient
+ * @param patid Patient ID to look up treater for
+ * @returns Promise with treater information
+ */
+export const getTreater = async (patid: number): Promise<Treater | null> => {
+  const apiClient = createApiClient('system');
+  
+  try {
+    console.log('📡 Looking up treater for patient ID:', patid);
+    
+    const payload = { patid };
+    console.log('📤 Sending payload:', payload);
+    
+    const response = await apiClient.post('/getTreater', payload);
+    
+    console.log('📥 Treater lookup response received:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    console.log('🔍 Treater response details:', {
+      dataType: typeof response.data,
+      dataContent: response.data,
+      dataJSON: JSON.stringify(response.data, null, 2)
+    });
+    
+    // Handle the expected Vitabyte API response format
+    const responseData = response.data as any;
+    
+    // Check for both boolean true and string "ok" status formats
+    const isSuccess = response.status === 200 && 
+                     (responseData.status === true || responseData.status === "ok") && 
+                     responseData.result;
+    
+    if (isSuccess) {
+      const treaterData = responseData.result;
+      console.log('🎯 Successfully found treater:', treaterData);
+      
+      // Handle both direct provider number and object with provider field
+      if (typeof treaterData === 'number') {
+        return { provider: treaterData };
+      } else if (typeof treaterData === 'object' && treaterData.provider) {
+        return {
+          provider: typeof treaterData.provider === 'string' ? parseInt(treaterData.provider) : treaterData.provider
+        };
+      } else {
+        console.warn('⚠️ Unexpected treater data format:', treaterData);
+        return null;
+      }
+    } else {
+      console.warn('⚠️ Treater lookup failed or no treater found:', {
+        status: response.status,
+        responseStatus: responseData.status,
+        hasResult: !!responseData.result,
+        actualData: responseData
+      });
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Error looking up treater:', error);
+    // Return null instead of throwing to handle cases where patient has no assigned treater
+    return null;
+  }
+};
+
+/**
+ * Gets existing appointments for a patient 
+ * @param params Patient ID and optional filters
+ * @returns Promise with appointment data from the API
+ */
+export const getAppointments = async (params?: any): Promise<any> => {
+  const apiClient = createApiClient('agenda');
+  
+  try {
+    console.log('📡 Testing /v1/agenda/getAppointments endpoint...');
+    
+    // Use the provided patid or default to documentation example
+    const payload = { patid: params?.patid || 4031 };
+    console.log('📤 Sending payload:', payload);
+    
+    const response = await apiClient.post('/getAppointments', payload);
+    console.log('📥 getAppointments response received:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    const responseData = response.data;
+    console.log('🔍 getAppointments response details:', {
+      dataType: typeof responseData,
+      dataContent: responseData,
+      dataJSON: JSON.stringify(responseData, null, 2)
+    });
+    
+    return responseData;
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
+
+/**
+ * Test appointment creation using discovered Calendar ID 120
+ * @param testParams Test parameters for appointment creation
+ * @returns Promise with appointment creation test results
+ */
+export const testCreateAppointment = async (testParams?: {
+  patid?: number;
+  calendarId?: number;
+  appointmentType?: string;
+  date?: string;
+  duration?: number;
+  comment?: string;
+}): Promise<any> => {
+  const apiClient = createApiClient('agenda');
+  
+  try {
+    // Default test parameters using discovered data
+    const defaults = {
+      patid: testParams?.patid || 27947, // Default to shem-lee@gmx.ch patient ID (TODO: verify correct ID)
+      calendarId: testParams?.calendarId || 120, // Calendar ID for Dr. Sonja Sporer
+      appointmentType: testParams?.appointmentType || 'Konsultation',
+      duration: testParams?.duration || 50, // Standard therapy session duration
+      comment: testParams?.comment || 'Test appointment - API testing'
+    };
+
+    // Calculate appointment time (next business day at 10:00 AM)
+    const now = new Date();
+    const appointmentDate = new Date(now);
+    appointmentDate.setDate(now.getDate() + 1); // Tomorrow
+    appointmentDate.setHours(10, 0, 0, 0); // 10:00 AM
+    
+    // Skip weekends
+    if (appointmentDate.getDay() === 0) { // Sunday
+      appointmentDate.setDate(appointmentDate.getDate() + 1);
+    } else if (appointmentDate.getDay() === 6) { // Saturday
+      appointmentDate.setDate(appointmentDate.getDate() + 2);
+    }
+
+    const endDate = new Date(appointmentDate);
+    endDate.setMinutes(appointmentDate.getMinutes() + defaults.duration);
+
+    // Format dates for API
+    const formatDate = (date: Date) => {
+      return date.toISOString().slice(0, 19).replace('T', ' ');
+    };
+
+    const appointmentData: BookAppointmentData = {
+      date: testParams?.date || formatDate(appointmentDate),
+      end: formatDate(endDate),
+      calendar: defaults.calendarId,
+      patid: defaults.patid,
+      appointment: defaults.appointmentType,
+      comment: defaults.comment
+    };
+
+    console.log('🧪 Testing appointment creation with parameters:', appointmentData);
+    console.log('📋 Test context:', {
+      patientInfo: 'Patient ID 27947 (shem-lee@gmx.ch)',
+      calendarInfo: 'Calendar ID 120 (Dr. med. Sonja Sporer)',
+      appointmentTime: appointmentData.date,
+      duration: `${defaults.duration} minutes`,
+      type: defaults.appointmentType
+    });
+
+    // Test different endpoints to find the correct one
+    const testEndpoints = [
+      '/createAppointment',
+      '/v1/agenda/createAppointment', 
+      '/v1/booking/createAppointment',
+      '/booking/createAppointment'
+    ];
+
+    let lastError = null;
+    const testResults = [];
+
+    for (const endpoint of testEndpoints) {
+      try {
+        console.log(`🔍 Testing endpoint: ${endpoint}`);
+        const response = await apiClient.post(endpoint, appointmentData);
+        
+        const result = {
+          endpoint,
+          success: true,
+          status: response.status,
+          data: response.data,
+          method: 'POST'
+        };
+        
+        console.log(`✅ ${endpoint} successful:`, result);
+        testResults.push(result);
+        
+        // If we get a successful response, return immediately
+        if ((response.data as any)?.status === true || response.status === 200) {
+          return {
+            success: true,
+            workingEndpoint: endpoint,
+            appointmentData,
+            response: response.data,
+            allResults: testResults
+          };
+        }
+      } catch (error) {
+        lastError = error;
+        const errorResult = {
+          endpoint,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          status: (error as any)?.response?.status,
+          data: (error as any)?.response?.data
+        };
+        
+        console.log(`❌ ${endpoint} failed:`, errorResult);
+        testResults.push(errorResult);
+      }
+    }
+
+    // If no endpoint worked, return detailed results
+    return {
+      success: false,
+      message: 'No working appointment creation endpoint found',
+      appointmentData,
+      testResults,
+      lastError: lastError instanceof Error ? lastError.message : 'Unknown error'
+    };
+
+  } catch (error) {
+    console.error('🚨 Appointment creation test error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      appointmentData: testParams
+    };
+  }
+};
+
+/**
  * Gets appointments for a specific patient
  * @param params Parameters for filtering appointments
  * @returns Promise with array of appointments
@@ -367,35 +1041,111 @@ export const getPatientAppointments = async (params: GetAppointmentsParams): Pro
   const apiClient = createApiClient('agenda');
   
   try {
+    // Use the same format as the working getAppointments function
     const requestData: any = {
-      customerId: params.patientId
+      patid: parseInt(params.patientId) // Use patid instead of customerId
     };
     
-    if (params.startDate) {
-      requestData.startDate = params.startDate;
-    }
-    if (params.endDate) {
-      requestData.endDate = params.endDate;
-    }
-    if (params.status) {
-      requestData.status = params.status;
-    }
+    console.log('📡 getPatientAppointments - sending request:', requestData);
     
     const response = await apiClient.post('/getAppointments', requestData);
     
-    const appointments = Array.isArray(response.data) ? response.data : [];
+    console.log('📥 getPatientAppointments response:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    // Handle the Vitabyte API response format
+    const responseData = response.data as VitabyteApiResponse<any[]>;
+    
+    if (responseData?.status === true && Array.isArray(responseData.result)) {
+      const appointments = responseData.result;
     return appointments.map((appointment: any) => ({
-      id: appointment.id || appointment.appointmentId,
-      dateTime: appointment.dateTime || appointment.start,
+        id: appointment.id || appointment.appointmentId || `apt-${appointment.patid}-${appointment.date}`,
+        dateTime: appointment.dateTime || appointment.date || appointment.start,
       duration: appointment.duration || 50,
       patientId: params.patientId,
-      therapistId: appointment.therapistId || appointment.providerId,
+        therapistId: appointment.therapistId || appointment.providerId || appointment.provider,
       status: appointment.status || 'scheduled',
       type: appointment.type || 'in-person',
-      notes: appointment.notes,
-      metadata: appointment.metadata
+        notes: appointment.notes || appointment.comment,
+        metadata: appointment
     }));
+    } else {
+      console.log('📋 No appointments found or unexpected format:', responseData);
+      return [];
+    }
   } catch (error) {
+    console.error('❌ getPatientAppointments error:', error);
+    return handleApiError(error);
+  }
+};
+
+// New function to get provider details directly
+export const getProviderDetails = async (params: { providerid: number }): Promise<Therapist | null> => {
+  const apiClient = createApiClient('system');
+  try {
+    const response = await apiClient.post('/getProvider', { provider: params.providerid });
+    const data = response.data as any;
+
+    // Enhanced logging to inspect the actual data structure
+    console.log(`🔍 getProviderDetails - Raw response for provider ID ${params.providerid}:`, JSON.stringify(data, null, 2));
+
+    if (data && (data.status === true || data.status === 'ok')) {
+      const providerData = data.result && typeof data.result === 'object' ? data.result : data;
+      
+      // More detailed log of the object we are trying to extract from
+      console.log(`🔍 getProviderDetails - Provider data being processed:`, JSON.stringify(providerData, null, 2));
+
+      if (providerData.familyname || providerData.givenname) { // Check if essential name fields are present
+        return {
+          id: params.providerid.toString(),
+          name: `${providerData.title || ''} ${providerData.givenname || ''} ${providerData.familyname || ''}`.trim(),
+          specialty: providerData.specialization || 'General Practice',
+        };
+      } else {
+        console.warn(`⚠️ getProviderDetails - Essential name fields (familyname, givenname) missing in providerData for ID ${params.providerid}. Data:`, providerData);
+        return null;
+      }
+    } else if (typeof data.familyname !== 'undefined') { // Fallback for direct object response without status field (as seen in one log)
+       console.log(`🔍 getProviderDetails - Processing direct object response for provider ID ${params.providerid}:`, JSON.stringify(data, null, 2));
+       return {
+          id: params.providerid.toString(),
+          name: `${data.title || ''} ${data.givenname || ''} ${data.familyname || ''}`.trim(),
+          specialty: data.specialization || 'General Practice',
+        };
+    }
+
+    console.warn(`Failed to parse provider details or provider not found (status: ${data?.status}) for ID ${params.providerid}:`, data);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching provider details for ID ${params.providerid}:`, error);
+    return handleApiError(error); // Or return null if preferred for non-critical errors
+  }
+};
+
+// Renaming bookAppointment to createEpatAppointmentDirectly to avoid confusion 
+// with appointmentService.bookAppointment and to match direct API payload structure.
+export const createEpatAppointmentDirectly = async (payload: BookAppointmentData): Promise<{appointmentid: number} | null> => {
+  const apiClient = createApiClient('agenda');
+  try {
+    console.log('Creating ePAT appointment with payload:', payload);
+    const response = await apiClient.post('/createAppointment', payload);
+    const data = response.data as any;
+
+    if (data && (data.status === 'ok' || data.status === true) && data.result && Array.isArray(data.result) && data.result.length > 0 && data.result[0].appointmentid) {
+      console.log('Successfully created appointment:', data.result[0]);
+      return data.result[0];
+    }
+    if (data && (data.status === 'ok' || data.status === true) && data.result && data.result.appointmentid) { // Sometime result is not an array
+      console.log('Successfully created appointment (non-array result):', data.result);
+      return data.result;
+    }
+    console.error('Failed to create appointment, unexpected response:', data);
+    throw new Error(data.msg || 'Failed to create appointment due to unexpected response format.');
+
+  } catch (error) {
+    console.error('Error in createEpatAppointmentDirectly:', error);
     return handleApiError(error);
   }
 }; 

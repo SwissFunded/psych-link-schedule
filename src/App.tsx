@@ -18,6 +18,7 @@ const Book = lazy(() => import("./pages/Book"));
 const Reschedule = lazy(() => import("./pages/Reschedule"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Development = lazy(() => import("./pages/Development"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 // Create a fallback loading component
 const PageLoading = () => (
@@ -74,6 +75,11 @@ const AnimationRoutes = () => {
             <Development />
           </Suspense>
         } />
+        <Route path="/admin" element={
+          <Suspense fallback={<PageLoading />}>
+            <Admin />
+          </Suspense>
+        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
@@ -85,7 +91,12 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner position="top-right" closeButton className="sonner-premium" />
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <AuthProvider>
           <AnimationRoutes />
         </AuthProvider>

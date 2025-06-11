@@ -1,3 +1,6 @@
+import { supabase } from '@/integrations/supabase/client';
+import { getCustomerByMail, getTreater, getProviderDetails } from '@/lib/epatApi';
+
 export interface Therapist {
   id: string;
   name: string;
@@ -14,393 +17,362 @@ export interface Appointment {
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
   type: 'in-person' | 'video' | 'phone';
   notes?: string;
+  metadata?: Record<string, any>;
 }
 
+export interface BookingData {
+  patientEmail: string;
+  patientName: string;
+  patientPhone?: string;
+  appointmentDate: string; // YYYY-MM-DD
+  appointmentTime: string; // HH:MM
+  appointmentType: string;
+  duration?: number;
+  notes?: string;
+}
+
+// Time slots from EPAT Calendar API
 export interface TimeSlot {
-  therapistId: string;
-  date: string; // ISO format
-  duration: number; // in minutes
+  time: string;
   available: boolean;
 }
 
-import * as epatApi from '../lib/epatApi';
+export interface CalendarSlot {
+  date: string;
+  time: string;
+  title?: string;
+  description?: string;
+}
 
-// Helper function to convert epatApi Appointment to appointmentService Appointment
-const convertEpatAppointment = (epatAppointment: epatApi.Appointment): Appointment => ({
-  id: epatAppointment.id,
-  patientId: epatAppointment.patientId,
-  therapistId: epatAppointment.therapistId || '',
-  date: epatAppointment.dateTime,
-  duration: epatAppointment.duration,
-  status: epatAppointment.status as 'scheduled' | 'completed' | 'cancelled' | 'no-show',
-  type: epatAppointment.type || 'in-person',
-  notes: epatAppointment.notes,
-});
-
-/**
- * USE_MOCK_DATA controls whether to use mock data or the real API.
- * Set to false to use the Vitabyte ePAD API.
- */
-const USE_MOCK_DATA = false;
-
-// Mock therapists data (used only if USE_MOCK_DATA is true)
-const therapists: Therapist[] = [
-  {
-    id: "t1",
-    name: "Dr. Sarah Johnson",
-    specialty: "Cognitive Behavioral Therapy",
-  },
-  {
-    id: "t2",
-    name: "Dr. Michael Wong",
-    specialty: "Family Therapy",
-  },
-  {
-    id: "t3",
-    name: "Dr. Alicia Garcia",
-    specialty: "Trauma-Focused Therapy",
-  }
-];
-
-// Mock appointments for the current patient (used only if USE_MOCK_DATA is true)
-const patientAppointments: Appointment[] = [
-  {
-    id: "apt1",
-    patientId: "p-123",
-    therapistId: "t1",
-    date: new Date(new Date().getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    duration: 50,
-    status: 'scheduled',
-    type: 'in-person'
-  },
-  {
-    id: "apt2",
-    patientId: "p-123",
-    therapistId: "t3",
-    date: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    duration: 50,
-    status: 'scheduled',
-    type: 'video'
-  },
-  {
-    id: "apt3",
-    patientId: "p-123",
-    therapistId: "t1",
-    date: new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    duration: 50,
-    status: 'completed',
-    type: 'in-person'
-  }
-];
-
-// Mock available time slots (used only if USE_MOCK_DATA is true)
-const generateAvailableSlots = (): TimeSlot[] => {
-  const slots: TimeSlot[] = [];
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
-  
-  // Generate slots for the next 14 days
-  for (let day = 0; day < 14; day++) {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(currentDate.getDate() + day);
+// Vitabyte ICS Calendar function
+async function getCalendarSlots(): Promise<CalendarSlot[]> {
+  try {
+    const icsUrl = 'https://api.vitabyte.ch/calendar/?action=getics&cid=966541-462631-f1b699-977a3d&type=.ics';
+    console.log('🗓️ Fetching Vitabyte ICS calendar from:', icsUrl);
     
-    // Skip weekends
-    if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-      continue;
-    }
+    const response = await fetch(icsUrl);
+    const icsData = await response.text();
     
-    // Generate slots for each therapist
-    for (const therapist of therapists) {
-      // Morning slots
-      for (let hour = 9; hour < 12; hour++) {
-        const slotDate = new Date(currentDate);
-        slotDate.setHours(hour, 0, 0, 0);
-        
-        // All slots are available
-        slots.push({
-          therapistId: therapist.id,
-          date: slotDate.toISOString(),
-          duration: 50,
-          available: true
-        });
-      }
-      
-      // Afternoon slots
-      for (let hour = 13; hour < 17; hour++) {
-        const slotDate = new Date(currentDate);
-        slotDate.setHours(hour, 0, 0, 0);
-        
-        // All slots are available
-        slots.push({
-          therapistId: therapist.id,
-          date: slotDate.toISOString(),
-          duration: 50,
-          available: true
-        });
-      }
-    }
-  }
-  
-  return slots;
-};
-
-const availableSlots = generateAvailableSlots();
-
-// Generate a guaranteed list of fixed available time slots for the next 7 days (used only if USE_MOCK_DATA is true)
-const generateFixedAvailableSlots = (): TimeSlot[] => {
-  const fixedSlots: TimeSlot[] = [];
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
-  
-  // Generate slots for the next 7 days
-  for (let day = 0; day < 7; day++) {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(currentDate.getDate() + day);
+    console.log('📄 ICS Data received, length:', icsData.length);
     
-    // Skip weekends
-    if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-      continue;
-    }
+    // Parse ICS data manually (simple parser for VEVENT)
+    const slots: CalendarSlot[] = [];
+    const lines = icsData.split('\n');
+    let currentEvent: any = {};
+    let inEvent = false;
     
-    // Generate slots for each therapist at fixed times: 10:00, 11:00, 14:00, 16:00
-    for (const therapist of therapists) {
-      const fixedHours = [10, 11, 14, 16];
+    for (const line of lines) {
+      const cleanLine = line.trim();
       
-      for (const hour of fixedHours) {
-        const slotDate = new Date(currentDate);
-        slotDate.setHours(hour, 0, 0, 0);
-        
-        fixedSlots.push({
-          therapistId: therapist.id,
-          date: slotDate.toISOString(),
-          duration: 50,
-          available: true
-        });
-      }
-    }
-  }
-  
-  return fixedSlots;
-};
-
-const fixedAvailableSlots = generateFixedAvailableSlots();
-
-// Service functions - automatically uses the right data source based on USE_MOCK_DATA
-export const appointmentService = {
-  getTherapists: async (): Promise<Therapist[]> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return [...therapists];
-    } else {
-      // Use Vitabyte ePAD API
-      return epatApi.getTherapists();
-    }
-  },
-  
-  getTherapistById: async (id: string): Promise<Therapist | undefined> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return therapists.find(t => t.id === id);
-    } else {
-      // Use Vitabyte ePAD API
-      return epatApi.getTherapistById(id);
-    }
-  },
-  
-  getPatientAppointments: async (patientId: string): Promise<Appointment[]> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 700));
-      return patientAppointments.filter(apt => apt.patientId === patientId);
-    } else {
-      // Use Vitabyte ePAD API
-      const epatAppointments = await epatApi.getPatientAppointments({ patientId });
-      return epatAppointments.map(convertEpatAppointment);
-    }
-  },
-  
-  getUpcomingAppointments: async (patientId: string): Promise<Appointment[]> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const now = new Date();
-      return patientAppointments.filter(apt => 
-        apt.patientId === patientId && 
-        apt.status === 'scheduled' && 
-        new Date(apt.date) > now
-      );
-    } else {
-      // Use Vitabyte ePAD API
-      const now = new Date();
-      const epatAppointments = await epatApi.getPatientAppointments({ 
-        patientId,
-        startDate: now.toISOString(),
-        status: 'scheduled'
-      });
-      return epatAppointments.map(convertEpatAppointment);
-    }
-  },
-  
-  getPastAppointments: async (patientId: string): Promise<Appointment[]> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const now = new Date();
-      return patientAppointments.filter(apt => 
-        apt.patientId === patientId && 
-        (apt.status === 'completed' || apt.status === 'no-show' || new Date(apt.date) < now)
-      );
-    } else {
-      // Use Vitabyte ePAD API
-      const now = new Date();
-      const epatAppointments = await epatApi.getPatientAppointments({ 
-        patientId,
-        endDate: now.toISOString()
-      });
-      
-      // Filter and sort by date (most recent first)
-      const pastAppointments = epatAppointments
-        .map(convertEpatAppointment)
-        .filter(apt => 
-          apt.status === 'completed' || 
-          apt.status === 'cancelled' || 
-          apt.status === 'no-show' ||
-          new Date(apt.date) < now
-        )
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      return pastAppointments;
-    }
-  },
-  
-  getAvailableTimeSlots: async (therapistId: string, startDate: Date, endDate: Date): Promise<TimeSlot[]> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Filter available slots
-      const filteredSlots = availableSlots.filter(slot => 
-        slot.therapistId === therapistId &&
-        slot.available &&
-        new Date(slot.date) >= startDate &&
-        new Date(slot.date) <= endDate
-      );
-      
-      // If no slots are available, return fixed guaranteed slots
-      if (filteredSlots.length === 0) {
-        return fixedAvailableSlots.filter(slot => 
-          slot.therapistId === therapistId &&
-          new Date(slot.date) >= startDate &&
-          new Date(slot.date) <= endDate
-        );
-      }
-      
-      return filteredSlots;
-    } else {
-      // Use Vitabyte ePAD API
-      const availableAppointments = await epatApi.getAvailableAppointments();
-      
-      // Convert available appointments to time slots and filter by therapist and date range
-      return availableAppointments
-        .filter(appointment => 
-          appointment.isAvailable &&
-          new Date(appointment.dateTime) >= startDate &&
-          new Date(appointment.dateTime) <= endDate
-        )
-        .map(appointment => ({
-          therapistId: therapistId, // Use the requested therapistId
-          date: appointment.dateTime,
-          duration: appointment.duration,
-          available: appointment.isAvailable
-        }));
-    }
-  },
-  
-  bookAppointment: async (appointment: Omit<Appointment, 'id'>): Promise<Appointment> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newAppointment: Appointment = {
-        ...appointment,
-        id: 'apt' + Math.random().toString(36).substr(2, 9)
-      };
-      
-      // Update our mock data
-      patientAppointments.push(newAppointment);
-      
-      return newAppointment;
-    } else {
-      // Use Vitabyte ePAD API
-      const bookingData: epatApi.BookAppointmentData = {
-        appointmentId: '', // This might need to be derived from available appointments
-        patientId: appointment.patientId,
-        metadata: {
-          therapistId: appointment.therapistId,
-          type: appointment.type,
-          notes: appointment.notes
-        }
-      };
-      
-      const epatAppointment = await epatApi.bookAppointment(bookingData);
-      return convertEpatAppointment(epatAppointment);
-    }
-  },
-  
-  cancelAppointment: async (appointmentId: string): Promise<boolean> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const appointmentIndex = patientAppointments.findIndex(apt => apt.id === appointmentId);
-      if (appointmentIndex !== -1) {
-        patientAppointments[appointmentIndex].status = 'cancelled';
-        return true;
-      }
-      
-      return false;
-    } else {
-      // Use Vitabyte ePAD API
-      try {
-        await epatApi.cancelAppointment(appointmentId);
-        return true;
-      } catch (error) {
-        console.error('Error cancelling appointment:', error);
-        return false;
-      }
-    }
-  },
-  
-  rescheduleAppointment: async (appointmentId: string, newDate: string): Promise<Appointment | null> => {
-    if (USE_MOCK_DATA) {
-      // Use mock data
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const appointmentIndex = patientAppointments.findIndex(apt => apt.id === appointmentId);
-      if (appointmentIndex !== -1) {
-        patientAppointments[appointmentIndex].date = newDate;
-        return patientAppointments[appointmentIndex];
-      }
-      
-      return null;
-    } else {
-      // Use Vitabyte ePAD API
-      try {
-        const rescheduleData: epatApi.RescheduleAppointmentData = {
-          newAppointmentId: '', // This might need to be derived from available appointments for the new date
-          metadata: {
-            newDate: newDate
+      if (cleanLine === 'BEGIN:VEVENT') {
+        inEvent = true;
+        currentEvent = {};
+      } else if (cleanLine === 'END:VEVENT' && inEvent) {
+        // Process the event
+        if (currentEvent.DTSTART) {
+          const startDateTime = parseICSDateTime(currentEvent.DTSTART);
+          if (startDateTime) {
+            const date = startDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
+            const time = startDateTime.toTimeString().substring(0, 5); // HH:MM
+            
+            slots.push({
+              date,
+              time,
+              title: currentEvent.SUMMARY || 'Termin',
+              description: currentEvent.DESCRIPTION || ''
+            });
           }
-        };
-        
-        const epatAppointment = await epatApi.rescheduleAppointment(appointmentId, rescheduleData);
-        return convertEpatAppointment(epatAppointment);
-      } catch (error) {
-        console.error('Error rescheduling appointment:', error);
-        return null;
+        }
+        inEvent = false;
+        currentEvent = {};
+      } else if (inEvent && cleanLine.includes(':')) {
+        const [key, ...valueParts] = cleanLine.split(':');
+        const value = valueParts.join(':');
+        currentEvent[key] = value;
       }
     }
+    
+    console.log('✅ Parsed', slots.length, 'calendar slots from ICS');
+    return slots;
+  } catch (error) {
+    console.error('❌ Failed to fetch Vitabyte ICS calendar:', error);
+    return [];
+  }
+}
+
+// Helper function to parse ICS datetime format
+function parseICSDateTime(icsDateTime: string): Date | null {
+  try {
+    // Handle different ICS datetime formats
+    // Format: YYYYMMDDTHHMMSS or YYYYMMDDTHHMMSSZ
+    let dateStr = icsDateTime.replace(/[TZ]/g, '');
+    
+    if (dateStr.length >= 14) {
+      const year = parseInt(dateStr.substring(0, 4));
+      const month = parseInt(dateStr.substring(4, 6)) - 1; // Month is 0-indexed
+      const day = parseInt(dateStr.substring(6, 8));
+      const hour = parseInt(dateStr.substring(8, 10));
+      const minute = parseInt(dateStr.substring(10, 12));
+      const second = parseInt(dateStr.substring(12, 14)) || 0;
+      
+      return new Date(year, month, day, hour, minute, second);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing ICS datetime:', icsDateTime, error);
+    return null;
+  }
+}
+
+// Service functions
+export const appointmentService = {
+  // Get basic therapist info (simplified)
+  getTherapists: async (): Promise<Therapist[]> => {
+    // Return a simple list of appointment types instead of actual therapists
+    return [
+      {
+        id: "consultation",
+        name: "Beratungsgespräch",
+        specialty: "Allgemeine Beratung"
+      },
+      {
+        id: "therapy",
+        name: "Therapiesitzung",
+        specialty: "Psychotherapie"
+      },
+      {
+        id: "followup",
+        name: "Nachkontrolle",
+        specialty: "Follow-up"
+      }
+    ];
+  },
+
+  // Get available time slots for a specific date using Vitabyte ICS Calendar
+  getAvailableSlots: async (date: string): Promise<TimeSlot[]> => {
+    try {
+      // Get slots from Vitabyte ICS Calendar
+      const calendarSlots = await getCalendarSlots();
+      
+      // Filter slots for the specific date
+      const slotsForDate = calendarSlots.filter(slot => slot.date === date);
+      
+      // Get existing bookings for this date from Supabase to exclude already booked times
+      const { data: existingBookings } = await supabase
+        .from('bookings')
+        .select('appointment_time')
+        .eq('appointment_date', date)
+        .eq('status', 'scheduled');
+
+      const bookedTimes = existingBookings?.map(booking => booking.appointment_time) || [];
+
+      // Convert calendar slots to TimeSlot format, excluding booked times
+      return slotsForDate.map(slot => ({
+        time: slot.time,
+        available: !bookedTimes.includes(slot.time)
+      }));
+    } catch (error) {
+      console.error('Error fetching available slots:', error);
+      return [];
+    }
+  },
+
+  // Get all available slots grouped by date from Vitabyte ICS Calendar
+  getAllAvailableSlots: async (): Promise<Record<string, TimeSlot[]>> => {
+    try {
+      // Get slots from Vitabyte ICS Calendar
+      const calendarSlots = await getCalendarSlots();
+      
+      // Get all existing bookings from Supabase
+      const { data: existingBookings } = await supabase
+        .from('bookings')
+        .select('appointment_date, appointment_time')
+        .eq('status', 'scheduled');
+
+      // Create a map of booked times by date
+      const bookedTimesByDate: Record<string, string[]> = {};
+      existingBookings?.forEach(booking => {
+        if (!bookedTimesByDate[booking.appointment_date]) {
+          bookedTimesByDate[booking.appointment_date] = [];
+        }
+        bookedTimesByDate[booking.appointment_date].push(booking.appointment_time);
+      });
+
+      // Group calendar slots by date and mark availability
+      const slotsByDate: Record<string, TimeSlot[]> = {};
+      calendarSlots.forEach(slot => {
+        if (!slotsByDate[slot.date]) {
+          slotsByDate[slot.date] = [];
+        }
+        
+        const bookedTimes = bookedTimesByDate[slot.date] || [];
+        slotsByDate[slot.date].push({
+          time: slot.time,
+          available: !bookedTimes.includes(slot.time)
+        });
+      });
+
+      // Sort times within each date
+      Object.keys(slotsByDate).forEach(date => {
+        slotsByDate[date].sort((a, b) => a.time.localeCompare(b.time));
+      });
+
+      return slotsByDate;
+    } catch (error) {
+      console.error('Error fetching all available slots:', error);
+      return {};
+    }
+  },
+
+  // Book a new appointment (store in Supabase)
+  bookAppointment: async (bookingData: BookingData): Promise<{ success: boolean; id?: string; error?: string }> => {
+    try {
+      // First, try to get patient info from Vitabyte (minimal API call)
+      let vitabytePatientId = null;
+      let treaterName = null;
+      let treaterId = null;
+
+      try {
+        const customers = await getCustomerByMail(bookingData.patientEmail);
+        if (customers.length > 0) {
+          vitabytePatientId = customers[0].patid;
+          
+          // Try to get treater info
+          const treater = await getTreater(vitabytePatientId);
+          if (treater) {
+            treaterId = treater.provider;
+            const providerDetails = await getProviderDetails({ providerid: treater.provider });
+            if (providerDetails) {
+              treaterName = providerDetails.name;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Could not fetch Vitabyte data, proceeding with basic booking:', error);
+      }
+
+      // Store booking in Supabase
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+          patient_email: bookingData.patientEmail,
+          patient_name: bookingData.patientName,
+          patient_phone: bookingData.patientPhone,
+          vitabyte_patient_id: vitabytePatientId,
+          treater_name: treaterName,
+          treater_id: treaterId,
+          appointment_date: bookingData.appointmentDate,
+          appointment_time: bookingData.appointmentTime,
+          appointment_type: bookingData.appointmentType,
+          duration: bookingData.duration || 50,
+          notes: bookingData.notes,
+          status: 'scheduled'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating booking:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, id: data.id };
+    } catch (error) {
+      console.error('Error in bookAppointment:', error);
+      return { success: false, error: 'Failed to create booking' };
+    }
+  },
+
+  // Get user's appointments from Supabase
+  getUpcomingAppointments: async (patientEmail: string): Promise<Appointment[]> => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('patient_email', patientEmail)
+      .eq('status', 'scheduled')
+      .gte('appointment_date', today)
+      .order('appointment_date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching upcoming appointments:', error);
+      return [];
+    }
+
+    return bookings?.map(booking => ({
+      id: booking.id,
+      patientId: booking.patient_email,
+      therapistId: booking.appointment_type,
+      date: `${booking.appointment_date}T${booking.appointment_time}:00`,
+      duration: booking.duration,
+      status: 'scheduled' as const,
+      type: 'in-person' as const,
+      notes: booking.notes,
+      metadata: {
+        treaterName: booking.treater_name,
+        treaterId: booking.treater_id,
+        vitabytePatientId: booking.vitabyte_patient_id
+      }
+    })) || [];
+  },
+
+  // Get past appointments from Supabase
+  getPastAppointments: async (patientEmail: string): Promise<Appointment[]> => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('patient_email', patientEmail)
+      .lt('appointment_date', today)
+      .order('appointment_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching past appointments:', error);
+      return [];
+    }
+
+    return bookings?.map(booking => ({
+      id: booking.id,
+      patientId: booking.patient_email,
+      therapistId: booking.appointment_type,
+      date: `${booking.appointment_date}T${booking.appointment_time}:00`,
+      duration: booking.duration,
+      status: 'completed' as const,
+      type: 'in-person' as const,
+      notes: booking.notes,
+      metadata: {
+        treaterName: booking.treater_name,
+        treaterId: booking.treater_id,
+        vitabytePatientId: booking.vitabyte_patient_id
+      }
+    })) || [];
+  },
+
+  // Cancel an appointment
+  cancelAppointment: async (appointmentId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+      return { success: false, error: 'Failed to cancel appointment' };
+    }
+  },
+
+  // Get therapist by ID (simplified)
+  getTherapistById: async (therapistId: string): Promise<Therapist | undefined> => {
+    const therapists = await appointmentService.getTherapists();
+    return therapists.find(t => t.id === therapistId);
   }
 };

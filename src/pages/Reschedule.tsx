@@ -234,7 +234,7 @@ export default function Reschedule() {
               
               <div className="mt-8">
                 <Button 
-                  className="w-full bg-psychPurple hover:bg-psychPurple/90"
+                  className="w-full bg-psychPurple hover:bg-psychPurple/90 text-white"
                   disabled={!selectedTimeSlot || loading}
                   onClick={handleReschedule}
                 >

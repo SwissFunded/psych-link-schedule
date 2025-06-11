@@ -1,214 +1,347 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { appointmentService, TimeSlot } from '@/services/appointmentService';
-import { format, addDays, startOfWeek, parseISO } from 'date-fns';
+import { appointmentService, TimeSlot, BookingData } from '@/services/appointmentService';
+import { format, addDays, isWeekend } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
 import { Calendar } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
-import AppointmentTypeSelection from '@/components/ui/AppointmentTypeSelection';
-import AppointmentModal from '@/components/ui/AppointmentModal';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Clock, Calendar as CalendarIcon, User } from 'lucide-react';
 
 export default function Book() {
-  const [date, setDate] = useState<Date | undefined>(() => {
-    const today = new Date();
-    const nextMonday = startOfWeek(addDays(today, 7), { weekStartsOn: 1 });
-    return nextMonday;
-  });
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("date");
-  const [appointmentType, setAppointmentType] = useState({
-    type: 'video' as 'video' | 'in-person',
-    duration: 30 as 30 | 60
-  });
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [allSlotsByDate, setAllSlotsByDate] = useState<Record<string, TimeSlot[]>>({});
+  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [appointmentType, setAppointmentType] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("slots");
   
-  const { patient } = useAuth();
+  const { patient, vitabytePatient } = useAuth();
   const navigate = useNavigate();
   
-  // Default therapist ID - since we're removing therapist selection
-  const defaultTherapistId = "t1";
-  
+  // Load all available slots from Vitabyte ICS Calendar on component mount
   useEffect(() => {
-    const fetchTimeSlots = async () => {
-      if (!date) return;
-      
+    const fetchAllSlots = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const slots = await appointmentService.getAvailableTimeSlots(
-          defaultTherapistId,
-          date,
-          addDays(date, 7)
-        );
-        setAvailableSlots(slots.filter(slot => slot.available));
+        console.log('🔄 Fetching slots from Vitabyte ICS Calendar...');
+        const slotsByDate = await appointmentService.getAllAvailableSlots();
+        console.log('✅ Vitabyte ICS Calendar Response:', slotsByDate);
+        setAllSlotsByDate(slotsByDate);
       } catch (error) {
-        console.error('Failed to fetch time slots:', error);
-        toast.error("Zeitfenster konnten nicht geladen werden");
+        console.error('Error fetching slots from Vitabyte ICS Calendar:', error);
+        toast.error('Verfügbare Termine konnten nicht geladen werden');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchTimeSlots();
-  }, [date]);
+    fetchAllSlots();
+  }, []);
   
-  const handleTimeSlotSelect = (slot: TimeSlot) => {
-    setSelectedTimeSlot(slot);
-    setActiveTab("confirm");
-  };
-
-  const handleAppointmentTypeChange = (value: { type: 'video' | 'in-person', duration: 30 | 60 }) => {
-    setAppointmentType(value);
-  };
+  // Update available slots when date changes
+  useEffect(() => {
+    if (date) {
+      const dateString = format(date, 'yyyy-MM-dd');
+      const slotsForDate = allSlotsByDate[dateString] || [];
+      setAvailableSlots(slotsForDate);
+    }
+  }, [date, allSlotsByDate]);
   
-  const handleOpenModal = () => {
-    if (!selectedTimeSlot) return;
-    setIsModalOpen(true);
-  };
-  
-  const handleBookAppointment = async () => {
-    if (!selectedTimeSlot || !patient?.id) return;
-    
-    try {
-      setLoading(true);
-      
-      const newAppointment = {
-        patientId: patient.id,
-        therapistId: defaultTherapistId,
-        date: selectedTimeSlot.date,
-        duration: appointmentType.duration,
-        status: 'scheduled' as const,
-        type: appointmentType.type,
-      };
-      
-      const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
-      
-      if (bookedAppointment) {
-        toast.success("Termin erfolgreich gebucht");
-        navigate('/appointments');
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    if (selectedDate && selectedDate >= new Date()) {
+      setDate(selectedDate);
+      setSelectedTime('');
+      if (selectedDate > new Date()) {
+        setActiveTab("time");
       }
-    } catch (error) {
-      console.error('Failed to book appointment:', error);
-      toast.error("Termin konnte nicht gebucht werden");
-    } finally {
-      setLoading(false);
-      setIsModalOpen(false);
     }
   };
   
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
+    setActiveTab("details");
+  };
+
+  const handleSlotSelect = (dateStr: string, time: string) => {
+    setDate(new Date(dateStr));
+    setSelectedTime(time);
+    setActiveTab("details");
+  };
+  
+  const handleBookAppointment = async () => {
+    if (!patient?.email || !patient?.name || !date || !selectedTime || !appointmentType) {
+      toast.error('Bitte füllen Sie alle erforderlichen Felder aus');
+      return;
+    }
+    
+    setLoading(true);
+    
+    const bookingData: BookingData = {
+      patientEmail: patient.email,
+      patientName: `${patient.name} ${patient.surname || ''}`.trim(),
+      patientPhone: patient.phone || undefined,
+      appointmentDate: format(date, 'yyyy-MM-dd'),
+      appointmentTime: selectedTime,
+      appointmentType,
+      duration: 50,
+      notes: notes || undefined
+    };
+    
+    try {
+      const result = await appointmentService.bookAppointment(bookingData);
+      
+      if (result.success) {
+        toast.success('Termin erfolgreich gebucht!', {
+          description: `${format(date, 'EEEE, d. MMMM yyyy', { locale: de })} um ${selectedTime} Uhr`
+        });
+        navigate('/appointments');
+      } else {
+        toast.error(result.error || 'Termin konnte nicht gebucht werden');
+      }
+    } catch (error) {
+      console.error('Error booking appointment:', error);
+      toast.error('Ein Fehler ist aufgetreten');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today || isWeekend(date);
+  };
+
   return (
     <Layout>
-      <div className="container max-w-4xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-semibold mb-6">Buchen Sie Ihren Termin</h1>
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="date">Datum & Zeit wählen</TabsTrigger>
-            <TabsTrigger value="confirm" disabled={!selectedTimeSlot}>Bestätigen</TabsTrigger>
+      <div className="container max-w-2xl mx-auto py-8 px-4">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold mb-2">Neuen Termin buchen</h1>
+          <p className="text-psychText/60">Wählen Sie Datum, Zeit und Terminart für Ihren Besuch</p>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="slots" className="flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4" />
+              Vitabyte Kalender
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Kalender
+            </TabsTrigger>
+            <TabsTrigger value="details" disabled={!selectedTime} className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Details
+            </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="date" className="animate-fade-in">
-            <h2 className="text-lg font-medium mb-4">Wählen Sie ein Datum und eine Uhrzeit</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-md font-medium mb-2">Datum auswählen</h3>
-                <Card className="border-psychPurple/10">
-                  <CardContent className="p-3">
-                    <Calendar 
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                      disabled={(date) => date < new Date()}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div>
-                <h3 className="text-md font-medium mb-2">Verfügbare Zeiten</h3>
+
+          <TabsContent value="slots">
+            <Card>
+              <CardHeader>
+                <CardTitle>Verfügbare Termine (Vitabyte ICS Kalender)</CardTitle>
+                <p className="text-sm text-psychText/60">
+                  Wählen Sie einen verfügbaren Termin aus der Vitabyte Kalender
+                </p>
+              </CardHeader>
+              <CardContent>
                 {loading ? (
-                  <div className="animate-pulse">
-                    <div className="h-10 bg-psychPurple/10 rounded mb-2"></div>
-                    <div className="h-10 bg-psychPurple/10 rounded mb-2"></div>
+                  <div className="flex justify-center py-8">
+                    <div className="w-8 h-8 border-2 border-psychPurple/30 border-t-psychPurple rounded-full animate-spin"></div>
+                    <p className="ml-3 text-psychText/60">Lade verfügbare Termine von Vitabyte ICS...</p>
                   </div>
-                ) : availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {availableSlots.map(slot => (
-                      <Button
-                        key={slot.date}
-                        variant="outline"
-                        className={`border-psychPurple/20 ${selectedTimeSlot?.date === slot.date ? 'bg-psychPurple text-white border-psychPurple' : 'hover:border-psychPurple hover:text-psychPurple'}`}
-                        onClick={() => handleTimeSlotSelect(slot)}
-                      >
-                        {format(parseISO(slot.date), 'HH:mm', { locale: de })} Uhr
-                      </Button>
-                    ))}
+                ) : Object.keys(allSlotsByDate).length > 0 ? (
+                  <div className="space-y-6 max-h-96 overflow-y-auto">
+                    {Object.entries(allSlotsByDate)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([dateStr, slots]) => {
+                        const availableSlotsForDate = slots.filter(slot => slot.available);
+                        if (availableSlotsForDate.length === 0) return null;
+                        
+                        return (
+                          <div key={dateStr} className="border rounded-lg p-4">
+                            <h3 className="font-medium mb-3 text-psychPurple">
+                              {format(new Date(dateStr), 'EEEE, d. MMMM yyyy', { locale: de })}
+                            </h3>
+                            <div className="grid grid-cols-4 gap-2">
+                              {availableSlotsForDate.map((slot) => (
+                                <Button
+                                  key={`${dateStr}-${slot.time}`}
+                                  variant={selectedTime === slot.time && date && format(date, 'yyyy-MM-dd') === dateStr ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleSlotSelect(dateStr, slot.time)}
+                                  className={`h-10 ${
+                                    selectedTime === slot.time && date && format(date, 'yyyy-MM-dd') === dateStr
+                                      ? "bg-psychPurple hover:bg-psychPurple/90" 
+                                      : "hover:bg-psychPurple/10"
+                                  }`}
+                                >
+                                  {slot.time}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
                 ) : (
-                  <div className="text-center py-6">
-                    <p className="text-psychText/70">Keine verfügbaren Zeiten für dieses Datum</p>
+                  <div className="text-center py-8">
+                    <p className="text-psychText/60">
+                      Keine verfügbaren Termine gefunden
+                    </p>
+                    <p className="text-sm text-psychText/40 mt-2">
+                      Vitabyte ICS Kalender ist möglicherweise nicht erreichbar
+                    </p>
                   </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </TabsContent>
-          
-          <TabsContent value="confirm" className="animate-fade-in">
-            <h2 className="text-lg font-medium mb-4">Bestätigen Sie Ihren Termin</h2>
-            {selectedTimeSlot ? (
-              <div className="space-y-6">
-                <Card className="border-psychPurple/10">
-                  <CardContent className="p-6">
-                    <div className="mb-4">
-                      <h3 className="text-md font-medium">Datum und Uhrzeit</h3>
-                      <p className="text-psychText/70">
-                        {format(parseISO(selectedTimeSlot.date), 'EEEE, d. MMMM yyyy', { locale: de })}
-                      </p>
-                      <p className="text-psychText/70">
-                        {format(parseISO(selectedTimeSlot.date), 'HH:mm', { locale: de })} Uhr
-                      </p>
-                    </div>
-                    
-                    <div className="mb-4">
-                      <AppointmentTypeSelection 
-                        value={appointmentType}
-                        onChange={handleAppointmentTypeChange}
-                      />
-                    </div>
-                    
-                    <Button 
-                      className="w-full bg-psychPurple hover:bg-psychPurple/90"
-                      onClick={handleOpenModal}
-                      disabled={loading}
-                    >
-                      Termin buchen
-                    </Button>
-                  </CardContent>
-                </Card>
-                
-                <AppointmentModal 
-                  isOpen={isModalOpen}
-                  onClose={() => setIsModalOpen(false)}
-                  onConfirm={handleBookAppointment}
-                  date={selectedTimeSlot.date}
-                  type={appointmentType.type}
-                  duration={appointmentType.duration}
-                  loading={loading}
+
+          <TabsContent value="calendar">
+            <Card>
+              <CardHeader>
+                <CardTitle>Kalenderansicht</CardTitle>
+                <p className="text-sm text-psychText/60">
+                  Wählen Sie ein Datum aus dem Kalender
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={handleDateSelect}
+                  disabled={isDateDisabled}
+                  locale={de}
+                  className="rounded-md border"
                 />
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-psychText/70">Bitte wählen Sie zuerst eine Uhrzeit aus</p>
-              </div>
-            )}
+                
+                {date && (
+                  <div className="mt-6">
+                    <h4 className="font-medium mb-3">
+                      Verfügbare Zeiten für {format(date, 'EEEE, d. MMMM yyyy', { locale: de })}
+                    </h4>
+                    {availableSlots.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-3">
+                        {availableSlots.map((slot) => (
+                          <Button
+                            key={slot.time}
+                            variant={selectedTime === slot.time ? "default" : "outline"}
+                            disabled={!slot.available}
+                            onClick={() => handleTimeSelect(slot.time)}
+                            className={`h-12 ${
+                              selectedTime === slot.time 
+                                ? "bg-psychPurple hover:bg-psychPurple/90" 
+                                : "hover:bg-psychPurple/10"
+                            }`}
+                          >
+                            {slot.time}
+                          </Button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-psychText/60 text-center py-4">
+                        Keine verfügbaren Zeiten für das gewählte Datum
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="details">
+            <Card>
+              <CardHeader>
+                <CardTitle>Termindetails</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="appointment-type">Terminart *</Label>
+                  <Select value={appointmentType} onValueChange={setAppointmentType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Wählen Sie die Terminart" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="consultation">Beratungsgespräch</SelectItem>
+                      <SelectItem value="therapy">Therapiesitzung</SelectItem>
+                      <SelectItem value="followup">Nachkontrolle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Anmerkungen (optional)</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Teilen Sie uns mit, wenn Sie spezielle Anliegen haben..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Patient Info Display */}
+                <div className="p-4 bg-psychPurple/5 rounded-lg border border-psychPurple/10">
+                  <h4 className="font-medium mb-2">Patienteninformationen</h4>
+                  <div className="text-sm space-y-1">
+                    <p><strong>Name:</strong> {patient?.name} {patient?.surname}</p>
+                    <p><strong>E-Mail:</strong> {patient?.email}</p>
+                    {patient?.phone && <p><strong>Telefon:</strong> {patient.phone}</p>}
+                    {vitabytePatient?.patid && (
+                      <p><strong>Patienten-ID:</strong> {vitabytePatient.patid}</p>
+                    )}
+                    {vitabytePatient?.assignedTherapist && (
+                      <p><strong>Therapeut:</strong> {vitabytePatient.assignedTherapist.name}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Vitabyte ICS Calendar Info */}
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium mb-2 text-blue-800">📡 Vitabyte ICS Kalender Status</h4>
+                  <div className="text-sm space-y-1 text-blue-700">
+                    <p><strong>Kalender Status:</strong> {Object.keys(allSlotsByDate).length > 0 ? '✅ Verbunden' : '❌ Getrennt'}</p>
+                    <p><strong>Verfügbare Tage:</strong> {Object.keys(allSlotsByDate).length}</p>
+                    <p><strong>Termine insgesamt:</strong> {Object.values(allSlotsByDate).flat().length}</p>
+                    <p><strong>Verfügbare Termine:</strong> {Object.values(allSlotsByDate).flat().filter(s => s.available).length}</p>
+                    <p><strong>Quelle:</strong> api.vitabyte.ch/calendar (ICS)</p>
+                  </div>
+                </div>
+
+                {/* Booking Summary */}
+                {date && selectedTime && (
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <h4 className="font-medium mb-2 text-green-800">Terminübersicht</h4>
+                    <div className="text-sm space-y-1 text-green-700">
+                      <p><strong>Datum:</strong> {format(date, 'EEEE, d. MMMM yyyy', { locale: de })}</p>
+                      <p><strong>Zeit:</strong> {selectedTime} Uhr</p>
+                      <p><strong>Dauer:</strong> 50 Minuten</p>
+                      {appointmentType && <p><strong>Art:</strong> {appointmentType}</p>}
+                      <p><strong>Quelle:</strong> EPAT Calendar API</p>
+                    </div>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={handleBookAppointment}
+                  disabled={loading || !appointmentType}
+                  className="w-full bg-psychPurple hover:bg-psychPurple/90"
+                >
+                  {loading ? 'Buchung läuft...' : 'Termin buchen'}
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

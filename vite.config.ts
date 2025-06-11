@@ -20,12 +20,42 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/system/, ''),
         secure: true,
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Forward all headers from the original request
+            if (req.headers.authorization) {
+              proxyReq.setHeader('Authorization', req.headers.authorization);
+            }
+            if (req.headers['content-type']) {
+              proxyReq.setHeader('Content-Type', req.headers['content-type']);
+            }
+            console.log('🔧 Proxy forwarding headers:', {
+              authorization: req.headers.authorization ? '[REDACTED]' : 'Missing',
+              contentType: req.headers['content-type']
+            });
+          });
+        },
       },
       '/api/agenda': {
         target: 'https://psych.vitabyte.ch/v1/agenda',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/agenda/, ''),
         secure: true,
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Forward all headers from the original request
+            if (req.headers.authorization) {
+              proxyReq.setHeader('Authorization', req.headers.authorization);
+            }
+            if (req.headers['content-type']) {
+              proxyReq.setHeader('Content-Type', req.headers['content-type']);
+            }
+            console.log('🔧 Proxy forwarding headers:', {
+              authorization: req.headers.authorization ? '[REDACTED]' : 'Missing',
+              contentType: req.headers['content-type']
+            });
+          });
+        },
       },
     },
   },

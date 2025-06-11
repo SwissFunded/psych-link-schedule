@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Card, 
@@ -18,7 +17,7 @@ import { useForm } from "react-hook-form";
 
 export interface AppointmentTypeValues {
   type: 'video' | 'in-person';
-  duration: 30 | 60;
+  duration: 30 | 50 | 60;
 }
 
 interface AppointmentTypeSelectionProps {
@@ -129,7 +128,7 @@ export const AppointmentTypeSelection: React.FC<AppointmentTypeSelectionProps> =
                   <ToggleGroup
                     type="single"
                     value={field.value.toString()}
-                    onValueChange={(value) => value && handleValueChange({ duration: parseInt(value) as 30 | 60 })}
+                    onValueChange={(value) => value && handleValueChange({ duration: parseInt(value) as 30 | 50 | 60 })}
                     className="justify-start"
                     variant="outline"
                   >
@@ -138,6 +137,12 @@ export const AppointmentTypeSelection: React.FC<AppointmentTypeSelectionProps> =
                       className={`border-psychPurple/20 ${value.duration === 30 ? 'bg-psychPurple text-white' : ''}`}
                     >
                       30 Minuten
+                    </ToggleGroupItem>
+                    <ToggleGroupItem 
+                      value="50"
+                      className={`border-psychPurple/20 ${value.duration === 50 ? 'bg-psychPurple text-white' : ''}`}
+                    >
+                      50 Minuten
                     </ToggleGroupItem>
                     <ToggleGroupItem 
                       value="60"

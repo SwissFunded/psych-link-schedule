@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from '@supabase/supabase-js';
+import { getCustomerByMail, getTreater, getAppointments, getTherapists, Customer, Treater } from '@/lib/epatApi';
 
 interface Patient {
   id: string;
@@ -13,16 +14,42 @@ interface Patient {
   birthdate?: string;
 }
 
+interface VitabytePatientData {
+  patid: number;
+  firstname: string;
+  lastname: string;
+  gender: string;
+  dob: string;
+  title?: string;
+  street?: string;
+  zip?: string;
+  city?: string;
+  mobile?: string;
+  mail: string;
+  ahv?: string;
+  deleted: number;
+  assignedTherapist?: {
+    providerId: number;
+    name: string;
+    specialty: string;
+  };
+  appointmentCount?: number;
+  lastSync?: Date;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
   patient: Patient | null;
+  vitabytePatient: VitabytePatientData | null;
   user: User | null;
   session: Session | null;
   loading: boolean;
+  vitabyteLoading: boolean;
   login: (email: string, password: string, silent?: boolean) => Promise<void>;
   signup: (email: string, password: string, name: string, surname: string, phone: string, birthdate: string) => Promise<void>;
   logout: () => void;
   verifyOtp: (email: string, token: string) => Promise<boolean>;
+  refreshVitabyteData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,11 +90,116 @@ const generateOTPCode = (): string => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [vitabytePatient, setVitabytePatient] = useState<VitabytePatientData | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [vitabyteLoading, setVitabyteLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Function to lookup Vitabyte patient data
+  const lookupVitabyteData = async (email: string) => {
+    try {
+      setVitabyteLoading(true);
+      console.log('🔍 Looking up Vitabyte data for:', email);
+
+      // Look up customer in Vitabyte API
+      const customers = await getCustomerByMail(email);
+      
+      if (customers.length === 0) {
+        console.log('ℹ️ No Vitabyte patient data found for:', email);
+        setVitabytePatient(null);
+        
+        // Show informative message for users (not an error, just information)
+        toast.info(`Patientendaten für ${email} werden noch verknüpft. Termine werden nach der Verknüpfung angezeigt.`, {
+          duration: 5000,
+        });
+        return;
+      }
+
+      const vitabyteCustomer = customers[0]; // Use first match
+      console.log('✅ Vitabyte patient found:', vitabyteCustomer);
+
+      // Get assigned therapist
+      let assignedTherapist = undefined;
+      try {
+        const treater = await getTreater(vitabyteCustomer.patid);
+        if (treater) {
+          // Get therapist details
+          const therapists = await getTherapists();
+          const therapist = therapists.find(t => t.id === treater.provider.toString());
+          if (therapist) {
+            assignedTherapist = {
+              providerId: treater.provider,
+              name: therapist.name,
+              specialty: therapist.specialty
+            };
+          }
+        }
+      } catch (error) {
+        console.warn('Could not get treater information:', error);
+      }
+
+      // Get appointment count
+      let appointmentCount = 0;
+      try {
+        const appointments = await getAppointments({ patid: vitabyteCustomer.patid });
+        if (appointments?.result && Array.isArray(appointments.result)) {
+          appointmentCount = appointments.result.length;
+        }
+      } catch (error) {
+        console.warn('Could not get appointment count:', error);
+      }
+
+      // Create enhanced Vitabyte patient data
+      const vitabyteData: VitabytePatientData = {
+        ...vitabyteCustomer,
+        assignedTherapist,
+        appointmentCount,
+        lastSync: new Date()
+      };
+
+      setVitabytePatient(vitabyteData);
+      console.log('✅ Vitabyte data updated:', vitabyteData);
+
+      // Show success message with patient data found
+      const welcomeMessage = assignedTherapist 
+        ? `Willkommen zurück! Therapeut: ${assignedTherapist.name}` 
+        : `Patientendaten erfolgreich verknüpft!`;
+      
+      toast.success(welcomeMessage, {
+        description: appointmentCount > 0 ? `${appointmentCount} Termine gefunden` : undefined
+      });
+
+    } catch (error) {
+      console.error('❌ Error looking up Vitabyte data:', error);
+      
+      // Show error message only for actual API failures
+      toast.error("Fehler beim Laden der Patientendaten", {
+        description: "Bitte versuchen Sie es später erneut oder kontaktieren Sie die Praxis."
+      });
+      
+      // Set null to indicate failed lookup
+      setVitabytePatient(null);
+    } finally {
+      setVitabyteLoading(false);
+    }
+  };
+
+  // Auto-lookup Vitabyte data when patient email changes
+  useEffect(() => {
+    if (patient?.email && isAuthenticated) {
+      // Small delay to ensure patient state is fully set
+      const timer = setTimeout(() => {
+        lookupVitabyteData(patient.email);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setVitabytePatient(null);
+    }
+  }, [patient?.email, isAuthenticated]);
   
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -103,6 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setIsAuthenticated(false);
           setPatient(null);
+          setVitabytePatient(null);
         }
       }
     );
@@ -164,7 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (!silent) {
         const displayName = data.user?.email?.split('@')[0] || 'User';
-        toast.success(`Welcome back, ${displayName}`);
+        toast.success(`Willkommen zurück, ${displayName}! Ihre Patientendaten werden geladen...`);
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -264,11 +397,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
+  const refreshVitabyteData = async () => {
+    if (!patient?.email) {
+      console.log('No patient email available for Vitabyte lookup');
+      return;
+    }
+
+    await lookupVitabyteData(patient.email);
+  };
+
   const logout = async () => {
     try {
       await supabase.auth.signOut();
       setIsAuthenticated(false);
       setPatient(null);
+      setVitabytePatient(null);
       setUser(null);
       setSession(null);
       navigate('/');
@@ -282,14 +425,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
-      patient, 
+      patient,
+      vitabytePatient,
       user,
       session,
-      loading, 
+      loading,
+      vitabyteLoading,
       login, 
       signup,
       logout,
-      verifyOtp
+      verifyOtp,
+      refreshVitabyteData
     }}>
       {children}
     </AuthContext.Provider>

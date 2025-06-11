@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Dialog,
@@ -18,7 +17,7 @@ interface AppointmentModalProps {
   onConfirm: () => void;
   date: string;
   type: 'video' | 'in-person';
-  duration: 30 | 60;
+  duration: 30 | 50 | 60;
   loading: boolean;
 }
 
@@ -67,7 +66,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
             Abbrechen
           </Button>
           <Button 
-            className="bg-psychPurple hover:bg-psychPurple/90" 
+            className="bg-psychPurple hover:bg-psychPurple/90 text-white" 
             onClick={onConfirm}
             disabled={loading}
           >
