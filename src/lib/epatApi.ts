@@ -163,7 +163,7 @@ const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
   // In development: Vite proxy routes (/api/system, /api/agenda)
   // In production: Vercel serverless function proxy with endpoint parameter
   const isDevelopment = import.meta.env.DEV;
-  const baseURL = isDevelopment ? `/api/${appName}` : `/api/proxy?endpoint=${appName}`;
+  const baseURL = isDevelopment ? `/api/${appName}` : `/api/proxy`;
   
   console.log('🔧 Environment check:', {
     hostname: window.location.hostname,
@@ -174,7 +174,7 @@ const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
     appName
   });
   
-  return axios.create({
+  const client = axios.create({
     baseURL,
     headers: {
       'Authorization': `Basic ${token}`,
@@ -182,6 +182,20 @@ const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
       'Accept': 'application/json',
     },
   });
+
+  // For production, add the endpoint parameter to all requests
+  if (!isDevelopment) {
+    client.interceptors.request.use((config) => {
+      // Add endpoint parameter to all requests in production
+      config.params = {
+        ...config.params,
+        endpoint: appName
+      };
+      return config;
+    });
+  }
+
+  return client;
 };
 
 // Error handling helper
