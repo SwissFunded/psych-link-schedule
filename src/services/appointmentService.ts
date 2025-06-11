@@ -47,10 +47,17 @@ export interface CalendarSlot {
 // Vitabyte ICS Calendar function
 async function getCalendarSlots(): Promise<CalendarSlot[]> {
   try {
-    const icsUrl = 'https://api.vitabyte.ch/calendar/?action=getics&cid=966541-462631-f1b699-977a3d&type=.ics';
-    console.log('🗓️ Fetching Vitabyte ICS calendar from:', icsUrl);
+    // Use our Vercel API route to avoid CORS issues
+    const apiUrl = '/api/calendar';
+    console.log('🗓️ Fetching Vitabyte ICS calendar via proxy from:', apiUrl);
     
-    const response = await fetch(icsUrl);
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      console.error('❌ API route failed:', response.status, response.statusText);
+      return [];
+    }
+    
     const icsData = await response.text();
     
     console.log('📄 ICS Data received, length:', icsData.length);
@@ -92,10 +99,10 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
       }
     }
     
-    console.log('✅ Parsed', slots.length, 'calendar slots from ICS');
+    console.log('✅ Parsed', slots.length, 'calendar slots from ICS via proxy');
     return slots;
   } catch (error) {
-    console.error('❌ Failed to fetch Vitabyte ICS calendar:', error);
+    console.error('❌ Failed to fetch Vitabyte ICS calendar via proxy:', error);
     return [];
   }
 }

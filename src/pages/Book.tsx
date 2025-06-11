@@ -200,7 +200,7 @@ export default function Book() {
                       Keine verfügbaren Termine gefunden
                     </p>
                     <p className="text-sm text-psychText/40 mt-2">
-                      Vitabyte ICS Kalender ist möglicherweise nicht erreichbar
+                      Vitabyte ICS Kalender über Server-Proxy nicht erreichbar
                     </p>
                   </div>
                 )}
@@ -315,7 +315,7 @@ export default function Book() {
                     <p><strong>Verfügbare Tage:</strong> {Object.keys(allSlotsByDate).length}</p>
                     <p><strong>Termine insgesamt:</strong> {Object.values(allSlotsByDate).flat().length}</p>
                     <p><strong>Verfügbare Termine:</strong> {Object.values(allSlotsByDate).flat().filter(s => s.available).length}</p>
-                    <p><strong>Quelle:</strong> api.vitabyte.ch/calendar (ICS)</p>
+                    <p><strong>Quelle:</strong> api.vitabyte.ch/calendar (ICS via Proxy)</p>
                   </div>
                 </div>
 
