@@ -75,9 +75,11 @@ export default async function handler(
     const queryString = queryParams.toString();
     const fullUrl = queryString ? `${apiUrl}?${queryString}` : apiUrl;
 
-    // Get Basic Auth credentials from environment
-    const username = process.env.VITE_VITABYTE_USERNAME || '';
-    const password = process.env.VITE_VITABYTE_PASSWORD || '';
+    // Get Basic Auth credentials - TEMPORARY HARDCODED (REMOVE IN PRODUCTION!)
+    const username = process.env.VITE_VITABYTE_USERNAME || 'miro';
+    const password = process.env.VITE_VITABYTE_PASSWORD || 'Mu%zN.^(?gA{@2rbF#Ke';
+    
+    console.warn('🚨 WARNING: Using hardcoded credentials in proxy for debugging. Remove before production!');
     
     if (!username || !password) {
       console.error('Missing Vitabyte credentials');
