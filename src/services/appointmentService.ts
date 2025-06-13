@@ -797,29 +797,42 @@ export const appointmentService = {
 
     console.log('📋 Found Supabase bookings:', bookings?.length || 0);
     if (bookings && bookings.length > 0) {
-      console.log('📋 Supabase booking statuses:', bookings.map(b => ({ id: b.id, status: b.status, date: b.appointment_date })));
+      console.log('📋 Supabase booking details:', bookings.map(b => ({ 
+        id: b.id, 
+        status: b.status, 
+        date: b.appointment_date, 
+        time: b.appointment_time,
+        timeFormat: `${b.appointment_date}T${b.appointment_time}`
+      })));
     }
 
-    return bookings?.map(booking => ({
-      id: booking.id,
-      patientId: booking.patient_email,
-      therapistId: booking.appointment_type,
-      date: `${booking.appointment_date}T${booking.appointment_time}:00`,
-      duration: booking.duration,
-      status: booking.status as any,
-      type: 'in-person' as const,
-      notes: booking.notes,
-      metadata: {
-        treaterName: booking.treater_name,
-        treaterId: booking.treater_id,
-        vitabytePatientId: booking.vitabyte_patient_id,
-        appointment_type: booking.appointment_type,
-        patientName: booking.patient_name,
-        patientEmail: booking.patient_email,
-        source: 'supabase',
-        ...((booking as any).metadata || {})
-      }
-    })) || [];
+    return bookings?.map(booking => {
+      // Fix time format - if time already includes seconds, don't add :00
+      const timeStr = booking.appointment_time.includes(':') && booking.appointment_time.split(':').length === 3 
+        ? booking.appointment_time  // Already has seconds (HH:MM:SS)
+        : `${booking.appointment_time}:00`; // Add seconds (HH:MM -> HH:MM:00)
+      
+      return {
+        id: booking.id,
+        patientId: booking.patient_email,
+        therapistId: booking.appointment_type,
+        date: `${booking.appointment_date}T${timeStr}`,
+        duration: booking.duration,
+        status: booking.status as any,
+        type: 'in-person' as const,
+        notes: booking.notes,
+        metadata: {
+          treaterName: booking.treater_name,
+          treaterId: booking.treater_id,
+          vitabytePatientId: booking.vitabyte_patient_id,
+          appointment_type: booking.appointment_type,
+          patientName: booking.patient_name,
+          patientEmail: booking.patient_email,
+          source: 'supabase',
+          ...((booking as any).metadata || {})
+        }
+      };
+    }) || [];
   },
 
   // Get user's past appointments from both Vitabyte API and Supabase (merged)
@@ -910,22 +923,29 @@ export const appointmentService = {
       return [];
     }
 
-    return bookings?.map(booking => ({
-      id: booking.id,
-      patientId: booking.patient_email,
-      therapistId: booking.appointment_type,
-      date: `${booking.appointment_date}T${booking.appointment_time}:00`,
-      duration: booking.duration,
-      status: 'completed' as const,
-      type: 'in-person' as const,
-      notes: booking.notes,
-      metadata: {
-        treaterName: booking.treater_name,
-        treaterId: booking.treater_id,
-        vitabytePatientId: booking.vitabyte_patient_id,
-        source: 'supabase'
-      }
-    })) || [];
+    return bookings?.map(booking => {
+      // Fix time format - if time already includes seconds, don't add :00
+      const timeStr = booking.appointment_time.includes(':') && booking.appointment_time.split(':').length === 3 
+        ? booking.appointment_time  // Already has seconds (HH:MM:SS)
+        : `${booking.appointment_time}:00`; // Add seconds (HH:MM -> HH:MM:00)
+      
+      return {
+        id: booking.id,
+        patientId: booking.patient_email,
+        therapistId: booking.appointment_type,
+        date: `${booking.appointment_date}T${timeStr}`,
+        duration: booking.duration,
+        status: 'completed' as const,
+        type: 'in-person' as const,
+        notes: booking.notes,
+        metadata: {
+          treaterName: booking.treater_name,
+          treaterId: booking.treater_id,
+          vitabytePatientId: booking.vitabyte_patient_id,
+          source: 'supabase'
+        }
+      };
+    }) || [];
   },
 
   // Request appointment cancellation (goes to admin for approval)
