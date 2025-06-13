@@ -47,15 +47,8 @@ const AdminAppointmentCard = ({
   // Safe date parsing with fallback
   const parseAppointmentDate = () => {
     try {
-      // Handle different date formats
-      let dateToParse = appointment.date;
-      
-      // If it's a Supabase appointment, construct the date from separate fields
-      if (appointment.metadata?.source === 'supabase' && appointment.metadata?.appointment_date && appointment.metadata?.appointment_time) {
-        dateToParse = `${appointment.metadata.appointment_date}T${appointment.metadata.appointment_time}:00`;
-      }
-      
-      const date = parseISO(dateToParse);
+      // The date should already be in ISO format from getAllAppointments
+      const date = parseISO(appointment.date);
       
       // Check if the parsed date is valid
       if (!isValidDate(date)) {
@@ -159,7 +152,7 @@ const AdminAppointmentCard = ({
                     <div className="flex items-center gap-2 text-sm">
                       <User className="h-3.5 w-3.5 text-psychPurple" />
                       <span className="font-medium">
-                        {appointment.patientName || appointment.patientEmail || 'Unbekannter Patient'}
+                        {appointment.patientName || appointment.metadata?.patientName || appointment.patientEmail || appointment.metadata?.patientEmail || 'Unbekannter Patient'}
                       </span>
                     </div>
                     <div className="text-xs text-psychText/60">
@@ -366,8 +359,11 @@ export default function AdminAppointments() {
         console.log('📅 All appointments fetched:', appointments.length);
         
         // Add completion status from localStorage and check for pending status
-        const appointmentsWithCompletion = appointments.map(apt => ({
+        const appointmentsWithCompletion: AdminAppointment[] = appointments.map(apt => ({
           ...apt,
+          // Extract patient data from metadata for proper display
+          patientName: apt.metadata?.patientName,
+          patientEmail: apt.metadata?.patientEmail || apt.patientId,
           isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true',
           isPending: apt.status === 'pending_admin_review',
           isPendingCancellation: apt.status === 'pending_cancellation',
