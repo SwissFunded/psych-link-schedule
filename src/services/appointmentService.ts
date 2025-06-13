@@ -924,13 +924,16 @@ export const appointmentService = {
   },
 
   // Request appointment cancellation (goes to admin for approval)
-  cancelAppointment: async (appointmentId: string): Promise<{ success: boolean; error?: string }> => {
+  cancelAppointment: async (appointmentId: string | number): Promise<{ success: boolean; error?: string }> => {
     try {
       console.log('🔄 Requesting cancellation for appointment:', appointmentId);
       console.log('🔍 Appointment ID type:', typeof appointmentId);
       
+      // Convert to string for consistent handling
+      const appointmentIdStr = String(appointmentId);
+      
       // Check if this is a Vitabyte appointment (can't be cancelled through our system)
-      if (appointmentId.startsWith('vitabyte-')) {
+      if (appointmentIdStr.startsWith('vitabyte-')) {
         console.log('❌ Cannot cancel Vitabyte appointment through app');
         return { 
           success: false, 
@@ -942,7 +945,7 @@ export const appointmentService = {
       const { data: currentAppointment, error: fetchError } = await supabase
         .from('bookings')
         .select('*')
-        .eq('id', appointmentId)
+        .eq('id', appointmentIdStr)
         .single();
 
       if (fetchError || !currentAppointment) {
@@ -971,7 +974,7 @@ export const appointmentService = {
           status: 'pending_cancellation',
           metadata: updatedMetadata
         })
-        .eq('id', appointmentId);
+        .eq('id', appointmentIdStr);
 
       if (error) {
         console.error('❌ Error updating appointment:', error);
