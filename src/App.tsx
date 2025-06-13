@@ -58,7 +58,11 @@ const AnimationRoutes = () => {
           </Suspense>
         } />
         <Route path="/buchen" element={<Navigate to="/book" replace />} />
-        <Route path="/reschedule" element={<Reschedule />} />
+        <Route path="/reschedule/:appointmentId" element={
+          <Suspense fallback={<PageLoading />}>
+            <Reschedule />
+          </Suspense>
+        } />
         <Route path="/profile" element={<Profile />} />
         <Route path="/login" element={<Login />} />
         <Route path="/profil" element={<Navigate to="/profile" replace />} />
