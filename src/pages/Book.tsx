@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { appointmentService, TimeSlot, BookingData } from '@/services/appointmentService';
+import { appointmentService, TimeSlot, BookingData, getAppointmentDuration } from '@/services/appointmentService';
 import { getMultipleTreaters, Treater } from '@/lib/epatApi';
 import { format, isWeekend } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -184,7 +184,7 @@ export default function Book() {
       appointmentDate: format(bookingState.selectedDate, 'yyyy-MM-dd'),
       appointmentTime: bookingState.selectedSlot.time,
       appointmentType,
-      duration: 50,
+      duration: getAppointmentDuration(appointmentType),
       notes: notes || undefined,
       selectedTreater: selectedTreater || undefined
     };
@@ -510,9 +510,11 @@ export default function Book() {
                          <SelectValue placeholder="Wählen Sie die Terminart" />
                        </SelectTrigger>
                        <SelectContent>
-                         <SelectItem value="consultation" className="text-base py-3">Beratungsgespräch</SelectItem>
-                         <SelectItem value="therapy" className="text-base py-3">Therapiesitzung</SelectItem>
-                         <SelectItem value="followup" className="text-base py-3">Nachkontrolle</SelectItem>
+                         <SelectItem value="medical_60" className="text-base py-3">Ärztliche Betreuung 60 Min</SelectItem>
+                         <SelectItem value="medical_30" className="text-base py-3">Ärztliche Betreuung 30 min</SelectItem>
+                         <SelectItem value="phone_video_60" className="text-base py-3">Telefon/Video Termin 60min</SelectItem>
+                         <SelectItem value="therapy_60" className="text-base py-3">Therapie 60 min</SelectItem>
+                         <SelectItem value="short_30" className="text-base py-3">Kurztermin 30 min</SelectItem>
                        </SelectContent>
                      </Select>
                    </div>

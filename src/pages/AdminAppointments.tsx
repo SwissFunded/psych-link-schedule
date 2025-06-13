@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { appointmentService, Appointment } from '@/services/appointmentService';
+import { appointmentService, Appointment, getAppointmentTypeName } from '@/services/appointmentService';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import { de } from 'date-fns/locale/de';
@@ -229,6 +229,13 @@ const AdminAppointmentCard = ({
                 <Clock size={14} className="text-psychPurple" />
                 <span>{formattedTime} Uhr</span>
               </div>
+              {appointment.metadata?.appointment_type && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {getAppointmentTypeName(appointment.metadata.appointment_type)}
+                  </Badge>
+                </div>
+              )}
             </div>
             
             {appointment.metadata?.notes && (

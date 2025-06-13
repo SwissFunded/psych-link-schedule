@@ -16,9 +16,31 @@ export interface Appointment {
   duration: number; // in minutes
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'pending_admin_review' | 'pending_cancellation' | 'pending_reschedule';
   type: 'in-person' | 'video' | 'phone';
+  appointmentType?: string; // New field for appointment type
   notes?: string;
   metadata?: Record<string, any>;
 }
+
+// Appointment types with their durations
+export const APPOINTMENT_TYPES = {
+  medical_60: { name: 'Ärztliche Betreuung 60 Min', duration: 60 },
+  medical_30: { name: 'Ärztliche Betreuung 30 min', duration: 30 },
+  phone_video_60: { name: 'Telefon/Video Termin 60min', duration: 60 },
+  therapy_60: { name: 'Therapie 60 min', duration: 60 },
+  short_30: { name: 'Kurztermin 30 min', duration: 30 }
+} as const;
+
+export type AppointmentTypeKey = keyof typeof APPOINTMENT_TYPES;
+
+// Helper function to get appointment duration
+export const getAppointmentDuration = (appointmentType: string): number => {
+  return APPOINTMENT_TYPES[appointmentType as AppointmentTypeKey]?.duration || 50; // Default to 50 minutes
+};
+
+// Helper function to get appointment type name
+export const getAppointmentTypeName = (appointmentType: string): string => {
+  return APPOINTMENT_TYPES[appointmentType as AppointmentTypeKey]?.name || appointmentType;
+};
 
 export interface BookingData {
   patientEmail: string;
@@ -257,19 +279,29 @@ export const appointmentService = {
     // Return a simple list of appointment types instead of actual therapists
     return [
       {
-        id: "consultation",
-        name: "Beratungsgespräch",
-        specialty: "Allgemeine Beratung"
+        id: "medical_60",
+        name: "Ärztliche Betreuung 60 Min",
+        specialty: "Medizinische Betreuung"
       },
       {
-        id: "therapy",
-        name: "Therapiesitzung",
+        id: "medical_30",
+        name: "Ärztliche Betreuung 30 min",
+        specialty: "Medizinische Betreuung"
+      },
+      {
+        id: "phone_video_60",
+        name: "Telefon/Video Termin 60min",
+        specialty: "Telemedizin"
+      },
+      {
+        id: "therapy_60",
+        name: "Therapie 60 min",
         specialty: "Psychotherapie"
       },
       {
-        id: "followup",
-        name: "Nachkontrolle",
-        specialty: "Follow-up"
+        id: "short_30",
+        name: "Kurztermin 30 min",
+        specialty: "Kurzkonsultation"
       }
     ];
   },
@@ -513,7 +545,7 @@ export const appointmentService = {
           appointment_date: bookingData.appointmentDate,
           appointment_time: bookingData.appointmentTime,
           appointment_type: bookingData.appointmentType,
-          duration: bookingData.duration || 50,
+          duration: bookingData.duration || getAppointmentDuration(bookingData.appointmentType),
           notes: bookingData.notes,
           status: 'pending_admin_review', // Special status for admin dashboard
           metadata: { 
@@ -602,7 +634,7 @@ export const appointmentService = {
           appointment_date: bookingData.appointmentDate,
           appointment_time: bookingData.appointmentTime,
           appointment_type: bookingData.appointmentType,
-          duration: bookingData.duration || 50,
+          duration: bookingData.duration || getAppointmentDuration(bookingData.appointmentType),
           notes: bookingData.notes,
           status: 'scheduled',
           // Store all treaters information as JSON
