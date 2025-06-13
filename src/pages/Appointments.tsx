@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, Stethoscope, User } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
+import { PageSection, FloatingCard, StaggeredList, StaggeredItem } from '@/components/ui/PageTransition';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 const AppointmentCard = ({ appointment, onReschedule, onCancel }: { 
@@ -59,8 +61,17 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
   }, [appointment.therapistId, appointment.metadata]);
   
   return (
-    <Card className="mb-4 border-psychPurple/10 highlight-effect">
-      <CardHeader className="pb-2">
+    <StaggeredItem>
+      <motion.div
+        whileHover={{ 
+          y: -2, 
+          scale: 1.01,
+          transition: { duration: 0.2, ease: [0.4, 0.0, 0.2, 1.0] }
+        }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <Card className="mb-4 border-psychPurple/10 highlight-effect shadow-sm hover:shadow-lg transition-all duration-300">
+          <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg">{appointmentTitle}</CardTitle>
@@ -106,7 +117,9 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
           </Button>
         </CardFooter>
       )}
-    </Card>
+        </Card>
+      </motion.div>
+    </StaggeredItem>
   );
 };
 
@@ -203,15 +216,30 @@ export default function Appointments() {
   return (
     <Layout>
       <div className="container max-w-3xl mx-auto py-8 px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold">Ihre Termine</h1>
-          <Button 
-            onClick={handleBookNew}
-            className="bg-psychPurple hover:bg-psychPurple/90 text-white"
+        <PageSection className="flex justify-between items-center mb-6">
+          <motion.h1 
+            className="text-2xl font-semibold"
+            initial={{ opacity: 0, x: -20, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.6, ease: [0.19, 1.0, 0.22, 1.0] }}
           >
-            Neuen Termin buchen
-          </Button>
-        </div>
+            Ihre Termine
+          </motion.h1>
+          <motion.div
+            initial={{ opacity: 0, x: 20, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.19, 1.0, 0.22, 1.0] }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button 
+              onClick={handleBookNew}
+              className="bg-psychPurple hover:bg-psychPurple/90 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              Neuen Termin buchen
+            </Button>
+          </motion.div>
+        </PageSection>
         
         {/* Assigned Therapist Information */}
         {vitabyteLoading ? (
@@ -296,14 +324,16 @@ export default function Appointments() {
           
           <TabsContent value="upcoming" className="animate-fade-in">
             {hasUpcoming ? (
-              upcomingAppointments.map(appointment => (
-                <AppointmentCard 
-                  key={appointment.id} 
-                  appointment={appointment} 
-                  onReschedule={handleReschedule}
-                  onCancel={handleCancel}
-                />
-              ))
+              <StaggeredList>
+                {upcomingAppointments.map(appointment => (
+                  <AppointmentCard 
+                    key={appointment.id} 
+                    appointment={appointment} 
+                    onReschedule={handleReschedule}
+                    onCancel={handleCancel}
+                  />
+                ))}
+              </StaggeredList>
             ) : (
               <div className="text-center py-12">
                 <h3 className="text-lg font-medium text-psychText mb-2">Keine bevorstehenden Termine</h3>
@@ -356,14 +386,16 @@ export default function Appointments() {
           
           <TabsContent value="past" className="animate-fade-in">
             {pastAppointments.length > 0 ? (
-              pastAppointments.map(appointment => (
-                <AppointmentCard 
-                  key={appointment.id} 
-                  appointment={appointment} 
-                  onReschedule={() => {}}
-                  onCancel={() => {}}
-                />
-              ))
+              <StaggeredList>
+                {pastAppointments.map(appointment => (
+                  <AppointmentCard 
+                    key={appointment.id} 
+                    appointment={appointment} 
+                    onReschedule={() => {}}
+                    onCancel={() => {}}
+                  />
+                ))}
+              </StaggeredList>
             ) : (
               <div className="text-center py-12">
                 <p className="text-psychText/60">Keine vergangenen Termine gefunden</p>

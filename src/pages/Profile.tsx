@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/layout/Layout';
+import { PageSection, FloatingCard } from '@/components/ui/PageTransition';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -24,22 +25,38 @@ export default function Profile() {
   return (
     <Layout>
       <div className="container max-w-2xl mx-auto py-8 px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold">Ihr Profil</h1>
-          <Button
-            onClick={refreshVitabyteData}
-            disabled={vitabyteLoading}
-            variant="outline"
-            size="sm"
-            className="border-psychPurple/20"
+        <PageSection className="flex justify-between items-center mb-6">
+          <motion.h1 
+            className="text-2xl font-semibold"
+            initial={{ opacity: 0, x: -20, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.6, ease: [0.19, 1.0, 0.22, 1.0] }}
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${vitabyteLoading ? 'animate-spin' : ''}`} />
-            {vitabyteLoading ? 'Aktualisiere...' : 'Daten aktualisieren'}
-          </Button>
-        </div>
+            Ihr Profil
+          </motion.h1>
+          <motion.div
+            initial={{ opacity: 0, x: 20, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.19, 1.0, 0.22, 1.0] }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              onClick={refreshVitabyteData}
+              disabled={vitabyteLoading}
+              variant="outline"
+              size="sm"
+              className="border-psychPurple/20 shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${vitabyteLoading ? 'animate-spin' : ''}`} />
+              {vitabyteLoading ? 'Aktualisiere...' : 'Daten aktualisieren'}
+            </Button>
+          </motion.div>
+        </PageSection>
         
         {/* Supabase User Information */}
-        <Card className="border-psychPurple/10 card-shadow mb-6">
+        <FloatingCard index={0}>
+          <Card className="border-psychPurple/10 card-shadow mb-6 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-psychPurple" />
@@ -72,10 +89,12 @@ export default function Profile() {
               )}
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        </FloatingCard>
 
         {/* Vitabyte Patient Information */}
-        <Card className="border-psychPurple/10 card-shadow mb-6">
+        <FloatingCard index={1}>
+          <Card className="border-psychPurple/10 card-shadow mb-6 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Stethoscope className="w-5 h-5 text-psychPurple" />
@@ -236,9 +255,11 @@ export default function Profile() {
             )}
           </CardContent>
         </Card>
+        </FloatingCard>
         
         {/* Account Settings */}
-        <Card className="border-psychPurple/10 card-shadow">
+        <FloatingCard index={2}>
+          <Card className="border-psychPurple/10 card-shadow shadow-lg">
           <CardHeader>
             <CardTitle>Kontoeinstellungen</CardTitle>
           </CardHeader>
@@ -257,7 +278,8 @@ export default function Profile() {
               Abmelden
             </Button>
           </CardFooter>
-        </Card>
+          </Card>
+        </FloatingCard>
       </div>
     </Layout>
   );

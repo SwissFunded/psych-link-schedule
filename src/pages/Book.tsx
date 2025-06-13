@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import Layout from '@/components/layout/Layout';
+import { PageSection, FloatingCard } from '@/components/ui/PageTransition';
 import { Clock, CheckCircle, AlertCircle, Calendar as CalendarIcon, User, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -243,20 +244,35 @@ export default function Book() {
   return (
     <Layout>
       <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-psychText">Neuen Termin buchen</h1>
-          <p className="text-psychText/60 text-sm sm:text-base">Wählen Sie Datum und Zeit für Ihren Besuch</p>
-        </div>
+        <PageSection className="text-center space-y-2">
+          <motion.h1 
+            className="text-2xl sm:text-3xl font-bold text-psychText"
+            initial={{ opacity: 0, y: 20, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.6, ease: [0.19, 1.0, 0.22, 1.0] }}
+          >
+            Neuen Termin buchen
+          </motion.h1>
+          <motion.p 
+            className="text-psychText/60 text-sm sm:text-base"
+            initial={{ opacity: 0, y: 15, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.19, 1.0, 0.22, 1.0] }}
+          >
+            Wählen Sie Datum und Zeit für Ihren Besuch
+          </motion.p>
+        </PageSection>
 
         <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
-                Datum wählen
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <FloatingCard index={0}>
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5" />
+                  Datum wählen
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
               <Calendar
                 mode="single"
                 selected={bookingState.selectedDate}
@@ -288,10 +304,12 @@ export default function Book() {
                   day_hidden: "invisible",
                 }}
               />
-            </CardContent>
-          </Card>
+                          </CardContent>
+            </Card>
+          </FloatingCard>
 
-          <Card className="h-fit">
+          <FloatingCard index={1}>
+            <Card className="h-fit">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
@@ -400,16 +418,18 @@ export default function Book() {
               </AnimatePresence>
             </CardContent>
           </Card>
+          </FloatingCard>
         </div>
 
         <AnimatePresence>
           {bookingState.error && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: 30, scale: 0.95, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -20, scale: 0.98, filter: 'blur(2px)' }}
+              transition={{ duration: 0.4, ease: [0.19, 1.0, 0.22, 1.0] }}
             >
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="shadow-lg">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{bookingState.error}</AlertDescription>
               </Alert>
@@ -418,11 +438,12 @@ export default function Book() {
 
           {bookingState.bookingSuccess && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: 30, scale: 0.9, filter: 'blur(6px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -20, scale: 0.95, filter: 'blur(2px)' }}
+              transition={{ duration: 0.6, ease: [0.19, 1.0, 0.22, 1.0] }}
             >
-              <Alert className="border-green-200 bg-green-50 text-green-800">
+              <Alert className="border-green-200 bg-green-50 text-green-800 shadow-lg">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <AlertDescription>
                   Ihr Termin wurde erfolgreich gebucht! Sie erhalten in Kürze eine Bestätigungs-E-Mail.
@@ -432,12 +453,8 @@ export default function Book() {
           )}
 
           {bookingState.selectedSlot && bookingState.selectedDate && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-                             <Card className="border-psychPurple/20 bg-psychPurple/5">
+            <FloatingCard index={2}>
+              <Card className="border-psychPurple/20 bg-psychPurple/5 shadow-xl">
                  <CardContent className="pt-4 sm:pt-6 space-y-4">
                    <div className="space-y-3">
                      <p className="font-medium text-psychText text-lg">Termin bestätigen</p>
@@ -535,7 +552,7 @@ export default function Book() {
                    </Button>
                 </CardContent>
               </Card>
-            </motion.div>
+            </FloatingCard>
           )}
         </AnimatePresence>
       </div>
