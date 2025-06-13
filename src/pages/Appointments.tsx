@@ -23,6 +23,11 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
   const formattedTime = format(date, "HH:mm", { locale: de });
   const [therapistName, setTherapistName] = useState('');
 
+  // Get appointment title from metadata or fallback
+  const appointmentTitle = appointment.metadata?.appointmentTitle || 
+                          appointment.metadata?.appointmentType || 
+                          'Termin';
+
   useEffect(() => {
     const getTherapistDetails = async () => {
       // First try to use calendar name from metadata if available
@@ -41,12 +46,12 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
           const fallbackName = appointment.metadata?.provider || 
                               appointment.metadata?.therapist || 
                               appointment.metadata?.calendar ||
-                              'Therapie';
+                              'Therapeut';
           setTherapistName(fallbackName);
         }
       } else {
         // No valid therapist ID, use fallback
-        setTherapistName('Therapie');
+        setTherapistName('Therapeut');
       }
     };
     
@@ -58,8 +63,9 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg">{therapistName}</CardTitle>
+            <CardTitle className="text-lg">{appointmentTitle}</CardTitle>
             <CardDescription className="mt-1">
+              {therapistName && `${therapistName} • `}
               {appointment.type === 'in-person' ? 'Persönliche' : 'Online'} Sitzung • {appointment.duration} Minuten
             </CardDescription>
           </div>

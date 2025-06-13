@@ -649,7 +649,8 @@ export const appointmentService = {
               metadata: {
                 vitabyteAppointmentId: apt.id || apt.appointmentid,
                 calendar: apt.calendar,
-                appointmentType: apt.appointment,
+                appointmentType: apt.appointment || apt.type || 'Termin',
+                appointmentTitle: apt.appointment || apt.type || apt.title || 'Termin',
                 source: 'vitabyte'
               }
             }))
@@ -741,7 +742,8 @@ export const appointmentService = {
               metadata: {
                 vitabyteAppointmentId: apt.id || apt.appointmentid,
                 calendar: apt.calendar,
-                appointmentType: apt.appointment,
+                appointmentType: apt.appointment || apt.type || 'Termin',
+                appointmentTitle: apt.appointment || apt.type || apt.title || 'Termin',
                 source: 'vitabyte'
               }
             }))
