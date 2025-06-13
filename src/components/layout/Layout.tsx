@@ -85,6 +85,7 @@ export default function Layout({ children }: LayoutProps) {
 
   // Desktop navigation items
   const navItems = [
+    { name: "Termine", path: "/termine", icon: <Calendar size={18} className="mr-1.5" /> },
     { name: "Buchen", path: "/buchen", icon: <Clock size={18} className="mr-1.5" /> },
     { name: "Profil", path: "/profil", icon: <UserCircle size={18} className="mr-1.5" /> },
   ];
@@ -200,6 +201,17 @@ export default function Layout({ children }: LayoutProps) {
         >
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-around">
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className={`transition-all duration-300 ${location.pathname === '/termine' ? 'text-psychText bg-psychText/5 rounded-md' : 'text-psychText/60'}`}
+              >
+                <Link to="/termine">
+                  <Calendar size={20} />
+                </Link>
+              </Button>
+              
               <Button
                 variant="ghost"
                 size="icon"
