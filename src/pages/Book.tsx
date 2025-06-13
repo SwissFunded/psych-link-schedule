@@ -84,8 +84,8 @@ export default function Book() {
       return;
     }
     
-    setLoading(true);
-    
+      setLoading(true);
+      
     const bookingData: BookingData = {
       patientEmail: patient.email,
       patientName: `${patient.name} ${patient.surname || ''}`.trim(),
@@ -104,7 +104,7 @@ export default function Book() {
         toast.success('Termin erfolgreich gebucht!', {
           description: `${format(date, 'EEEE, d. MMMM yyyy', { locale: de })} um ${selectedTime} Uhr`
         });
-        navigate('/appointments');
+      navigate('/appointments');
       } else {
         toast.error(result.error || 'Termin konnte nicht gebucht werden');
       }
@@ -115,13 +115,13 @@ export default function Book() {
       setLoading(false);
     }
   };
-
+  
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return date < today || isWeekend(date);
   };
-
+  
   return (
     <Layout>
       <div className="container max-w-2xl mx-auto py-8 px-4">
@@ -129,7 +129,7 @@ export default function Book() {
           <h1 className="text-2xl font-semibold mb-2">Neuen Termin buchen</h1>
           <p className="text-psychText/60">Wählen Sie Datum, Zeit und Terminart für Ihren Besuch</p>
         </div>
-
+        
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="slots" className="flex items-center gap-2">
@@ -145,7 +145,7 @@ export default function Book() {
               Details
             </TabsTrigger>
           </TabsList>
-
+          
           <TabsContent value="slots">
             <Card>
               <CardHeader>
@@ -175,7 +175,7 @@ export default function Book() {
                             </h3>
                             <div className="grid grid-cols-4 gap-2">
                               {availableSlotsForDate.map((slot) => (
-                                <Button
+                      <Button
                                   key={`${dateStr}-${slot.time}`}
                                   variant={selectedTime === slot.time && date && format(date, 'yyyy-MM-dd') === dateStr ? "default" : "outline"}
                                   size="sm"
@@ -185,10 +185,10 @@ export default function Book() {
                                       ? "bg-psychPurple hover:bg-psychPurple/90" 
                                       : "hover:bg-psychPurple/10"
                                   }`}
-                                >
+                      >
                                   {slot.time}
-                                </Button>
-                              ))}
+                      </Button>
+                    ))}
                             </div>
                           </div>
                         );
@@ -207,7 +207,7 @@ export default function Book() {
               </CardContent>
             </Card>
           </TabsContent>
-
+          
           <TabsContent value="calendar">
             <Card>
               <CardHeader>
@@ -278,8 +278,8 @@ export default function Book() {
                       <SelectItem value="followup">Nachkontrolle</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
+                    </div>
+                    
                 <div>
                   <Label htmlFor="notes">Anmerkungen (optional)</Label>
                   <Textarea
@@ -289,7 +289,7 @@ export default function Book() {
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
                   />
-                </div>
+                      </div>
 
                 {/* Patient Info Display */}
                 <div className="p-4 bg-psychPurple/5 rounded-lg border border-psychPurple/10">
@@ -332,16 +332,16 @@ export default function Book() {
                     </div>
                   </div>
                 )}
-
-                <Button 
+                    
+                    <Button 
                   onClick={handleBookAppointment}
                   disabled={loading || !appointmentType}
                   className="w-full bg-psychPurple hover:bg-psychPurple/90"
                 >
                   {loading ? 'Buchung läuft...' : 'Termin buchen'}
-                </Button>
-              </CardContent>
-            </Card>
+                    </Button>
+                  </CardContent>
+                </Card>
           </TabsContent>
         </Tabs>
       </div>

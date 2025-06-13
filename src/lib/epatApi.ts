@@ -20,10 +20,6 @@ export interface Service {
   calendars?: number[];
 }
 
-
-
-
-
 // API Response types for Vitabyte API
 interface VitabyteApiResponse<T> {
   status: boolean;
@@ -44,8 +40,6 @@ export interface Appointment {
   notes?: string;
   metadata?: Record<string, unknown>;
 }
-
-
 
 export interface BookAppointmentData {
   date: string;        // "2022-12-04 14:00:00" format
@@ -119,50 +113,52 @@ export interface GetAppointmentsParams {
   status?: 'scheduled' | 'cancelled' | 'completed';
 }
 
-// Create Axios instance with default configuration using Basic Auth
-const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
-  // 🚨 TEMPORARY DEBUG: Hardcoded credentials (REMOVE IN PRODUCTION!)
-  const username = 'miro';
-  const password = 'Mu%zN.^(?gA{@2rbF#Ke';
-  const apiUrl = 'https://psych.vitabyte.ch/v1';
-  
-  // TODO: Switch back to environment variables once debugging is complete
-  // const username = import.meta.env.VITE_EPAT_USERNAME;
-  // const password = import.meta.env.VITE_EPAT_PASSWORD;
-  // const apiUrl = import.meta.env.VITE_EPAT_API_URL || 'https://psych.vitabyte.ch/v1';
-  
-  console.warn('🚨 WARNING: Using hardcoded credentials for debugging. Remove before production!');
-  
-  if (!username || !password) {
-    console.error('API credentials are not defined');
-    throw new Error('API credentials are missing');
+// Define proper types for our endpoints (production configuration)
+const ENDPOINTS = {
+  V1: '/v1/booking',
+  V2: '/v2',
+  verify: '/verify'
+} as const;
+
+interface Customer {
+  id?: string;
+  patid?: number;
+  vorname?: string;
+  nachname?: string;
+  email?: string;
+  dob?: string;
+}
+
+interface Treater {
+  id?: string;
+  provider?: number;
+  firstname?: string;
+  lastname?: string;
+  email?: string;
+}
+
+function getCredentials() {
+  const credentials = {
+    username: process.env.VITABYTE_USERNAME || process.env.VITE_VITABYTE_USERNAME,
+    password: process.env.VITABYTE_PASSWORD || process.env.VITE_VITABYTE_PASSWORD,
+    host: process.env.VITABYTE_HOST || process.env.VITE_VITABYTE_HOST,
+  };
+
+  if (!credentials.username || !credentials.password || !credentials.host) {
+    throw new Error('API credentials are not properly configured');
+  }
+
+  return credentials;
   }
   
-  // Create Base64 encoded credentials
-  const token = btoa(`${username}:${password}`);
-  
-  console.log('🔧 Authorization debug:', {
-    username,
-    passwordLength: password.length,
-    expectedToken: 'bWlybzpNdSV6Ti5eKD9nQXtAMnJiRiNLZQ==',
-    actualToken: token,
-    tokenMatch: token === 'bWlybzpNdSV6Ti5eKD9nQXtAMnJiRiNLZQ=='
-  });
+// Create Axios instance with default configuration using Basic Auth
+const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
+  const credentials = getCredentials();
+  const token = btoa(`${credentials.username}:${credentials.password}`);
   
   // Always use proxy for both development and production
-  // In development: Vite proxy routes (/api/system, /api/agenda)
-  // In production: Vercel serverless function proxy with endpoint parameter
   const isDevelopment = import.meta.env.DEV;
   const baseURL = isDevelopment ? `/api/${appName}` : `/api/proxy`;
-  
-  console.log('🔧 Environment check:', {
-    hostname: window.location.hostname,
-    isDevelopment,
-    envDEV: import.meta.env.DEV,
-    usingProxy: true,
-    baseURL,
-    appName
-  });
   
   const client = axios.create({
     baseURL,
@@ -176,24 +172,13 @@ const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
   // For production, intercept requests to add endpoint and path parameters
   if (!isDevelopment) {
     client.interceptors.request.use((config) => {
-      // Extract the path from the request URL (like /verify, /getCustomerByMail)
       const path = config.url || '';
-      
-      // For proxy, we send everything to /api/proxy with endpoint and path as parameters
-      config.url = ''; // Clear the URL since we're using query params
+      config.url = '';
       config.params = {
         ...config.params,
         endpoint: appName,
-        path: path  // Add the path as a parameter
+        path: path
       };
-      
-      console.log('🔧 Request interceptor:', {
-        originalPath: path,
-        endpoint: appName,
-        finalUrl: `${client.defaults.baseURL}`,
-        params: config.params
-      });
-      
       return config;
     });
   }
@@ -203,16 +188,9 @@ const createApiClient = (appName: 'system' | 'agenda' = 'system') => {
 
 // Error handling helper
 const handleApiError = (error: unknown): never => {
-  // Check if error is an Axios error object
   const axiosError = error as any;
   
   if (axiosError.response) {
-    // Don't log sensitive data, only status and message
-    console.error(`API Error:`, {
-      status: axiosError.response?.status,
-      statusText: axiosError.response?.statusText,
-    });
-    
     throw new Error(
       axiosError.response?.data?.error || 
       axiosError.message || 
@@ -220,8 +198,6 @@ const handleApiError = (error: unknown): never => {
     );
   }
   
-  // For non-Axios errors
-  console.error('Unexpected error during API call:', (error as Error)?.message);
   throw error;
 };
 
@@ -445,10 +421,6 @@ export const testLeistungenabfragen = async (): Promise<any> => {
   
   return results;
 };
-
-
-
-
 
 /**
  * Books an appointment using the booking API
