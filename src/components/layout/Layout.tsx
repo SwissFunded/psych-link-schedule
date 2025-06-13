@@ -88,7 +88,6 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Termine", path: "/termine", icon: <Calendar size={18} className="mr-1.5" /> },
     { name: "Buchen", path: "/buchen", icon: <Clock size={18} className="mr-1.5" /> },
     { name: "Profil", path: "/profil", icon: <UserCircle size={18} className="mr-1.5" /> },
-    { name: "Development", path: "/development", icon: <Code size={18} className="mr-1.5" /> }
   ];
   
   return (
