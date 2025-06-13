@@ -402,10 +402,6 @@ export const appointmentService = {
 
   // Book a new appointment (try API first, fallback to Supabase)
   bookAppointment: async (bookingData: BookingData): Promise<{ success: boolean; id?: string; error?: string }> => {
-    console.log('✅ [MOCK] bookAppointment: SKIPPING real booking and returning SUCCESS for testing.');
-    return { success: true, id: 'mock-appointment-id' };
-    
-    /*
     try {
       console.log('🔄 Starting booking process for:', bookingData.patientEmail);
       
@@ -422,7 +418,6 @@ export const appointmentService = {
           // Get additional patient info
           let treaterName = null;
           let treaterId = null;
-          let allTreaters = null;
           
           if (apiResult.appointmentData) {
             treaterId = apiResult.appointmentData.calendar; // Using calendar as treater ID
@@ -480,7 +475,6 @@ export const appointmentService = {
       console.error('❌ Error in main booking function:', error);
       return { success: false, error: 'Failed to create booking' };
     }
-    */
   },
 
   // Original Supabase-only booking (renamed from bookAppointment)
