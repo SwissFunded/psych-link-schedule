@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot, BookingData } from '@/services/appointmentService';
+import { getMultipleTreaters, Treater } from '@/lib/epatApi';
 import { format, addDays, isWeekend } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Clock, Calendar as CalendarIcon, User } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, User, Users } from 'lucide-react';
 
 export default function Book() {
   const [date, setDate] = useState<Date | undefined>(undefined);
@@ -25,9 +26,47 @@ export default function Book() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("calendar");
   
+  // Multiple treaters state
+  const [availableTreaters, setAvailableTreaters] = useState<Treater[]>([]);
+  const [selectedTreater, setSelectedTreater] = useState<Treater | null>(null);
+  const [loadingTreaters, setLoadingTreaters] = useState(false);
+  
   const { patient, vitabytePatient } = useAuth();
   const navigate = useNavigate();
   
+  // Load multiple treaters for the patient
+  useEffect(() => {
+    const fetchTreaters = async () => {
+      if (!vitabytePatient?.patid) return;
+      
+      setLoadingTreaters(true);
+      try {
+        console.log('🔄 Fetching multiple treaters for patient:', vitabytePatient.patid);
+        const treatersResponse = await getMultipleTreaters(vitabytePatient.patid);
+        
+        if (treatersResponse && treatersResponse.treaters.length > 0) {
+          console.log('✅ Found multiple treaters:', treatersResponse.treaters);
+          setAvailableTreaters(treatersResponse.treaters);
+          
+          // If only one treater, auto-select it
+          if (treatersResponse.treaters.length === 1) {
+            setSelectedTreater(treatersResponse.treaters[0]);
+          }
+        } else {
+          console.log('ℹ️ No multiple treaters found, using default');
+          setAvailableTreaters([]);
+        }
+      } catch (error) {
+        console.error('Error fetching multiple treaters:', error);
+        // Don't show error toast as this is optional functionality
+      } finally {
+        setLoadingTreaters(false);
+      }
+    };
+    
+    fetchTreaters();
+  }, [vitabytePatient?.patid]);
+
   // Load all available slots from Vitabyte ICS Calendar on component mount
   useEffect(() => {
     const fetchAllSlots = async () => {
@@ -84,6 +123,12 @@ export default function Book() {
       return;
     }
     
+    // Check if treater selection is required
+    if (availableTreaters.length > 1 && !selectedTreater) {
+      toast.error('Bitte wählen Sie einen Therapeuten aus');
+      return;
+    }
+    
     setLoading(true);
     
     const bookingData: BookingData = {
@@ -94,7 +139,8 @@ export default function Book() {
       appointmentTime: selectedTime,
       appointmentType,
       duration: 50,
-      notes: notes || undefined
+      notes: notes || undefined,
+      selectedTreater: selectedTreater || undefined
     };
     
     try {
@@ -266,6 +312,42 @@ export default function Book() {
                 <CardTitle>Termindetails</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Treater Selection - only show if multiple treaters available */}
+                {availableTreaters.length > 1 && (
+                  <div>
+                    <Label htmlFor="treater-select">Therapeut/in wählen *</Label>
+                    <Select 
+                      value={selectedTreater?.provider.toString() || ''} 
+                      onValueChange={(value) => {
+                        const treater = availableTreaters.find(t => t.provider.toString() === value);
+                        setSelectedTreater(treater || null);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wählen Sie Ihren Therapeuten/Ihre Therapeutin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableTreaters.map((treater) => (
+                          <SelectItem key={treater.provider} value={treater.provider.toString()}>
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4" />
+                              <span>
+                                {treater.name || `Therapeut ${treater.provider}`}
+                                {treater.specialty && (
+                                  <span className="text-sm text-gray-500 ml-2">({treater.specialty})</span>
+                                )}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {loadingTreaters && (
+                      <p className="text-sm text-gray-500 mt-1">Lade verfügbare Therapeuten...</p>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <Label htmlFor="appointment-type">Terminart *</Label>
                   <Select value={appointmentType} onValueChange={setAppointmentType}>
@@ -301,8 +383,13 @@ export default function Book() {
                     {vitabytePatient?.patid && (
                       <p><strong>Patienten-ID:</strong> {vitabytePatient.patid}</p>
                     )}
-                    {vitabytePatient?.assignedTherapist && (
+                    {selectedTreater ? (
+                      <p><strong>Gewählter Therapeut:</strong> {selectedTreater.name || `Therapeut ${selectedTreater.provider}`}</p>
+                    ) : vitabytePatient?.assignedTherapist ? (
                       <p><strong>Therapeut:</strong> {vitabytePatient.assignedTherapist.name}</p>
+                    ) : null}
+                    {availableTreaters.length > 1 && (
+                      <p className="text-blue-600"><strong>Verfügbare Therapeuten:</strong> {availableTreaters.length}</p>
                     )}
                   </div>
                 </div>
@@ -323,7 +410,11 @@ export default function Book() {
 
                 <Button 
                   onClick={handleBookAppointment}
-                  disabled={loading || !appointmentType}
+                  disabled={
+                    loading || 
+                    !appointmentType || 
+                    (availableTreaters.length > 1 && !selectedTreater)
+                  }
                   className="w-full bg-psychPurple hover:bg-psychPurple/90"
                 >
                   {loading ? 'Buchung läuft...' : 'Termin buchen'}

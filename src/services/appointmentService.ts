@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getCustomerByMail, getTreater, getMultipleTreaters, getProviderDetails, BookAppointmentData, createEpatAppointmentDirectly } from '@/lib/epatApi';
+import { getCustomerByMail, getTreater, getMultipleTreaters, getProviderDetails, BookAppointmentData, createEpatAppointmentDirectly, Treater } from '@/lib/epatApi';
 
 export interface Therapist {
   id: string;
@@ -29,6 +29,7 @@ export interface BookingData {
   appointmentType: string;
   duration?: number;
   notes?: string;
+  selectedTreater?: Treater; // Optional selected treater for multiple treater scenarios
 }
 
 // Time slots from EPAT Calendar API
@@ -373,13 +374,18 @@ export const appointmentService = {
       const vitabytePatientId = customers[0].patid;
       console.log('✅ Found patient ID:', vitabytePatientId);
 
-      // Get treater info
-      const treater = await getTreater(vitabytePatientId);
-      if (!treater) {
-        return { success: false, error: 'No treater assigned to patient' };
+      // Get treater info - use selected treater if provided
+      let treater;
+      if (bookingData.selectedTreater) {
+        treater = bookingData.selectedTreater;
+        console.log('✅ Using selected treater provider ID:', treater.provider);
+      } else {
+        treater = await getTreater(vitabytePatientId);
+        if (!treater) {
+          return { success: false, error: 'No treater assigned to patient' };
+        }
+        console.log('✅ Found treater provider ID:', treater.provider);
       }
-
-      console.log('✅ Found treater provider ID:', treater.provider);
 
       // CALENDAR ID MAPPING: Provider ID 215 doesn't directly map to calendar ID
       // From logs: Calendar ID 120 works for Dr. Sporer, API docs show calendar ID 2 as example
@@ -539,8 +545,8 @@ export const appointmentService = {
           if (multipleTreatersResponse && multipleTreatersResponse.count > 0) {
             allTreaters = multipleTreatersResponse.treaters;
             
-            // Use the first treater as primary for backward compatibility
-            const primaryTreater = multipleTreatersResponse.treaters[0];
+            // Use selected treater if provided, otherwise use the first treater as primary
+            const primaryTreater = bookingData.selectedTreater || multipleTreatersResponse.treaters[0];
             treaterId = primaryTreater.provider;
             treaterName = primaryTreater.name;
             

@@ -807,11 +807,22 @@ export const getMultipleTreaters = async (patid: number): Promise<MultipleTreate
   try {
     console.log('📡 Looking up multiple treaters for patient ID:', patid);
     
-    // First try with getTreater to see if API returns multiple
+    // First try the new getProviders endpoint (with 's') for multiple providers
     const payload = { patid };
-    console.log('📤 Sending payload to getTreater:', payload);
+    console.log('📤 Sending payload to getProviders:', payload);
     
-    const response = await apiClient.post('/getTreater', payload);
+    let response;
+    try {
+      response = await apiClient.post('/getProviders', payload);
+      console.log('📥 getProviders response received:', {
+        status: response.status,
+        data: response.data
+      });
+    } catch (error) {
+      console.log('⚠️ getProviders endpoint failed, falling back to getTreater:', error);
+      // Fallback to original getTreater endpoint
+      response = await apiClient.post('/getTreater', payload);
+    }
     
     console.log('📥 Multiple treaters lookup response received:', {
       status: response.status,
