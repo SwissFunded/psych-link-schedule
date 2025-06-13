@@ -48,7 +48,7 @@ interface AuthContextType {
   login: (email: string, password: string, silent?: boolean) => Promise<void>;
   signup: (email: string, password: string, name: string, surname: string, phone: string, birthdate: string) => Promise<void>;
   logout: () => void;
-  verifyOtp: (email: string, token: string) => Promise<boolean>;
+
   refreshVitabyteData: () => Promise<void>;
 }
 
@@ -82,10 +82,7 @@ const DEFAULT_USERS = {
   }
 };
 
-// Function to generate a random 4-digit OTP code
-const generateOTPCode = (): string => {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-};
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -319,25 +316,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
-      // Store registration data in session storage to use after verification
-      const userData = {
-        email,
-        password,
-        name,
-        surname,
-        phone,
-        birthdate
-      };
-      
-      sessionStorage.setItem('pendingRegistration', JSON.stringify(userData));
-      
-      // Sign up the user with Supabase - this will send a verification email
-      const { error } = await supabase.auth.signUp({
+      // Direct signup without email verification/OTP
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // We'll use the OTP instead of auto-confirming
-          emailRedirectTo: `${window.location.origin}/verify-otp?email=${encodeURIComponent(email)}`,
+          // Skip email confirmation - auto-confirm the user
           data: {
             name,
             surname,
@@ -351,9 +335,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
       
-      // Show success message and redirect to OTP verification page
-      toast.success(`Registrierung erfolgreich! Bitte geben Sie den Bestätigungscode ein, der an ${email} gesendet wurde.`);
-      navigate(`/verify-otp?email=${encodeURIComponent(email)}`);
+      // If signup is successful, automatically log the user in
+      if (data.user) {
+        toast.success(`Registrierung erfolgreich! Willkommen, ${name}!`);
+        navigate('/appointments');
+      } else {
+        throw new Error('Registrierung fehlgeschlagen');
+      }
       
     } catch (error: any) {
       console.error('Sign up error:', error);
@@ -364,38 +352,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const verifyOtp = async (email: string, token: string): Promise<boolean> => {
-    try {
-      setLoading(true);
-      
-      // Simple OTP verification flow
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'signup'
-      });
-      
-      if (error) {
-        toast.error(error.message || "Ungültiger Code");
-        return false;
-      }
-      
-      if (data.session) {
-        // If we have a session, the user is now verified and logged in
-        toast.success("E-Mail erfolgreich bestätigt! Willkommen!");
-        navigate('/appointments');
-        return true;
-      }
-      
-      return false;
-    } catch (error: any) {
-      console.error('OTP verification error:', error);
-      toast.error(error.message || "Verifizierung fehlgeschlagen");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
+
   
   const refreshVitabyteData = async () => {
     if (!patient?.email) {
@@ -434,7 +391,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login, 
       signup,
       logout,
-      verifyOtp,
       refreshVitabyteData
     }}>
       {children}

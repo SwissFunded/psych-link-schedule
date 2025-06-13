@@ -10,7 +10,7 @@ import { Suspense, lazy } from "react";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
-import VerifyOtp from "./pages/VerifyOtp";
+
 
 // Lazy load components to reduce initial bundle size
 const Appointments = lazy(() => import("./pages/Appointments"));
@@ -45,7 +45,6 @@ const AnimationRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Login />} />
         <Route path="/index" element={<Index />} />
-        <Route path="/verify-otp" element={<VerifyOtp />} />
         <Route path="/appointments" element={
           <Suspense fallback={<PageLoading />}>
             <Appointments />
@@ -61,7 +60,6 @@ const AnimationRoutes = () => {
         <Route path="/reschedule" element={<Reschedule />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/verify-otp" element={<VerifyOtp />} />
         <Route path="/profil" element={<Navigate to="/profile" replace />} />
         <Route path="/admin" element={
           <Suspense fallback={<PageLoading />}>
