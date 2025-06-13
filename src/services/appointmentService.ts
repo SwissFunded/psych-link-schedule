@@ -272,6 +272,54 @@ function parseICSDateTime(icsDateTime: string): Date | null {
   }
 }
 
+// Helper function to deduplicate appointments by date and time
+// Prioritizes app-booked appointments (Supabase) over Vitabyte API appointments
+function deduplicateAppointments(appointments: Appointment[]): Appointment[] {
+  const appointmentMap = new Map<string, Appointment>();
+  
+  for (const appointment of appointments) {
+    try {
+      // Create a key based on date and time (normalize to same format)
+      const date = new Date(appointment.date);
+      if (isNaN(date.getTime())) {
+        // Skip appointments with invalid dates
+        console.warn('Skipping appointment with invalid date:', appointment.date);
+        continue;
+      }
+      
+      // Create key: YYYY-MM-DD-HH:MM
+      const dateKey = date.toISOString().slice(0, 16); // "2025-06-25T13:00"
+      
+      const existingAppointment = appointmentMap.get(dateKey);
+      
+      if (!existingAppointment) {
+        // No existing appointment at this time, add it
+        appointmentMap.set(dateKey, appointment);
+      } else {
+        // There's already an appointment at this time, decide which to keep
+        const isCurrentFromApp = appointment.metadata?.source === 'supabase';
+        const isExistingFromApp = existingAppointment.metadata?.source === 'supabase';
+        
+        if (isCurrentFromApp && !isExistingFromApp) {
+          // Current is from app, existing is from Vitabyte - replace with app version
+          appointmentMap.set(dateKey, appointment);
+          console.log('🔄 Replaced Vitabyte appointment with app appointment at:', dateKey);
+        } else if (!isCurrentFromApp && isExistingFromApp) {
+          // Current is from Vitabyte, existing is from app - keep existing app version
+          console.log('🔄 Kept app appointment over Vitabyte appointment at:', dateKey);
+        } else {
+          // Both from same source or both from Vitabyte - keep the first one
+          console.log('🔄 Kept first appointment (same source) at:', dateKey);
+        }
+      }
+    } catch (error) {
+      console.warn('Error processing appointment for deduplication:', appointment, error);
+    }
+  }
+  
+  return Array.from(appointmentMap.values());
+}
+
 // Service functions
 export const appointmentService = {
   // Get basic therapist info (simplified)
@@ -718,11 +766,15 @@ export const appointmentService = {
       console.warn('⚠️ Error fetching from Supabase:', error);
     }
     
-    // Sort all appointments by date and remove duplicates
-    const sortedAppointments = allAppointments
+    // Deduplicate appointments by date and time, prioritizing app-booked over Vitabyte
+    const deduplicatedAppointments = deduplicateAppointments(allAppointments);
+    
+    // Sort all appointments by date
+    const sortedAppointments = deduplicatedAppointments
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     console.log('✅ Total upcoming appointments (merged):', sortedAppointments.length);
+    console.log('🔄 Removed duplicates:', allAppointments.length - sortedAppointments.length);
     return sortedAppointments;
   },
 
@@ -825,11 +877,15 @@ export const appointmentService = {
       console.warn('⚠️ Error fetching past appointments from Supabase:', error);
     }
     
+    // Deduplicate past appointments by date and time, prioritizing app-booked over Vitabyte
+    const deduplicatedPastAppointments = deduplicateAppointments(allPastAppointments);
+    
     // Sort all past appointments by date (newest first)
-    const sortedPastAppointments = allPastAppointments
+    const sortedPastAppointments = deduplicatedPastAppointments
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     console.log('✅ Total past appointments (merged):', sortedPastAppointments.length);
+    console.log('🔄 Removed past duplicates:', allPastAppointments.length - sortedPastAppointments.length);
     return sortedPastAppointments;
   },
 
