@@ -1,30 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot, BookingData } from '@/services/appointmentService';
 import { getMultipleTreaters, Treater } from '@/lib/epatApi';
-import { format, addDays, isWeekend } from 'date-fns';
+import { format, isWeekend } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Layout from '@/components/layout/Layout';
-import { Calendar } from '@/components/ui/calendar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from 'sonner';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Clock, Calendar as CalendarIcon, User, Users } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import Layout from '@/components/layout/Layout';
+import { Clock, CheckCircle, AlertCircle, Calendar as CalendarIcon, User, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+
+interface BookingState {
+  selectedDate: Date | undefined;
+  selectedSlot: TimeSlot | null;
+  isLoading: boolean;
+  isBooking: boolean;
+  bookingSuccess: boolean;
+  error: string | null;
+}
 
 export default function Book() {
-  const [date, setDate] = useState<Date | undefined>(undefined);
-  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [bookingState, setBookingState] = useState<BookingState>({
+    selectedDate: undefined,
+    selectedSlot: null,
+    isLoading: false,
+    isBooking: false,
+    bookingSuccess: false,
+    error: null
+  });
+
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [allSlotsByDate, setAllSlotsByDate] = useState<Record<string, TimeSlot[]>>({});
-  const [selectedTime, setSelectedTime] = useState<string>('');
   const [appointmentType, setAppointmentType] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("calendar");
   
   // Multiple treaters state
   const [availableTreaters, setAvailableTreaters] = useState<Treater[]>([]);
@@ -33,7 +50,7 @@ export default function Book() {
   
   const { patient, vitabytePatient } = useAuth();
   const navigate = useNavigate();
-  
+
   // Load multiple treaters for the patient
   useEffect(() => {
     const fetchTreaters = async () => {
@@ -58,7 +75,6 @@ export default function Book() {
         }
       } catch (error) {
         console.error('Error fetching multiple treaters:', error);
-        // Don't show error toast as this is optional functionality
       } finally {
         setLoadingTreaters(false);
       }
@@ -70,7 +86,7 @@ export default function Book() {
   // Load all available slots from Vitabyte ICS Calendar on component mount
   useEffect(() => {
     const fetchAllSlots = async () => {
-      setLoading(true);
+      setBookingState(prev => ({ ...prev, isLoading: true }));
       try {
         console.log('🔄 Fetching slots from Vitabyte ICS Calendar...');
         const slotsByDate = await appointmentService.getAllAvailableSlots();
@@ -78,65 +94,94 @@ export default function Book() {
         setAllSlotsByDate(slotsByDate);
       } catch (error) {
         console.error('Error fetching slots from Vitabyte ICS Calendar:', error);
-        toast.error('Verfügbare Termine konnten nicht geladen werden');
+        setBookingState(prev => ({ 
+          ...prev, 
+          error: 'Verfügbare Termine konnten nicht geladen werden' 
+        }));
       } finally {
-        setLoading(false);
+        setBookingState(prev => ({ ...prev, isLoading: false }));
       }
     };
     
     fetchAllSlots();
   }, []);
-  
-  // Update available slots when date changes
-  useEffect(() => {
-    if (date) {
+
+  const loadTimeSlots = useCallback(async (date: Date) => {
+    setBookingState(prev => ({ ...prev, isLoading: true, error: null }));
+    
+    try {
       const dateString = format(date, 'yyyy-MM-dd');
       const slotsForDate = allSlotsByDate[dateString] || [];
-      setAvailableSlots(slotsForDate);
+      setTimeSlots(slotsForDate);
+    } catch (error) {
+      setBookingState(prev => ({ 
+        ...prev, 
+        error: 'Fehler beim Laden der verfügbaren Zeiten' 
+      }));
+    } finally {
+      setBookingState(prev => ({ ...prev, isLoading: false }));
     }
-  }, [date, allSlotsByDate]);
-  
-  const handleDateSelect = (selectedDate: Date | undefined) => {
-    if (selectedDate && selectedDate >= new Date()) {
-      setDate(selectedDate);
-      setSelectedTime('');
-      if (selectedDate > new Date()) {
-        setActiveTab("time");
-      }
+  }, [allSlotsByDate]);
+
+  useEffect(() => {
+    if (bookingState.selectedDate) {
+      loadTimeSlots(bookingState.selectedDate);
     }
-  };
-  
-  const handleTimeSelect = (time: string) => {
-    setSelectedTime(time);
-    setActiveTab("details");
+  }, [bookingState.selectedDate, loadTimeSlots]);
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) return;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (date < today) return;
+    
+    setBookingState(prev => ({
+      ...prev,
+      selectedDate: date,
+      selectedSlot: null,
+      bookingSuccess: false,
+      error: null
+    }));
   };
 
-  const handleSlotSelect = (dateStr: string, time: string) => {
-    setDate(new Date(dateStr));
-    setSelectedTime(time);
-    setActiveTab("details");
+  const handleSlotSelect = (slot: TimeSlot) => {
+    if (!slot.available) return;
+    
+    setBookingState(prev => ({
+      ...prev,
+      selectedSlot: prev.selectedSlot?.time === slot.time ? null : slot,
+      error: null
+    }));
   };
-  
-  const handleBookAppointment = async () => {
-    if (!patient?.email || !patient?.name || !date || !selectedTime || !appointmentType) {
-      toast.error('Bitte füllen Sie alle erforderlichen Felder aus');
+
+  const handleBooking = async () => {
+    if (!patient?.email || !patient?.name || !bookingState.selectedDate || !bookingState.selectedSlot || !appointmentType) {
+      setBookingState(prev => ({ 
+        ...prev, 
+        error: 'Bitte füllen Sie alle erforderlichen Felder aus' 
+      }));
       return;
     }
     
     // Check if treater selection is required
     if (availableTreaters.length > 1 && !selectedTreater) {
-      toast.error('Bitte wählen Sie einen Therapeuten aus');
+      setBookingState(prev => ({ 
+        ...prev, 
+        error: 'Bitte wählen Sie einen Therapeuten aus' 
+      }));
       return;
     }
     
-    setLoading(true);
+    setBookingState(prev => ({ ...prev, isBooking: true, error: null }));
     
     const bookingData: BookingData = {
       patientEmail: patient.email,
       patientName: `${patient.name} ${patient.surname || ''}`.trim(),
       patientPhone: patient.phone || undefined,
-      appointmentDate: format(date, 'yyyy-MM-dd'),
-      appointmentTime: selectedTime,
+      appointmentDate: format(bookingState.selectedDate, 'yyyy-MM-dd'),
+      appointmentTime: bookingState.selectedSlot.time,
       appointmentType,
       duration: 50,
       notes: notes || undefined,
@@ -147,18 +192,41 @@ export default function Book() {
       const result = await appointmentService.bookAppointment(bookingData);
       
       if (result.success) {
+        setBookingState(prev => ({ 
+          ...prev, 
+          bookingSuccess: true,
+          selectedSlot: null
+        }));
+        
         toast.success('Termin erfolgreich gebucht!', {
-          description: `${format(date, 'EEEE, d. MMMM yyyy', { locale: de })} um ${selectedTime} Uhr`
+          description: `${format(bookingState.selectedDate, 'EEEE, d. MMMM yyyy', { locale: de })} um ${bookingState.selectedSlot.time} Uhr`
         });
-        navigate('/appointments');
+        
+        // Update the time slots to mark this one as booked
+        setTimeSlots(prev => prev.map(slot => 
+          slot.time === bookingState.selectedSlot?.time 
+            ? { ...slot, available: false }
+            : slot
+        ));
+        
+        // Navigate to appointments after a short delay
+        setTimeout(() => {
+          navigate('/appointments');
+        }, 2000);
       } else {
-        toast.error(result.error || 'Termin konnte nicht gebucht werden');
+        setBookingState(prev => ({ 
+          ...prev, 
+          error: result.error || 'Termin konnte nicht gebucht werden' 
+        }));
       }
     } catch (error) {
       console.error('Error booking appointment:', error);
-      toast.error('Ein Fehler ist aufgetreten');
+      setBookingState(prev => ({ 
+        ...prev, 
+        error: 'Ein Fehler ist aufgetreten' 
+      }));
     } finally {
-      setLoading(false);
+      setBookingState(prev => ({ ...prev, isBooking: false }));
     }
   };
 
@@ -168,261 +236,309 @@ export default function Book() {
     return date < today || isWeekend(date);
   };
 
+  const formatDate = (date: Date) => {
+    return format(date, 'EEEE, d. MMMM yyyy', { locale: de });
+  };
+
   return (
     <Layout>
-      <div className="container max-w-2xl mx-auto py-8 px-4">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold mb-2">Neuen Termin buchen</h1>
-          <p className="text-psychText/60">Wählen Sie Datum, Zeit und Terminart für Ihren Besuch</p>
+      <div className="w-full max-w-6xl mx-auto p-4 space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-psychText">Neuen Termin buchen</h1>
+          <p className="text-psychText/60">Wählen Sie Datum und Zeit für Ihren Besuch</p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            {/* <TabsTrigger value="slots" className="flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4" />
-              Vitabyte Kalender
-            </TabsTrigger> */}
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Kalender
-            </TabsTrigger>
-            <TabsTrigger value="details" disabled={!selectedTime} className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Details
-            </TabsTrigger>
-          </TabsList>
+        <div className="grid lg:grid-cols-2 gap-6">
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Datum wählen
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Calendar
+                mode="single"
+                selected={bookingState.selectedDate}
+                onSelect={handleDateSelect}
+                disabled={isDateDisabled}
+                locale={de}
+                className="rounded-md border-0"
+                classNames={{
+                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center",
+                  caption_label: "text-sm font-medium",
+                  nav: "space-x-1 flex items-center",
+                  nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                  nav_button_previous: "absolute left-1",
+                  nav_button_next: "absolute right-1",
+                  table: "w-full border-collapse space-y-1",
+                  head_row: "flex",
+                  head_cell: "text-psychText/60 rounded-md w-9 font-normal text-[0.8rem]",
+                  row: "flex w-full mt-2",
+                  cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+                  day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-psychPurple/10 hover:text-psychPurple transition-colors",
+                  day_range_end: "day-range-end",
+                  day_selected: "bg-psychPurple text-white hover:bg-psychPurple/90 hover:text-white focus:bg-psychPurple focus:text-white",
+                  day_today: "bg-psychPurple/10 text-psychPurple",
+                  day_outside: "day-outside text-psychText/30 opacity-50 aria-selected:bg-psychPurple/50 aria-selected:text-psychText/60 aria-selected:opacity-30",
+                  day_disabled: "text-psychText/30 opacity-50 cursor-not-allowed",
+                  day_range_middle: "aria-selected:bg-psychPurple/10 aria-selected:text-psychPurple",
+                  day_hidden: "invisible",
+                }}
+              />
+            </CardContent>
+          </Card>
 
-          {/* <TabsContent value="slots">
-            <Card>
-              <CardHeader>
-                <CardTitle>Verfügbare Termine (Vitabyte ICS Kalender)</CardTitle>
-                <p className="text-sm text-psychText/60">
-                  Wählen Sie einen verfügbaren Termin aus der Vitabyte Kalender
-                </p>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="w-8 h-8 border-2 border-psychPurple/30 border-t-psychPurple rounded-full animate-spin"></div>
-                    <p className="ml-3 text-psychText/60">Lade verfügbare Termine von Vitabyte ICS...</p>
-                  </div>
-                ) : Object.keys(allSlotsByDate).length > 0 ? (
-                  <div className="space-y-6 max-h-96 overflow-y-auto">
-                    {Object.entries(allSlotsByDate)
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([dateStr, slots]) => {
-                        const availableSlotsForDate = slots.filter(slot => slot.available);
-                        if (availableSlotsForDate.length === 0) return null;
-                        
-                        return (
-                          <div key={dateStr} className="border rounded-lg p-4">
-                            <h3 className="font-medium mb-3 text-psychPurple">
-                              {format(new Date(dateStr), 'EEEE, d. MMMM yyyy', { locale: de })}
-                            </h3>
-                            <div className="grid grid-cols-4 gap-2">
-                              {availableSlotsForDate.map((slot) => (
-                                <Button
-                                  key={`${dateStr}-${slot.time}`}
-                                  variant={selectedTime === slot.time && date && format(date, 'yyyy-MM-dd') === dateStr ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => handleSlotSelect(dateStr, slot.time)}
-                                  className={`h-10 ${
-                                    selectedTime === slot.time && date && format(date, 'yyyy-MM-dd') === dateStr
-                                      ? "bg-psychPurple hover:bg-psychPurple/90" 
-                                      : "hover:bg-psychPurple/10"
-                                  }`}
-                                >
-                                  {slot.time}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-psychText/60">
-                      Keine verfügbaren Termine gefunden
-                    </p>
-                    <p className="text-sm text-psychText/40 mt-2">
-                      Vitabyte ICS Kalender über Server-Proxy nicht erreichbar
-                    </p>
-                  </div>
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Verfügbare Zeiten
+                {bookingState.selectedDate && (
+                  <Badge variant="secondary" className="ml-auto">
+                    {formatDate(bookingState.selectedDate)}
+                  </Badge>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent> */}
-
-          <TabsContent value="calendar">
-            <Card>
-              <CardHeader>
-                <CardTitle>Kalenderansicht</CardTitle>
-                <p className="text-sm text-psychText/60">
-                  Wählen Sie ein Datum aus dem Kalender
-                </p>
-              </CardHeader>
-              <CardContent>
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={handleDateSelect}
-                  disabled={isDateDisabled}
-                  locale={de}
-                  className="rounded-md border"
-                />
-                
-                {date && (
-                  <div className="mt-6">
-                    <h4 className="font-medium mb-3">
-                      Verfügbare Zeiten für {format(date, 'EEEE, d. MMMM yyyy', { locale: de })}
-                    </h4>
-                    {availableSlots.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-3">
-                        {availableSlots.map((slot) => (
-                          <Button
-                            key={slot.time}
-                            variant={selectedTime === slot.time ? "default" : "outline"}
-                            disabled={!slot.available}
-                            onClick={() => handleTimeSelect(slot.time)}
-                            className={`h-12 ${
-                              selectedTime === slot.time 
-                                ? "bg-psychPurple hover:bg-psychPurple/90" 
-                                : "hover:bg-psychPurple/10"
-                            }`}
-                          >
-                            {slot.time}
-                          </Button>
-                        ))}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AnimatePresence mode="wait">
+                {!bookingState.selectedDate ? (
+                  <motion.div
+                    key="no-date"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="text-center py-8 text-psychText/60"
+                  >
+                    <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Bitte wählen Sie ein Datum, um verfügbare Zeiten zu sehen</p>
+                  </motion.div>
+                ) : bookingState.isLoading ? (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-3"
+                  >
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="slots"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="space-y-4"
+                  >
+                    {timeSlots.length === 0 ? (
+                      <div className="text-center py-8 text-psychText/60">
+                        <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Keine verfügbaren Zeiten für dieses Datum</p>
                       </div>
                     ) : (
-                      <p className="text-psychText/60 text-center py-4">
-                        Keine verfügbaren Zeiten für das gewählte Datum
-                      </p>
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {timeSlots.map((slot) => (
+                            <motion.div
+                              key={slot.time}
+                              whileHover={slot.available ? { scale: 1.02 } : {}}
+                              whileTap={slot.available ? { scale: 0.98 } : {}}
+                            >
+                              <Button
+                                variant={
+                                  bookingState.selectedSlot?.time === slot.time
+                                    ? "default"
+                                    : slot.available
+                                    ? "outline"
+                                    : "ghost"
+                                }
+                                className={`w-full h-12 transition-all duration-200 ${
+                                  !slot.available
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : bookingState.selectedSlot?.time === slot.time
+                                    ? "bg-psychPurple hover:bg-psychPurple/90"
+                                    : "hover:shadow-md hover:bg-psychPurple/10 hover:text-psychPurple hover:border-psychPurple/50"
+                                }`}
+                                onClick={() => handleSlotSelect(slot)}
+                                disabled={!slot.available}
+                                aria-label={`${slot.time} ${slot.available ? 'verfügbar' : 'nicht verfügbar'}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  {slot.time}
+                                  {!slot.available && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      Belegt
+                                    </Badge>
+                                  )}
+                                </div>
+                              </Button>
+                            </motion.div>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center gap-4 text-sm text-psychText/60 pt-4 border-t">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded border-2 border-psychPurple"></div>
+                            <span>Verfügbar</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded bg-psychText/20"></div>
+                            <span>Belegt</span>
+                          </div>
+                        </div>
+                      </>
                     )}
-                  </div>
+                  </motion.div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </AnimatePresence>
+            </CardContent>
+          </Card>
+        </div>
 
-          <TabsContent value="details">
-            <Card>
-              <CardHeader>
-                <CardTitle>Termindetails</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Treater Selection - only show if multiple treaters available */}
-                {availableTreaters.length > 1 && (
-                  <div>
-                    <Label htmlFor="treater-select">Therapeut/in wählen *</Label>
-                    <Select 
-                      value={selectedTreater?.provider.toString() || ''} 
-                      onValueChange={(value) => {
-                        const treater = availableTreaters.find(t => t.provider.toString() === value);
-                        setSelectedTreater(treater || null);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Wählen Sie Ihren Therapeuten/Ihre Therapeutin" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTreaters.map((treater) => (
-                          <SelectItem key={treater.provider} value={treater.provider.toString()}>
-                            <div className="flex items-center gap-2">
-                              <Users className="w-4 h-4" />
-                              <span>
-                                {treater.name || `Therapeut ${treater.provider}`}
-                                {treater.specialty && (
-                                  <span className="text-sm text-gray-500 ml-2">({treater.specialty})</span>
-                                )}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {loadingTreaters && (
-                      <p className="text-sm text-gray-500 mt-1">Lade verfügbare Therapeuten...</p>
-                    )}
-                  </div>
-                )}
+        <AnimatePresence>
+          {bookingState.error && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{bookingState.error}</AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
 
-                <div>
-                  <Label htmlFor="appointment-type">Terminart *</Label>
-                  <Select value={appointmentType} onValueChange={setAppointmentType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wählen Sie die Terminart" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="consultation">Beratungsgespräch</SelectItem>
-                      <SelectItem value="therapy">Therapiesitzung</SelectItem>
-                      <SelectItem value="followup">Nachkontrolle</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+          {bookingState.bookingSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Alert className="border-green-200 bg-green-50 text-green-800">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription>
+                  Ihr Termin wurde erfolgreich gebucht! Sie erhalten in Kürze eine Bestätigungs-E-Mail.
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
 
-                <div>
-                  <Label htmlFor="notes">Anmerkungen (optional)</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Teilen Sie uns mit, wenn Sie spezielle Anliegen haben..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                {/* Patient Info Display */}
-                <div className="p-4 bg-psychPurple/5 rounded-lg border border-psychPurple/10">
-                  <h4 className="font-medium mb-2">Patienteninformationen</h4>
-                  <div className="text-sm space-y-1">
-                    <p><strong>Name:</strong> {patient?.name} {patient?.surname}</p>
-                    <p><strong>E-Mail:</strong> {patient?.email}</p>
-                    {patient?.phone && <p><strong>Telefon:</strong> {patient.phone}</p>}
-                    {vitabytePatient?.patid && (
-                      <p><strong>Patienten-ID:</strong> {vitabytePatient.patid}</p>
-                    )}
-                    {selectedTreater ? (
-                      <p><strong>Gewählter Therapeut:</strong> {selectedTreater.name || `Therapeut ${selectedTreater.provider}`}</p>
-                    ) : vitabytePatient?.assignedTherapist ? (
-                      <p><strong>Therapeut:</strong> {vitabytePatient.assignedTherapist.name}</p>
-                    ) : null}
-                    {availableTreaters.length > 1 && (
-                      <p className="text-blue-600"><strong>Verfügbare Therapeuten:</strong> {availableTreaters.length}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Booking Summary */}
-                {date && selectedTime && (
-                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <h4 className="font-medium mb-2 text-green-800">Terminübersicht</h4>
-                    <div className="text-sm space-y-1 text-green-700">
-                      <p><strong>Datum:</strong> {format(date, 'EEEE, d. MMMM yyyy', { locale: de })}</p>
-                      <p><strong>Zeit:</strong> {selectedTime} Uhr</p>
-                      <p><strong>Dauer:</strong> 50 Minuten</p>
-                      {appointmentType && <p><strong>Art:</strong> {appointmentType}</p>}
-                      <p><strong>Quelle:</strong> EPAT Calendar API</p>
+          {bookingState.selectedSlot && bookingState.selectedDate && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card className="border-psychPurple/20 bg-psychPurple/5">
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="font-medium text-psychText">Termin bestätigen</p>
+                      <div className="flex items-center gap-4 text-sm text-psychText/60">
+                        <div className="flex items-center gap-1">
+                          <CalendarIcon className="h-4 w-4" />
+                          {formatDate(bookingState.selectedDate)}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {bookingState.selectedSlot.time} Uhr
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )}
 
-                <Button 
-                  onClick={handleBookAppointment}
-                  disabled={
-                    loading || 
-                    !appointmentType || 
-                    (availableTreaters.length > 1 && !selectedTreater)
-                  }
-                  className="w-full bg-psychPurple hover:bg-psychPurple/90"
-                >
-                  {loading ? 'Buchung läuft...' : 'Termin buchen'}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  {/* Treater Selection - only show if multiple treaters available */}
+                  {availableTreaters.length > 1 && (
+                    <div>
+                      <Label htmlFor="treater-select">Therapeut/in wählen *</Label>
+                      <Select 
+                        value={selectedTreater?.provider.toString() || ''} 
+                        onValueChange={(value) => {
+                          const treater = availableTreaters.find(t => t.provider.toString() === value);
+                          setSelectedTreater(treater || null);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Wählen Sie Ihren Therapeuten/Ihre Therapeutin" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTreaters.map((treater) => (
+                            <SelectItem key={treater.provider} value={treater.provider.toString()}>
+                              <div className="flex items-center gap-2">
+                                <Users className="w-4 h-4" />
+                                <span>
+                                  {treater.name || `Therapeut ${treater.provider}`}
+                                  {treater.specialty && (
+                                    <span className="text-sm text-gray-500 ml-2">({treater.specialty})</span>
+                                  )}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="appointment-type">Terminart *</Label>
+                    <Select value={appointmentType} onValueChange={setAppointmentType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wählen Sie die Terminart" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="consultation">Beratungsgespräch</SelectItem>
+                        <SelectItem value="therapy">Therapiesitzung</SelectItem>
+                        <SelectItem value="followup">Nachkontrolle</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="notes">Anmerkungen (optional)</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Teilen Sie uns mit, wenn Sie spezielle Anliegen haben..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleBooking}
+                    disabled={
+                      bookingState.isBooking || 
+                      !appointmentType || 
+                      (availableTreaters.length > 1 && !selectedTreater)
+                    }
+                    className="w-full bg-psychPurple hover:bg-psychPurple/90"
+                  >
+                    {bookingState.isBooking ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Buchung läuft...
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Termin buchen
+                      </div>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Layout>
   );
