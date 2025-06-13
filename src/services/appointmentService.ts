@@ -786,13 +786,18 @@ export const appointmentService = {
       .from('bookings')
       .select('*')
       .eq('patient_email', patientEmail)
-      .in('status', ['scheduled', 'pending_cancellation', 'pending_reschedule'])
+      .in('status', ['scheduled', 'pending_admin_review', 'pending_cancellation', 'pending_reschedule'])
       .gte('appointment_date', today)
       .order('appointment_date', { ascending: true });
 
     if (error) {
       console.error('Error fetching upcoming appointments:', error);
       return [];
+    }
+
+    console.log('📋 Found Supabase bookings:', bookings?.length || 0);
+    if (bookings && bookings.length > 0) {
+      console.log('📋 Supabase booking statuses:', bookings.map(b => ({ id: b.id, status: b.status, date: b.appointment_date })));
     }
 
     return bookings?.map(booking => ({
