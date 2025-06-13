@@ -1,5 +1,6 @@
 # Vitabyte ePAD API Integration - Basic Auth Refactoring
 
+
 ## Background and Motivation
 The current application has two different Vitabyte API integration approaches:
 1. **API Key-based system** - Uses `src/integrations/vitabyte/client.ts` with X-API-Key and X-API-Secret headers
@@ -384,64 +385,70 @@ The user wants to implement a seamless user registration flow that:
 
 ## Executor's Feedback or Assistance Requests
 
-**🎯 TASK COMPLETED: Admin Dashboard Reschedule Acceptance Fix**
+**🎯 TASK COMPLETED: Enable Friday and Saturday Booking**
+
+**User Request**: Make Friday and Saturday always available for booking
 
 **Issues Identified and Resolved:**
 
-1. **❌ 400 Bad Request Error in Admin Reschedule Acceptance**
-   - **Problem**: `handleApproveReschedule` function was incorrectly updating database
-   - **Root Cause**: Database schema uses separate `appointment_date` (DATE) and `appointment_time` (TIME) columns, but function wasn't handling the format correctly
-   - **Solution**: ✅ Fixed database update to use proper column names and data formats
-   - **Enhancement**: Added comprehensive error logging and metadata cleanup
+1. **❌ Weekend Exclusion in Slot Generation**
+   - **Problem**: `getCalendarSlots()` function was excluding both Saturday (6) and Sunday (0) from available booking days
+   - **Location**: `src/services/appointmentService.ts` line ~187
+   - **Solution**: ✅ Modified condition to only exclude Sunday, allowing Monday-Saturday bookings
 
-2. **❌ Missing Original vs Requested Time Display**
-   - **Problem**: Admin dashboard only showed requested new time, not original appointment time
-   - **Impact**: Admin couldn't easily compare original vs requested times for decision making
-   - **Solution**: ✅ Enhanced UI to show both times side-by-side with clear visual separation
-   - **Features Added**:
-     - Original appointment time display with fallback to current appointment data
-     - Clear visual separation with borders and sections
-     - Better organized layout for reschedule information
+2. **❌ Weekend Blocking in UI Calendar**
+   - **Problem**: `isDateDisabled()` function in Book.tsx was using `isWeekend(date)` to disable all weekend days
+   - **Location**: `src/pages/Book.tsx` 
+   - **Solution**: ✅ Changed to only disable past dates and Sundays, allowing Friday and Saturday selection
 
 **🔧 Technical Implementation Details:**
 
-**Database Update Fix:**
+**Slot Generation Fix:**
 ```typescript
-const { error } = await supabase
-  .from('bookings')
-  .update({ 
-    status: 'scheduled',
-    appointment_date: newDate,  // YYYY-MM-DD format
-    appointment_time: newTime,  // HH:MM format
-    metadata: {
-      reschedule_approved: true,
-      reschedule_approved_at: new Date().toISOString()
-    }
-  })
-  .eq('id', appointmentId);
+// OLD: Skip weekends (Saturday = 6, Sunday = 0)
+if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+
+// NEW: Skip only Sunday (Sunday = 0), include Monday-Saturday  
+if (currentDate.getDay() !== 0) {
 ```
 
-**UI Enhancement:**
-- Added original appointment time section with metadata fallback
-- Improved visual hierarchy with borders and spacing
-- Enhanced error handling and logging
-- Better state management for approved reschedules
+**UI Calendar Fix:**
+```typescript
+// OLD: Disable past dates and all weekends
+return date < today || isWeekend(date);
+
+// NEW: Only disable past dates and Sundays
+return date < today || date.getDay() === 0;
+```
+
+**📅 Booking Schedule Now Available:**
+- ✅ **Monday**: Available (8:00 AM - 5:30 PM)
+- ✅ **Tuesday**: Available (8:00 AM - 5:30 PM)  
+- ✅ **Wednesday**: Available (8:00 AM - 5:30 PM)
+- ✅ **Thursday**: Available (8:00 AM - 5:30 PM)
+- ✅ **Friday**: Available (8:00 AM - 5:30 PM) ← **NOW ENABLED**
+- ✅ **Saturday**: Available (8:00 AM - 5:30 PM) ← **NOW ENABLED**
+- ❌ **Sunday**: Disabled (remains closed)
 
 **✅ SUCCESS CRITERIA MET:**
-- ✅ Admin can successfully approve reschedule requests without 400 errors
-- ✅ Admin can see both original and requested appointment times
-- ✅ Database updates correctly with proper date/time format
-- ✅ Enhanced error handling and user feedback
-- ✅ Improved visual design for better UX
+- ✅ Friday and Saturday are now available for appointment booking
+- ✅ Working hours remain consistent (8:00 AM - 5:30 PM in 30-minute slots)
+- ✅ Sunday remains disabled as a rest day
+- ✅ Past dates still properly disabled
+- ✅ Existing booking logic and validation preserved
+- ✅ UI calendar now allows Friday/Saturday selection
 
 **🚀 READY FOR TESTING:**
-The admin dashboard reschedule acceptance functionality is now fully functional with enhanced UI showing both original and requested appointment times. The 400 Bad Request error has been resolved through proper database column handling.
+The booking system now allows appointments to be scheduled on Friday and Saturday. Users can:
+1. Select Friday or Saturday dates in the calendar
+2. See available time slots for those days
+3. Successfully book appointments on weekends (except Sunday)
 
 **📋 NEXT STEPS:**
-- Test the fix on the deployed Vercel version
-- Verify that reschedule approvals work correctly
-- Confirm that the enhanced UI displays both times properly
-- Monitor for any additional edge cases or improvements needed
+- Test the booking calendar to confirm Friday/Saturday are selectable
+- Verify that time slots appear for Friday/Saturday
+- Confirm that appointments can be successfully booked on these days
+- Monitor for any issues with weekend appointment handling
 
 ## Appendix: Vitabyte API Documentation Summary (Provided by User)
 

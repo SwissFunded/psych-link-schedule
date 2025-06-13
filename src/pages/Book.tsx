@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot, BookingData, getAppointmentDuration } from '@/services/appointmentService';
 import { getMultipleTreaters, Treater } from '@/lib/epatApi';
-import { format, isWeekend } from 'date-fns';
+import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
@@ -234,7 +234,8 @@ export default function Book() {
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return date < today || isWeekend(date);
+    // Only disable past dates and Sundays (Sunday = 0)
+    return date < today || date.getDay() === 0;
   };
 
   const formatDate = (date: Date) => {

@@ -188,8 +188,8 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
     // Generate available slots for each day
     const currentDate = new Date(startDate);
     while (currentDate <= endDate) {
-      // Skip weekends (Saturday = 6, Sunday = 0)
-      if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+      // Skip only Sunday (Sunday = 0), include Monday-Saturday
+      if (currentDate.getDay() !== 0) {
         const dateStr = currentDate.toISOString().split('T')[0];
         const busyTimesForDate = busyTimesByDate[dateStr] || [];
         
