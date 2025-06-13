@@ -941,6 +941,19 @@ export const appointmentService = {
         };
       }
       
+      // Check if this looks like a numeric ID (not UUID format)
+      // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appointmentIdStr);
+      
+      if (!isUUID) {
+        console.log('❌ Non-UUID appointment ID detected:', appointmentIdStr);
+        console.log('❌ This appears to be a Vitabyte appointment with numeric ID');
+        return { 
+          success: false, 
+          error: 'Dieser Termin kann nur über das Praxissystem storniert werden. Bitte kontaktieren Sie die Praxis direkt.' 
+        };
+      }
+      
       // First get the current appointment to preserve existing metadata
       const { data: currentAppointment, error: fetchError } = await supabase
         .from('bookings')
@@ -951,6 +964,15 @@ export const appointmentService = {
       if (fetchError || !currentAppointment) {
         console.error('❌ Appointment not found:', fetchError);
         console.error('❌ Fetch error details:', fetchError);
+        
+        // If it's a UUID format error, it's likely a Vitabyte appointment
+        if (fetchError?.code === '22P02') {
+          return { 
+            success: false, 
+            error: 'Dieser Termin kann nur über das Praxissystem storniert werden. Bitte kontaktieren Sie die Praxis direkt.' 
+          };
+        }
+        
         return { success: false, error: 'Termin nicht gefunden' };
       }
 
