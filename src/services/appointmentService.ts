@@ -658,28 +658,27 @@ export const appointmentService = {
     }
   },
 
-  // Get user's appointments from Vitabyte API (primary) with Supabase fallback
+  // Get user's appointments from both Vitabyte API and Supabase (merged)
   getUpcomingAppointments: async (patientEmail: string): Promise<Appointment[]> => {
+    const allAppointments: Appointment[] = [];
+    
     try {
-      // First try to get appointments from Vitabyte API
+      // Get appointments from Vitabyte API
       console.log('🔍 Fetching appointments from Vitabyte API for:', patientEmail);
       
-      // Get patient ID from email
       const customers = await getCustomerByMail(patientEmail);
       if (customers.length > 0) {
         const vitabytePatientId = customers[0].patid;
         console.log('✅ Found Vitabyte patient ID:', vitabytePatientId);
         
-        // Get appointments from Vitabyte API
         const appointmentsResponse = await getAppointments({ patid: vitabytePatientId });
         
         if (appointmentsResponse?.result && Array.isArray(appointmentsResponse.result)) {
           console.log('✅ Found Vitabyte appointments:', appointmentsResponse.result.length);
           
           const today = new Date();
-          const upcomingAppointments = appointmentsResponse.result
+          const vitabyteAppointments = appointmentsResponse.result
             .filter((apt: any) => {
-              // Filter for future appointments
               const appointmentDate = new Date(apt.date || apt.start || apt.datetime);
               return appointmentDate >= today;
             })
@@ -699,21 +698,32 @@ export const appointmentService = {
                 appointmentTitle: apt.appointment || apt.type || apt.title || 'Termin',
                 source: 'vitabyte'
               }
-            }))
-            .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            }));
           
-          console.log('✅ Processed upcoming Vitabyte appointments:', upcomingAppointments.length);
-          return upcomingAppointments;
+          allAppointments.push(...vitabyteAppointments);
+          console.log('✅ Added Vitabyte appointments:', vitabyteAppointments.length);
         }
       }
-      
-      console.log('ℹ️ No Vitabyte appointments found, falling back to Supabase');
     } catch (error) {
-      console.warn('⚠️ Error fetching from Vitabyte API, falling back to Supabase:', error);
+      console.warn('⚠️ Error fetching from Vitabyte API:', error);
     }
     
-    // Fallback to Supabase appointments
-    return appointmentService.getUpcomingAppointmentsFromSupabase(patientEmail);
+    try {
+      // Get appointments from Supabase (app-booked appointments)
+      console.log('🔍 Fetching appointments from Supabase for:', patientEmail);
+      const supabaseAppointments = await appointmentService.getUpcomingAppointmentsFromSupabase(patientEmail);
+      allAppointments.push(...supabaseAppointments);
+      console.log('✅ Added Supabase appointments:', supabaseAppointments.length);
+    } catch (error) {
+      console.warn('⚠️ Error fetching from Supabase:', error);
+    }
+    
+    // Sort all appointments by date and remove duplicates
+    const sortedAppointments = allAppointments
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    console.log('✅ Total upcoming appointments (merged):', sortedAppointments.length);
+    return sortedAppointments;
   },
 
   // Get user's appointments from Supabase (fallback method)
@@ -724,7 +734,7 @@ export const appointmentService = {
       .from('bookings')
       .select('*')
       .eq('patient_email', patientEmail)
-      .eq('status', 'scheduled')
+      .in('status', ['scheduled', 'pending_cancellation', 'pending_reschedule'])
       .gte('appointment_date', today)
       .order('appointment_date', { ascending: true });
 
@@ -739,40 +749,43 @@ export const appointmentService = {
       therapistId: booking.appointment_type,
       date: `${booking.appointment_date}T${booking.appointment_time}:00`,
       duration: booking.duration,
-      status: 'scheduled' as const,
+      status: booking.status as any,
       type: 'in-person' as const,
       notes: booking.notes,
       metadata: {
         treaterName: booking.treater_name,
         treaterId: booking.treater_id,
         vitabytePatientId: booking.vitabyte_patient_id,
-        source: 'supabase'
+        appointment_type: booking.appointment_type,
+        patientName: booking.patient_name,
+        patientEmail: booking.patient_email,
+        source: 'supabase',
+        ...((booking as any).metadata || {})
       }
     })) || [];
   },
 
-  // Get user's past appointments from Vitabyte API (primary) with Supabase fallback
+  // Get user's past appointments from both Vitabyte API and Supabase (merged)
   getPastAppointments: async (patientEmail: string): Promise<Appointment[]> => {
+    const allPastAppointments: Appointment[] = [];
+    
     try {
-      // First try to get appointments from Vitabyte API
+      // Get past appointments from Vitabyte API
       console.log('🔍 Fetching past appointments from Vitabyte API for:', patientEmail);
       
-      // Get patient ID from email
       const customers = await getCustomerByMail(patientEmail);
       if (customers.length > 0) {
         const vitabytePatientId = customers[0].patid;
         console.log('✅ Found Vitabyte patient ID:', vitabytePatientId);
         
-        // Get appointments from Vitabyte API
         const appointmentsResponse = await getAppointments({ patid: vitabytePatientId });
         
         if (appointmentsResponse?.result && Array.isArray(appointmentsResponse.result)) {
           console.log('✅ Found Vitabyte appointments:', appointmentsResponse.result.length);
           
           const today = new Date();
-          const pastAppointments = appointmentsResponse.result
+          const vitabytePastAppointments = appointmentsResponse.result
             .filter((apt: any) => {
-              // Filter for past appointments
               const appointmentDate = new Date(apt.date || apt.start || apt.datetime);
               return appointmentDate < today;
             })
@@ -782,7 +795,7 @@ export const appointmentService = {
               therapistId: apt.calendar?.toString() || 'unknown',
               date: apt.date || apt.start || apt.datetime,
               duration: apt.duration || 50,
-              status: 'completed' as const, // Assume past appointments are completed
+              status: 'completed' as const,
               type: 'in-person' as const,
               notes: apt.comment || apt.notes,
               metadata: {
@@ -792,21 +805,32 @@ export const appointmentService = {
                 appointmentTitle: apt.appointment || apt.type || apt.title || 'Termin',
                 source: 'vitabyte'
               }
-            }))
-            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            }));
           
-          console.log('✅ Processed past Vitabyte appointments:', pastAppointments.length);
-          return pastAppointments;
+          allPastAppointments.push(...vitabytePastAppointments);
+          console.log('✅ Added Vitabyte past appointments:', vitabytePastAppointments.length);
         }
       }
-      
-      console.log('ℹ️ No Vitabyte past appointments found, falling back to Supabase');
     } catch (error) {
-      console.warn('⚠️ Error fetching past appointments from Vitabyte API, falling back to Supabase:', error);
+      console.warn('⚠️ Error fetching past appointments from Vitabyte API:', error);
     }
     
-    // Fallback to Supabase appointments
-    return appointmentService.getPastAppointmentsFromSupabase(patientEmail);
+    try {
+      // Get past appointments from Supabase (app-booked appointments)
+      console.log('🔍 Fetching past appointments from Supabase for:', patientEmail);
+      const supabasePastAppointments = await appointmentService.getPastAppointmentsFromSupabase(patientEmail);
+      allPastAppointments.push(...supabasePastAppointments);
+      console.log('✅ Added Supabase past appointments:', supabasePastAppointments.length);
+    } catch (error) {
+      console.warn('⚠️ Error fetching past appointments from Supabase:', error);
+    }
+    
+    // Sort all past appointments by date (newest first)
+    const sortedPastAppointments = allPastAppointments
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    console.log('✅ Total past appointments (merged):', sortedPastAppointments.length);
+    return sortedPastAppointments;
   },
 
   // Get past appointments from Supabase (fallback method)
