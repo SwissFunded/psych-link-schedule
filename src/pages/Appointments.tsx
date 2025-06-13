@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment, getAppointmentTypeName } from '@/services/appointmentService';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay, parseISO, isValid as isValidDate } from 'date-fns';
 import { de } from 'date-fns/locale/de';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,9 +20,38 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
   onReschedule: (apt: Appointment) => void;
   onCancel: (aptId: string) => void;
 }) => {
-  const date = parseISO(appointment.date);
-  const formattedDate = format(date, "EEEE, d. MMMM yyyy", { locale: de });
-  const formattedTime = format(date, "HH:mm", { locale: de });
+  // Safe date parsing with fallback
+  const parseAppointmentDate = () => {
+    try {
+      let dateToParse = appointment.date;
+      
+      // Handle malformed dates with extra :00 at the end
+      if (dateToParse && dateToParse.includes('T') && dateToParse.endsWith(':00:00')) {
+        dateToParse = dateToParse.replace(':00:00', ':00');
+      }
+      
+      const date = parseISO(dateToParse);
+      
+      if (!isValidDate(date)) {
+        throw new Error('Invalid date');
+      }
+      
+      return {
+        formattedDate: format(date, "EEEE, d. MMMM yyyy", { locale: de }),
+        formattedTime: format(date, "HH:mm", { locale: de }),
+        isValid: true
+      };
+    } catch (error) {
+      console.warn('Failed to parse appointment date:', appointment.date, error);
+      return {
+        formattedDate: 'Ungültiges Datum',
+        formattedTime: '--:--',
+        isValid: false
+      };
+    }
+  };
+
+  const { formattedDate, formattedTime, isValid } = parseAppointmentDate();
   const [therapistName, setTherapistName] = useState('');
 
   // Get appointment title from metadata or fallback
@@ -99,12 +128,12 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
       </CardHeader>
       <CardContent className="pb-2">
         <div className="flex items-center gap-2 text-sm text-psychText">
-          <Calendar size={14} className="text-psychPurple" />
-          <span>{formattedDate}</span>
+          <Calendar size={14} className={isValid ? "text-psychPurple" : "text-red-500"} />
+          <span className={isValid ? "" : "text-red-500"}>{formattedDate}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-psychText mt-1">
-          <Clock size={14} className="text-psychPurple" />
-          <span>{formattedTime} Uhr</span>
+          <Clock size={14} className={isValid ? "text-psychPurple" : "text-red-500"} />
+          <span className={isValid ? "" : "text-red-500"}>{formattedTime} Uhr</span>
         </div>
         {appointment.metadata?.appointment_type && (
           <div className="flex items-center gap-2 text-sm text-psychText mt-1">
