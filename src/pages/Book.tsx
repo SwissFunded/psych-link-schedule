@@ -23,7 +23,7 @@ export default function Book() {
   const [appointmentType, setAppointmentType] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("slots");
+  const [activeTab, setActiveTab] = useState("calendar");
   
   const { patient, vitabytePatient } = useAuth();
   const navigate = useNavigate();
@@ -131,11 +131,11 @@ export default function Book() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="slots" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            {/* <TabsTrigger value="slots" className="flex items-center gap-2">
               <CalendarIcon className="w-4 h-4" />
               Vitabyte Kalender
-            </TabsTrigger>
+            </TabsTrigger> */}
             <TabsTrigger value="calendar" className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Kalender
@@ -146,7 +146,7 @@ export default function Book() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="slots">
+          {/* <TabsContent value="slots">
             <Card>
               <CardHeader>
                 <CardTitle>Verfügbare Termine (Vitabyte ICS Kalender)</CardTitle>
@@ -206,7 +206,7 @@ export default function Book() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
 
           <TabsContent value="calendar">
             <Card>
@@ -304,18 +304,6 @@ export default function Book() {
                     {vitabytePatient?.assignedTherapist && (
                       <p><strong>Therapeut:</strong> {vitabytePatient.assignedTherapist.name}</p>
                     )}
-                  </div>
-                </div>
-
-                {/* Vitabyte ICS Calendar Info */}
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="font-medium mb-2 text-blue-800">📡 Vitabyte ICS Kalender Status</h4>
-                  <div className="text-sm space-y-1 text-blue-700">
-                    <p><strong>Kalender Status:</strong> {Object.keys(allSlotsByDate).length > 0 ? '✅ Verbunden' : '❌ Getrennt'}</p>
-                    <p><strong>Verfügbare Tage:</strong> {Object.keys(allSlotsByDate).length}</p>
-                    <p><strong>Termine insgesamt:</strong> {Object.values(allSlotsByDate).flat().length}</p>
-                    <p><strong>Verfügbare Termine:</strong> {Object.values(allSlotsByDate).flat().filter(s => s.available).length}</p>
-                    <p><strong>Quelle:</strong> api.vitabyte.ch/calendar (ICS via Proxy)</p>
                   </div>
                 </div>
 
