@@ -76,34 +76,43 @@ async function getBusyTimes(): Promise<CalendarSlot[]> {
         currentEvent = {};
       } else if (cleanLine === 'END:VEVENT' && inEvent) {
         // Process the event - these are BUSY times (existing appointments)
-        if (currentEvent.DTSTART) {
+        if (currentEvent.DTSTART && currentEvent.DTEND) {
           const startDateTime = parseICSDateTime(currentEvent.DTSTART);
-          if (startDateTime) {
+          const endDateTime = parseICSDateTime(currentEvent.DTEND);
+          
+          if (startDateTime && endDateTime) {
             // Only include future appointments (skip past dates)
             const now = new Date();
-            if (startDateTime >= now) {
-              const date = startDateTime.toISOString().split('T')[0]; // YYYY-MM-DD
-              const time = startDateTime.toTimeString().substring(0, 5); // HH:MM
-              
-              busyTimes.push({
-                date,
-                time,
-                title: currentEvent.SUMMARY || 'Busy',
-                description: currentEvent.DESCRIPTION || ''
-              });
+            if (endDateTime > now) {
+              // Generate all 30-minute slots for the duration of the event
+              let currentSlot = new Date(startDateTime);
+              while (currentSlot < endDateTime) {
+                const date = currentSlot.toISOString().split('T')[0]; // YYYY-MM-DD
+                const time = currentSlot.toTimeString().substring(0, 5); // HH:MM
+                
+                busyTimes.push({
+                  date,
+                  time,
+                  title: currentEvent.SUMMARY || 'Busy',
+                  description: currentEvent.DESCRIPTION || ''
+                });
+                
+                // Move to the next 30-minute slot
+                currentSlot.setMinutes(currentSlot.getMinutes() + 30);
+              }
             }
           }
         }
         inEvent = false;
         currentEvent = {};
-      } else if (inEvent && cleanLine.includes(':') && !cleanLine.startsWith('DTEND')) {
+      } else if (inEvent && cleanLine.includes(':')) {
         const [key, ...valueParts] = cleanLine.split(':');
         const value = valueParts.join(':');
-        currentEvent[key] = value;
+        currentEvent[key.split(';')[0]] = value; // Handle keys like DTSTART;TZID=...
       }
     }
     
-    console.log('✅ Parsed', busyTimes.length, 'future busy times from ICS');
+    console.log('✅ Parsed', busyTimes.length, 'future busy time slots from ICS');
     
     // Log the date range of busy times for debugging
     if (busyTimes.length > 0) {
@@ -196,17 +205,24 @@ function parseICSDateTime(icsDateTime: string): Date | null {
   try {
     // Handle different ICS datetime formats
     // Format: YYYYMMDDTHHMMSS or YYYYMMDDTHHMMSSZ
-    let dateStr = icsDateTime.replace(/[TZ]/g, '');
+    // Example: 20240715T100000Z
+    let dateStr = icsDateTime.replace('Z', '');
     
-    if (dateStr.length >= 14) {
-      const year = parseInt(dateStr.substring(0, 4));
-      const month = parseInt(dateStr.substring(4, 6)) - 1; // Month is 0-indexed
-      const day = parseInt(dateStr.substring(6, 8));
-      const hour = parseInt(dateStr.substring(8, 10));
-      const minute = parseInt(dateStr.substring(10, 12));
-      const second = parseInt(dateStr.substring(12, 14)) || 0;
+    if (dateStr.includes('T')) {
+      const parts = dateStr.split('T');
+      const datePart = parts[0];
+      const timePart = parts[1];
       
-      return new Date(year, month, day, hour, minute, second);
+      const year = parseInt(datePart.substring(0, 4));
+      const month = parseInt(datePart.substring(4, 6)) - 1; // Month is 0-indexed
+      const day = parseInt(datePart.substring(6, 8));
+      
+      const hour = parseInt(timePart.substring(0, 2));
+      const minute = parseInt(timePart.substring(2, 4));
+      const second = parseInt(timePart.substring(4, 6)) || 0;
+      
+      // The ICS times are in UTC, convert to local time for correct comparison
+      return new Date(Date.UTC(year, month, day, hour, minute, second));
     }
     
     return null;
@@ -278,16 +294,26 @@ export const appointmentService = {
       // Get all existing bookings from Supabase
       const { data: existingBookings } = await supabase
         .from('bookings')
-        .select('appointment_date, appointment_time')
+        .select('appointment_date, appointment_time, duration')
         .eq('status', 'scheduled');
 
       // Create a map of booked times by date
       const bookedTimesByDate: Record<string, string[]> = {};
       existingBookings?.forEach(booking => {
-        if (!bookedTimesByDate[booking.appointment_date]) {
-          bookedTimesByDate[booking.appointment_date] = [];
+        const { appointment_date, appointment_time, duration } = booking;
+        if (!bookedTimesByDate[appointment_date]) {
+          bookedTimesByDate[appointment_date] = [];
         }
-        bookedTimesByDate[booking.appointment_date].push(booking.appointment_time);
+
+        const startTime = new Date(`${appointment_date}T${appointment_time}`);
+        const numSlots = Math.ceil((duration || 50) / 30);
+
+        for (let i = 0; i < numSlots; i++) {
+          const slotTime = new Date(startTime.getTime() + i * 30 * 60 * 1000);
+          bookedTimesByDate[appointment_date].push(
+            slotTime.toTimeString().substring(0, 5)
+          );
+        }
       });
 
       // Group calendar slots by date and mark availability
