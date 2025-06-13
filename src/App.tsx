@@ -18,6 +18,7 @@ const Book = lazy(() => import("./pages/Book"));
 const Reschedule = lazy(() => import("./pages/Reschedule"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Admin = lazy(() => import("./pages/Admin"));
+const AdminAppointments = lazy(() => import("./pages/AdminAppointments"));
 
 // Create a fallback loading component
 const PageLoading = () => (
@@ -64,6 +65,11 @@ const AnimationRoutes = () => {
         <Route path="/admin" element={
           <Suspense fallback={<PageLoading />}>
             <Admin />
+          </Suspense>
+        } />
+        <Route path="/admin/appointments" element={
+          <Suspense fallback={<PageLoading />}>
+            <AdminAppointments />
           </Suspense>
         } />
         <Route path="*" element={<NotFound />} />

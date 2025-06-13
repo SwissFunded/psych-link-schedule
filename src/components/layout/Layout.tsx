@@ -90,6 +90,12 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Buchen", url: "/book", icon: Clock },
     { name: "Profil", url: "/profile", icon: UserCircle },
   ];
+
+  // Add admin navigation for authorized user
+  const isAdmin = patient?.email === 'miromw@icloud.com';
+  if (isAdmin) {
+    navItems.push({ name: "Admin", url: "/admin/appointments", icon: Code });
+  }
   
   return (
     <div className="min-h-screen flex flex-col">

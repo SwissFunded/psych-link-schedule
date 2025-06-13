@@ -820,5 +820,115 @@ export const appointmentService = {
   getTherapistById: async (therapistId: string): Promise<Therapist | undefined> => {
     const therapists = await appointmentService.getTherapists();
     return therapists.find(t => t.id === therapistId);
+  },
+
+  // Get all appointments from all patients (admin function)
+  getAllAppointments: async (): Promise<Appointment[]> => {
+    try {
+      console.log('🔍 Fetching all appointments from all patients (admin)');
+      
+      // Get all appointments from Supabase
+      const { data: supabaseBookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error fetching appointments from Supabase:', error);
+        throw error;
+      }
+
+      console.log('📅 Found', supabaseBookings?.length || 0, 'appointments in Supabase');
+
+      const allAppointments: Appointment[] = [];
+
+      // Convert Supabase bookings to Appointment format
+      if (supabaseBookings) {
+        for (const booking of supabaseBookings) {
+          allAppointments.push({
+            id: booking.id,
+            patientId: booking.patient_email,
+            therapistId: booking.appointment_type,
+            date: `${booking.appointment_date}T${booking.appointment_time}:00`,
+            duration: booking.duration || 60,
+            status: booking.status as any,
+            type: 'in-person' as any,
+            notes: booking.notes,
+            metadata: {
+              appointmentType: booking.appointment_type,
+              patientEmail: booking.patient_email,
+              patientName: booking.patient_name,
+              treaterName: booking.treater_name,
+              treaterId: booking.treater_id,
+              vitabytePatientId: booking.vitabyte_patient_id,
+              source: 'supabase'
+            }
+          });
+        }
+      }
+
+      // Try to get additional appointments from Vitabyte API for known patients
+      try {
+        // Get all unique patient emails from Supabase bookings
+        const patientEmails = [...new Set(supabaseBookings?.map(booking => booking.patient_email).filter(Boolean) || [])];
+        
+        console.log('👥 Found', patientEmails.length, 'unique patient emails');
+        
+        // Fetch Vitabyte appointments for each patient
+        for (const email of patientEmails) {
+          try {
+            const customers = await getCustomerByMail(email);
+            if (customers.length > 0) {
+              const vitabytePatientId = customers[0].patid;
+              const appointmentsResponse = await getAppointments({ patid: vitabytePatientId });
+              
+              if (appointmentsResponse?.result && Array.isArray(appointmentsResponse.result)) {
+                for (const apt of appointmentsResponse.result) {
+                  // Create unique ID to avoid duplicates
+                  const vitabyteId = `vitabyte-${apt.id || apt.appointmentid || `${apt.date}-${apt.calendar}`}`;
+                  
+                  // Check if we already have this appointment
+                  if (!allAppointments.find(existing => existing.id === vitabyteId)) {
+                    allAppointments.push({
+                      id: vitabyteId,
+                      patientId: email,
+                      therapistId: apt.calendar?.toString() || 'unknown',
+                      date: apt.date || apt.start || apt.datetime,
+                      duration: apt.duration || 50,
+                      status: 'scheduled' as const,
+                      type: 'in-person' as const,
+                      notes: apt.comment || apt.notes,
+                      metadata: {
+                        vitabyteAppointmentId: apt.id || apt.appointmentid,
+                        calendar: apt.calendar,
+                        appointmentType: apt.appointment || apt.type || 'Termin',
+                        appointmentTitle: apt.appointment || apt.type || apt.title || 'Termin',
+                        patientEmail: email,
+                        patientName: customers[0].firstname + ' ' + customers[0].lastname,
+                        source: 'vitabyte'
+                      }
+                    });
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Could not fetch Vitabyte appointments for ${email}:`, error);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not fetch Vitabyte appointments:', error);
+      }
+
+      console.log('✅ Total appointments collected:', allAppointments.length);
+      
+      // Sort by date (newest first)
+      allAppointments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      return allAppointments;
+    } catch (error) {
+      console.error('❌ Error in getAllAppointments:', error);
+      throw error;
+    }
   }
 };
