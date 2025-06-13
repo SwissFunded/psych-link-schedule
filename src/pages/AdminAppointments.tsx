@@ -359,16 +359,25 @@ export default function AdminAppointments() {
         console.log('📅 All appointments fetched:', appointments.length);
         
         // Add completion status from localStorage and check for pending status
-        const appointmentsWithCompletion: AdminAppointment[] = appointments.map(apt => ({
-          ...apt,
-          // Extract patient data from metadata for proper display
-          patientName: apt.metadata?.patientName,
-          patientEmail: apt.metadata?.patientEmail || apt.patientId,
-          isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true',
-          isPending: apt.status === 'pending_admin_review',
-          isPendingCancellation: apt.status === 'pending_cancellation',
-          isPendingReschedule: apt.status === 'pending_reschedule'
-        }));
+        const appointmentsWithCompletion: AdminAppointment[] = appointments.map(apt => {
+          console.log('🔍 Processing appointment:', {
+            id: apt.id,
+            date: apt.date,
+            patientId: apt.patientId,
+            metadata: apt.metadata
+          });
+          
+          return {
+            ...apt,
+            // Extract patient data from metadata for proper display
+            patientName: apt.metadata?.patientName,
+            patientEmail: apt.metadata?.patientEmail || apt.patientId,
+            isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true',
+            isPending: apt.status === 'pending_admin_review',
+            isPendingCancellation: apt.status === 'pending_cancellation',
+            isPendingReschedule: apt.status === 'pending_reschedule'
+          };
+        });
         
         setAllAppointments(appointmentsWithCompletion);
         setFilteredAppointments(appointmentsWithCompletion);
