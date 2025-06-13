@@ -168,7 +168,7 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + 30);
     
-    // Working hours: 8:00 AM to 6:00 PM, Monday to Friday
+    // Working hours: 8:00 AM to 6:00 PM, Monday to Saturday
     const workingHours = [
       '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
       '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
@@ -193,6 +193,16 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
         const dateStr = currentDate.toISOString().split('T')[0];
         const busyTimesForDate = busyTimesByDate[dateStr] || [];
         
+        // Special debugging for Saturday (day 6)
+        if (currentDate.getDay() === 6) {
+          console.log('🔍 Saturday debugging for', dateStr, ':', {
+            dayOfWeek: currentDate.getDay(),
+            busyTimesCount: busyTimesForDate.length,
+            busyTimes: busyTimesForDate,
+            workingHoursCount: workingHours.length
+          });
+        }
+        
         // Add available times (not in busy list)
         workingHours.forEach(time => {
           if (!busyTimesForDate.includes(time)) {
@@ -202,8 +212,17 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
               title: 'Available',
               description: 'Available appointment slot'
             });
+          } else if (currentDate.getDay() === 6) {
+            // Log which Saturday times are blocked
+            console.log('🚫 Saturday time blocked:', dateStr, time, '(found in busy times)');
           }
         });
+        
+        // Log Saturday slot generation results
+        if (currentDate.getDay() === 6) {
+          const saturdaySlots = availableSlots.filter(slot => slot.date === dateStr);
+          console.log('✅ Generated', saturdaySlots.length, 'available slots for Saturday', dateStr);
+        }
       }
       
       // Move to next day
