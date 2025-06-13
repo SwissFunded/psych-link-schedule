@@ -83,7 +83,7 @@ export default function Book() {
     
     fetchTreaters();
   }, [vitabytePatient?.patid]);
-
+  
   // Load all available slots from Vitabyte ICS Calendar on component mount
   useEffect(() => {
     const fetchAllSlots = async () => {
@@ -106,7 +106,7 @@ export default function Book() {
     
     fetchAllSlots();
   }, []);
-
+  
   const loadTimeSlots = useCallback(async (date: Date) => {
     setBookingState(prev => ({ ...prev, isLoading: true, error: null }));
     
@@ -212,7 +212,7 @@ export default function Book() {
         
         // Navigate to appointments after a short delay
         setTimeout(() => {
-          navigate('/appointments');
+        navigate('/appointments');
         }, 2000);
       } else {
         setBookingState(prev => ({ 
@@ -273,12 +273,12 @@ export default function Book() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-              <Calendar
-                mode="single"
+                <Calendar
+                  mode="single"
                 selected={bookingState.selectedDate}
-                onSelect={handleDateSelect}
-                disabled={isDateDisabled}
-                locale={de}
+                  onSelect={handleDateSelect}
+                  disabled={isDateDisabled}
+                  locale={de}
                 className="rounded-md border-0"
                 classNames={{
                   months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -416,8 +416,8 @@ export default function Book() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           </FloatingCard>
         </div>
 
@@ -505,31 +505,31 @@ export default function Book() {
 
                                      <div className="space-y-2">
                      <Label htmlFor="appointment-type" className="text-sm font-medium">Terminart *</Label>
-                     <Select value={appointmentType} onValueChange={setAppointmentType}>
+                  <Select value={appointmentType} onValueChange={setAppointmentType}>
                        <SelectTrigger className="h-12 text-base">
-                         <SelectValue placeholder="Wählen Sie die Terminart" />
-                       </SelectTrigger>
-                       <SelectContent>
+                      <SelectValue placeholder="Wählen Sie die Terminart" />
+                    </SelectTrigger>
+                    <SelectContent>
                          <SelectItem value="medical_60" className="text-base py-3">Ärztliche Betreuung 60 Min</SelectItem>
                          <SelectItem value="medical_30" className="text-base py-3">Ärztliche Betreuung 30 min</SelectItem>
                          <SelectItem value="phone_video_60" className="text-base py-3">Telefon/Video Termin 60min</SelectItem>
                          <SelectItem value="therapy_60" className="text-base py-3">Therapie 60 min</SelectItem>
                          <SelectItem value="short_30" className="text-base py-3">Kurztermin 30 min</SelectItem>
-                       </SelectContent>
-                     </Select>
-                   </div>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                    <div className="space-y-2">
                      <Label htmlFor="notes" className="text-sm font-medium">Anmerkungen (optional)</Label>
-                     <Textarea
-                       id="notes"
-                       placeholder="Teilen Sie uns mit, wenn Sie spezielle Anliegen haben..."
-                       value={notes}
-                       onChange={(e) => setNotes(e.target.value)}
-                       rows={3}
+                  <Textarea
+                    id="notes"
+                    placeholder="Teilen Sie uns mit, wenn Sie spezielle Anliegen haben..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
                        className="text-base resize-none"
-                     />
-                   </div>
+                  />
+                </div>
 
                    <Button
                      onClick={handleBooking}
@@ -544,16 +544,16 @@ export default function Book() {
                        <div className="flex items-center gap-2">
                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                          <span>Buchung läuft...</span>
-                       </div>
+                  </div>
                      ) : (
                        <div className="flex items-center gap-2">
                          <User className="h-4 w-4" />
                          <span>Termin buchen</span>
-                       </div>
-                     )}
-                   </Button>
-                </CardContent>
-              </Card>
+                  </div>
+                )}
+                </Button>
+              </CardContent>
+            </Card>
             </FloatingCard>
           )}
         </AnimatePresence>

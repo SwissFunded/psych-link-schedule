@@ -299,15 +299,33 @@ const AdminAppointmentCard = ({
             {appointment.isPendingReschedule && onApproveReschedule && onRejectChange && (
               <div className="mt-4 space-y-3">
                 {appointment.metadata?.requested_new_date && appointment.metadata?.requested_new_time && (
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-800 font-medium">Neue gewünschte Zeit:</p>
-                    <p className="text-sm text-blue-700">
-                      {format(parseISO(`${appointment.metadata.requested_new_date}T${appointment.metadata.requested_new_time}`), 'dd.MM.yyyy HH:mm', { locale: de })}
-                    </p>
-                    {appointment.metadata?.reschedule_reason && (
-                      <p className="text-sm text-blue-600 mt-1">
-                        <strong>Grund:</strong> {appointment.metadata.reschedule_reason}
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+                    {/* Original appointment time */}
+                    <div className="pb-2 border-b border-blue-200">
+                      <p className="text-sm text-blue-800 font-medium">Aktueller Termin:</p>
+                      <p className="text-sm text-blue-700">
+                        {appointment.metadata?.original_date && appointment.metadata?.original_time ? (
+                          format(parseISO(`${appointment.metadata.original_date}T${appointment.metadata.original_time}`), 'dd.MM.yyyy HH:mm', { locale: de })
+                        ) : (
+                          formattedDate + ' ' + formattedTime
+                        )}
                       </p>
+                    </div>
+                    
+                    {/* Requested new time */}
+                    <div>
+                      <p className="text-sm text-blue-800 font-medium">Neue gewünschte Zeit:</p>
+                      <p className="text-sm text-blue-700">
+                        {format(parseISO(`${appointment.metadata.requested_new_date}T${appointment.metadata.requested_new_time}`), 'dd.MM.yyyy HH:mm', { locale: de })}
+                      </p>
+                    </div>
+                    
+                    {appointment.metadata?.reschedule_reason && (
+                      <div className="pt-2 border-t border-blue-200">
+                        <p className="text-sm text-blue-600">
+                          <strong>Grund:</strong> {appointment.metadata.reschedule_reason}
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -537,20 +555,30 @@ export default function AdminAppointments() {
 
   const handleApproveReschedule = async (appointmentId: string, newDate: string, newTime: string) => {
     try {
+      console.log('🔄 Approving reschedule:', { appointmentId, newDate, newTime });
+      
       // Update appointment with new date/time and set status to scheduled
       const { error } = await supabase
         .from('bookings')
         .update({ 
           status: 'scheduled',
-          appointment_date: newDate,
-          appointment_time: newTime
+          appointment_date: newDate,  // This should be in YYYY-MM-DD format
+          appointment_time: newTime,  // This should be in HH:MM format
+          metadata: {
+            // Clear reschedule metadata since it's now approved
+            reschedule_approved: true,
+            reschedule_approved_at: new Date().toISOString()
+          }
         })
         .eq('id', appointmentId);
 
       if (error) {
-        toast.error("Fehler beim Genehmigen der Verschiebung");
+        console.error('❌ Database error approving reschedule:', error);
+        toast.error(`Fehler beim Genehmigen der Verschiebung: ${error.message}`);
         return;
       }
+
+      console.log('✅ Reschedule approved successfully');
 
       // Update local state
       setAllAppointments(prev => 
@@ -560,7 +588,9 @@ export default function AdminAppointments() {
                 ...apt, 
                 status: 'scheduled' as const, 
                 isPendingReschedule: false,
-                date: `${newDate}T${newTime}:00`
+                date: `${newDate}T${newTime}:00`,
+                appointment_date: newDate,
+                appointment_time: newTime
               }
             : apt
         )
@@ -568,7 +598,7 @@ export default function AdminAppointments() {
 
       toast.success("Verschiebung erfolgreich genehmigt!");
     } catch (error) {
-      console.error('Error approving reschedule:', error);
+      console.error('❌ Error approving reschedule:', error);
       toast.error("Fehler beim Genehmigen der Verschiebung");
     }
   };
