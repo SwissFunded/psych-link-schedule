@@ -252,6 +252,36 @@ export default function Appointments() {
           </div>
         ) : null}
         
+        {/* Debug Panel - Only show in development */}
+        {import.meta.env.DEV && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">🔧 Debug Info (Development Only)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div>
+                <strong>Supabase Patient:</strong>
+                <div className="mt-1 font-mono text-gray-600">
+                  ID: {patient?.id || 'N/A'}<br/>
+                  Email: {patient?.email || 'N/A'}<br/>
+                  Name: {patient?.name || 'N/A'}
+                </div>
+              </div>
+              <div>
+                <strong>Vitabyte Patient:</strong>
+                <div className="mt-1 font-mono text-gray-600">
+                  PatID: {vitabytePatient?.patid || 'N/A'}<br/>
+                  Email: {vitabytePatient?.mail || 'N/A'}<br/>
+                  Name: {vitabytePatient ? `${vitabytePatient.firstname} ${vitabytePatient.lastname}` : 'N/A'}<br/>
+                  Therapist: {vitabytePatient?.assignedTherapist?.name || 'N/A'}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              Using Patient ID: <strong>{vitabytePatient?.patid?.toString() || patient?.id || 'None'}</strong>
+              {vitabytePatient?.patid ? ' (Vitabyte)' : ' (Supabase)'}
+            </div>
+          </div>
+        )}
+        
         <Tabs defaultValue="upcoming">
           <TabsList className="mb-6">
             <TabsTrigger value="upcoming">Bevorstehend</TabsTrigger>
