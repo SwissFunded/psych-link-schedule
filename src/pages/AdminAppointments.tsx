@@ -46,9 +46,17 @@ const AdminAppointmentCard = ({
   
   // Safe date parsing with fallback
   const parseAppointmentDate = () => {
+    console.log('🔍 Parsing date for appointment:', {
+      id: appointment.id,
+      rawDate: appointment.date,
+      metadata: appointment.metadata
+    });
+    
     try {
       // The date should already be in ISO format from getAllAppointments
       const date = parseISO(appointment.date);
+      
+      console.log('🔍 Parsed date object:', date, 'isValid:', isValidDate(date));
       
       // Check if the parsed date is valid
       if (!isValidDate(date)) {
@@ -357,6 +365,7 @@ export default function AdminAppointments() {
         const appointments = await appointmentService.getAllAppointments();
         
         console.log('📅 All appointments fetched:', appointments.length);
+        console.log('🔍 First few appointments raw data:', appointments.slice(0, 3));
         
         // Add completion status from localStorage and check for pending status
         const appointmentsWithCompletion: AdminAppointment[] = appointments.map(apt => {
