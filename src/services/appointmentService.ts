@@ -926,26 +926,63 @@ export const appointmentService = {
   // Request appointment cancellation (goes to admin for approval)
   cancelAppointment: async (appointmentId: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Instead of directly cancelling, create a cancellation request
+      console.log('🔄 Requesting cancellation for appointment:', appointmentId);
+      console.log('🔍 Appointment ID type:', typeof appointmentId);
+      
+      // Check if this is a Vitabyte appointment (can't be cancelled through our system)
+      if (appointmentId.startsWith('vitabyte-')) {
+        console.log('❌ Cannot cancel Vitabyte appointment through app');
+        return { 
+          success: false, 
+          error: 'Vitabyte-Termine können nur über das Praxissystem storniert werden. Bitte kontaktieren Sie die Praxis direkt.' 
+        };
+      }
+      
+      // First get the current appointment to preserve existing metadata
+      const { data: currentAppointment, error: fetchError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', appointmentId)
+        .single();
+
+      if (fetchError || !currentAppointment) {
+        console.error('❌ Appointment not found:', fetchError);
+        console.error('❌ Fetch error details:', fetchError);
+        return { success: false, error: 'Termin nicht gefunden' };
+      }
+
+      console.log('✅ Found appointment:', currentAppointment.id);
+      console.log('📋 Current metadata:', (currentAppointment as any).metadata);
+
+      // Merge with existing metadata
+      const updatedMetadata = {
+        ...((currentAppointment as any).metadata || {}),
+        cancellation_requested: true,
+        cancellation_timestamp: new Date().toISOString(),
+        requires_admin_approval: true
+      };
+
+      console.log('📝 Updated metadata:', updatedMetadata);
+
+      // Update the appointment status and metadata
       const { error } = await supabase
         .from('bookings')
         .update({ 
           status: 'pending_cancellation',
-          metadata: {
-            cancellation_requested: true,
-            cancellation_timestamp: new Date().toISOString(),
-            requires_admin_approval: true
-          }
+          metadata: updatedMetadata
         })
         .eq('id', appointmentId);
 
       if (error) {
+        console.error('❌ Error updating appointment:', error);
+        console.error('❌ Update error details:', error);
         return { success: false, error: error.message };
       }
 
+      console.log('✅ Cancellation request submitted successfully');
       return { success: true };
     } catch (error) {
-      console.error('Error requesting appointment cancellation:', error);
+      console.error('❌ Error requesting appointment cancellation:', error);
       return { success: false, error: 'Failed to request cancellation' };
     }
   },
