@@ -61,6 +61,7 @@ async function getBusyTimes(): Promise<CalendarSlot[]> {
     const icsData = await response.text();
     
     console.log('📄 ICS Data received, length:', icsData.length);
+    console.log('📄 First 500 chars of ICS data:', icsData.substring(0, 500));
     
     // Parse ICS data manually (simple parser for VEVENT)
     const busyTimes: CalendarSlot[] = [];
@@ -77,8 +78,11 @@ async function getBusyTimes(): Promise<CalendarSlot[]> {
       } else if (cleanLine === 'END:VEVENT' && inEvent) {
         // Process the event - these are BUSY times (existing appointments)
         if (currentEvent.DTSTART && currentEvent.DTEND) {
+          console.log('🔍 Processing event:', currentEvent.SUMMARY, 'DTSTART:', currentEvent.DTSTART, 'DTEND:', currentEvent.DTEND);
           const startDateTime = parseICSDateTime(currentEvent.DTSTART);
           const endDateTime = parseICSDateTime(currentEvent.DTEND);
+          
+          console.log('🔍 Parsed times:', startDateTime, 'to', endDateTime);
           
           if (startDateTime && endDateTime) {
             // Only include future appointments (skip past dates)
@@ -205,8 +209,16 @@ function parseICSDateTime(icsDateTime: string): Date | null {
   try {
     // Handle different ICS datetime formats
     // Format: YYYYMMDDTHHMMSS or YYYYMMDDTHHMMSSZ
-    // Example: 20240715T100000Z
-    let dateStr = icsDateTime.replace('Z', '');
+    // Example: 20240715T100000Z or 20240715T100000
+    
+    let dateStr = icsDateTime;
+    let isUTC = false;
+    
+    // Check if it's UTC (ends with Z)
+    if (dateStr.endsWith('Z')) {
+      isUTC = true;
+      dateStr = dateStr.replace('Z', '');
+    }
     
     if (dateStr.includes('T')) {
       const parts = dateStr.split('T');
@@ -221,8 +233,13 @@ function parseICSDateTime(icsDateTime: string): Date | null {
       const minute = parseInt(timePart.substring(2, 4));
       const second = parseInt(timePart.substring(4, 6)) || 0;
       
-      // The ICS times are in UTC, convert to local time for correct comparison
-      return new Date(Date.UTC(year, month, day, hour, minute, second));
+      if (isUTC) {
+        // UTC time - create UTC date
+        return new Date(Date.UTC(year, month, day, hour, minute, second));
+      } else {
+        // Local time - create local date (Swiss timezone)
+        return new Date(year, month, day, hour, minute, second);
+      }
     }
     
     return null;
