@@ -443,10 +443,10 @@ export default function Book() {
               exit={{ opacity: 0, y: -20, scale: 0.95, filter: 'blur(2px)' }}
               transition={{ duration: 0.6, ease: [0.19, 1.0, 0.22, 1.0] }}
             >
-              <Alert className="border-green-200 bg-green-50 text-green-800 shadow-lg">
-                <CheckCircle className="h-4 w-4 text-green-600" />
+              <Alert className="border-blue-200 bg-blue-50 text-blue-800 shadow-lg">
+                <CheckCircle className="h-4 w-4 text-blue-600" />
                 <AlertDescription>
-                  Ihr Termin wurde erfolgreich gebucht! Sie erhalten in Kürze eine Bestätigungs-E-Mail.
+                  Ihre Terminanfrage wurde erfolgreich eingereicht! Der Termin wird von unserem Team geprüft und Sie erhalten eine Bestätigung.
                 </AlertDescription>
               </Alert>
             </motion.div>

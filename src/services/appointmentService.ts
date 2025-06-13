@@ -14,7 +14,7 @@ export interface Appointment {
   therapistId: string;
   date: string; // ISO format
   duration: number; // in minutes
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'pending_admin_review';
   type: 'in-person' | 'video' | 'phone';
   notes?: string;
   metadata?: Record<string, any>;
@@ -449,79 +449,93 @@ export const appointmentService = {
     }
   },
 
-  // Book a new appointment (try API first, fallback to Supabase)
+  // Book a new appointment (store for admin dashboard review)
   bookAppointment: async (bookingData: BookingData): Promise<{ success: boolean; id?: string; error?: string }> => {
     try {
-      console.log('🔄 Starting booking process for:', bookingData.patientEmail);
+      console.log('🔄 Starting booking process for admin dashboard:', bookingData.patientEmail);
       
-      // Try API booking first
-      console.log('📡 Attempting Vitabyte API booking...');
-      const apiResult = await appointmentService.bookAppointmentViaAPI(bookingData);
-      
-      if (apiResult.success) {
-        console.log('✅ API booking successful! Appointment ID:', apiResult.id);
-        // Optionally store in Supabase as backup/cache if the database exists
-        try {
-          console.log('💾 Storing API booking result in Supabase as backup...');
+      // Get patient info from Vitabyte for context
+      let vitabytePatientId = null;
+      let treaterName = null;
+      let treaterId = null;
+      let allTreaters = null;
+
+      try {
+        const customers = await getCustomerByMail(bookingData.patientEmail);
+        if (customers.length > 0) {
+          vitabytePatientId = customers[0].patid;
           
-          // Get additional patient info
-          let treaterName = null;
-          let treaterId = null;
-          
-          if (apiResult.appointmentData) {
-            treaterId = apiResult.appointmentData.calendar; // Using calendar as treater ID
+          // Try to get multiple treaters info
+          const multipleTreatersResponse = await getMultipleTreaters(vitabytePatientId);
+          if (multipleTreatersResponse && multipleTreatersResponse.count > 0) {
+            allTreaters = multipleTreatersResponse.treaters;
             
-            try {
-              const providerDetails = await getProviderDetails({ providerid: treaterId });
+            // Use selected treater if provided, otherwise use the first treater as primary
+            const primaryTreater = bookingData.selectedTreater || multipleTreatersResponse.treaters[0];
+            treaterId = primaryTreater.provider;
+            treaterName = primaryTreater.name;
+            
+            console.log(`🎯 Found ${multipleTreatersResponse.count} treater(s) for patient:`, allTreaters);
+            
+            // If we don't have name from the treater data, try to get it
+            if (!treaterName) {
+              const providerDetails = await getProviderDetails({ providerid: primaryTreater.provider });
               if (providerDetails) {
                 treaterName = providerDetails.name;
               }
-            } catch (error) {
-              console.log('Could not fetch provider details:', error);
+            }
+          } else {
+            // Fallback to single treater lookup
+            const treater = await getTreater(vitabytePatientId);
+            if (treater) {
+              treaterId = treater.provider;
+              const providerDetails = await getProviderDetails({ providerid: treater.provider });
+              if (providerDetails) {
+                treaterName = providerDetails.name;
+              }
             }
           }
-
-          const { data, error } = await supabase
-            .from('bookings')
-            .insert({
-              patient_email: bookingData.patientEmail,
-              patient_name: bookingData.patientName,
-              patient_phone: bookingData.patientPhone,
-              vitabyte_patient_id: apiResult.appointmentData?.patid,
-              treater_name: treaterName,
-              treater_id: treaterId,
-              appointment_date: bookingData.appointmentDate,
-              appointment_time: bookingData.appointmentTime,
-              appointment_type: bookingData.appointmentType,
-              duration: bookingData.duration || 50,
-              notes: bookingData.notes,
-              status: 'scheduled',
-              metadata: { 
-                vitabyte_appointment_id: apiResult.id,
-                api_booking_data: apiResult.appointmentData
-              }
-            })
-            .select()
-            .single();
-
-          if (!error) {
-            console.log('✅ Successfully stored API booking in Supabase as backup');
-          } else {
-            console.log('⚠️ Could not store in Supabase (table might not exist), but API booking was successful');
-          }
-        } catch (supabaseError) {
-          console.log('⚠️ Supabase backup failed, but API booking was successful:', supabaseError);
         }
-        
-        return { success: true, id: apiResult.id };
-      } else {
-        console.log('❌ API booking failed, falling back to Supabase-only booking:', apiResult.error);
-        
-        // Fallback to original Supabase booking logic
-        return await appointmentService.bookAppointmentSupabaseOnly(bookingData);
+      } catch (error) {
+        console.log('Could not fetch Vitabyte data, proceeding with basic booking:', error);
       }
+
+      // Store booking in Supabase with "pending_admin_review" status
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+          patient_email: bookingData.patientEmail,
+          patient_name: bookingData.patientName,
+          patient_phone: bookingData.patientPhone,
+          vitabyte_patient_id: vitabytePatientId,
+          treater_name: treaterName,
+          treater_id: treaterId,
+          appointment_date: bookingData.appointmentDate,
+          appointment_time: bookingData.appointmentTime,
+          appointment_type: bookingData.appointmentType,
+          duration: bookingData.duration || 50,
+          notes: bookingData.notes,
+          status: 'pending_admin_review', // Special status for admin dashboard
+          metadata: { 
+            booking_source: 'web_app',
+            requires_admin_approval: true,
+            booking_timestamp: new Date().toISOString(),
+            all_treaters: allTreaters,
+            treater_count: allTreaters?.length || 0
+          }
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating booking for admin review:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('✅ Booking stored for admin review! ID:', data.id);
+      return { success: true, id: data.id };
     } catch (error) {
-      console.error('❌ Error in main booking function:', error);
+      console.error('❌ Error in booking for admin dashboard:', error);
       return { success: false, error: 'Failed to create booking' };
     }
   },

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment } from '@/services/appointmentService';
+import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale/de';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, User, Users, CheckCircle2, Circle, Filter, Search } from 'lucide-react';
+import { Calendar, Clock, User, Users, CheckCircle2, Circle, Filter, Search, AlertTriangle, Check, X } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { PageSection, FloatingCard, StaggeredList, StaggeredItem } from '@/components/ui/PageTransition';
 import { Badge } from '@/components/ui/badge';
@@ -19,14 +20,19 @@ interface AdminAppointment extends Appointment {
   patientEmail?: string;
   patientName?: string;
   isCompleted?: boolean;
+  isPending?: boolean;
 }
 
 const AdminAppointmentCard = ({ 
   appointment, 
-  onToggleComplete 
+  onToggleComplete,
+  onApprove,
+  onReject
 }: { 
   appointment: AdminAppointment; 
   onToggleComplete: (aptId: string, completed: boolean) => void;
+  onApprove?: (aptId: string) => void;
+  onReject?: (aptId: string) => void;
 }) => {
   const date = parseISO(appointment.date);
   const formattedDate = format(date, "EEEE, d. MMMM yyyy", { locale: de });
@@ -73,23 +79,33 @@ const AdminAppointmentCard = ({
         whileTap={{ scale: 0.99 }}
       >
         <Card className={`mb-4 border-psychPurple/10 shadow-sm hover:shadow-lg transition-all duration-300 ${
-          appointment.isCompleted ? 'bg-green-50/50 border-green-200/50' : 'bg-white'
+          appointment.isCompleted ? 'bg-green-50/50 border-green-200/50' : 
+          appointment.isPending ? 'bg-orange-50/50 border-orange-200/50' : 'bg-white'
         }`}>
           <CardHeader className="pb-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3 flex-1">
-                <motion.button
-                  onClick={() => onToggleComplete(appointment.id, !appointment.isCompleted)}
-                  className="mt-1 flex-shrink-0"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  {appointment.isCompleted ? (
-                    <CheckCircle2 className="h-6 w-6 text-green-500 hover:text-green-600" />
+                          <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3 flex-1">
+                  {appointment.isPending ? (
+                    <motion.div
+                      className="mt-1 flex-shrink-0"
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <AlertTriangle className="h-6 w-6 text-orange-500" />
+                    </motion.div>
                   ) : (
-                    <Circle className="h-6 w-6 text-psychText/40 hover:text-psychPurple" />
+                    <motion.button
+                      onClick={() => onToggleComplete(appointment.id, !appointment.isCompleted)}
+                      className="mt-1 flex-shrink-0"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      {appointment.isCompleted ? (
+                        <CheckCircle2 className="h-6 w-6 text-green-500 hover:text-green-600" />
+                      ) : (
+                        <Circle className="h-6 w-6 text-psychText/40 hover:text-psychPurple" />
+                      )}
+                    </motion.button>
                   )}
-                </motion.button>
                 
                 <div className="flex-1">
                   <CardTitle className={`text-lg ${appointment.isCompleted ? 'line-through text-psychText/60' : ''}`}>
@@ -114,13 +130,15 @@ const AdminAppointmentCard = ({
                 <Badge 
                   variant="outline" 
                   className={`text-xs ${
+                    appointment.status === 'pending_admin_review' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                     appointment.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                     appointment.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' :
                     appointment.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
                     'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
-                  {appointment.status === 'scheduled' ? 'Geplant' : 
+                  {appointment.status === 'pending_admin_review' ? 'Wartet auf Genehmigung' :
+                   appointment.status === 'scheduled' ? 'Geplant' : 
                    appointment.status === 'completed' ? 'Abgeschlossen' : 
                    appointment.status === 'cancelled' ? 'Storniert' : 
                    appointment.status}
@@ -129,6 +147,12 @@ const AdminAppointmentCard = ({
                 {appointment.isCompleted && (
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                     ✓ Erledigt
+                  </Badge>
+                )}
+                
+                {appointment.isPending && (
+                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs">
+                    ⏳ Neu
                   </Badge>
                 )}
               </div>
@@ -150,6 +174,32 @@ const AdminAppointmentCard = ({
             {appointment.metadata?.notes && (
               <div className="mt-3 p-2 bg-psychPurple/5 rounded text-sm text-psychText/80">
                 <strong>Notizen:</strong> {appointment.metadata.notes}
+              </div>
+            )}
+            
+            {appointment.isPending && onApprove && onReject && (
+              <div className="mt-4 flex gap-2">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={() => onApprove(appointment.id)}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                  >
+                    <Check className="h-4 w-4" />
+                    Genehmigen
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={() => onReject(appointment.id)}
+                    size="sm"
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Ablehnen
+                  </Button>
+                </motion.div>
               </div>
             )}
           </CardContent>
@@ -184,10 +234,11 @@ export default function AdminAppointments() {
         
         console.log('📅 All appointments fetched:', appointments.length);
         
-        // Add completion status from localStorage
+        // Add completion status from localStorage and check for pending status
         const appointmentsWithCompletion = appointments.map(apt => ({
           ...apt,
-          isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true'
+          isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true',
+          isPending: apt.status === 'pending_admin_review'
         }));
         
         setAllAppointments(appointmentsWithCompletion);
@@ -227,6 +278,8 @@ export default function AdminAppointments() {
       filtered = filtered.filter(apt => apt.isCompleted);
     } else if (completionFilter === 'pending') {
       filtered = filtered.filter(apt => !apt.isCompleted);
+    } else if (completionFilter === 'awaiting_approval') {
+      filtered = filtered.filter(apt => apt.isPending);
     }
 
     setFilteredAppointments(filtered);
@@ -246,6 +299,64 @@ export default function AdminAppointments() {
     );
 
     toast.success(completed ? "Termin als erledigt markiert" : "Termin als ausstehend markiert");
+  };
+
+  const handleApprove = async (appointmentId: string) => {
+    try {
+      // Update appointment status in Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'scheduled' })
+        .eq('id', appointmentId);
+
+      if (error) {
+        toast.error("Fehler beim Genehmigen des Termins");
+        return;
+      }
+
+      // Update local state
+      setAllAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointmentId 
+            ? { ...apt, status: 'scheduled' as const, isPending: false }
+            : apt
+        )
+      );
+
+      toast.success("Termin erfolgreich genehmigt!");
+    } catch (error) {
+      console.error('Error approving appointment:', error);
+      toast.error("Fehler beim Genehmigen des Termins");
+    }
+  };
+
+  const handleReject = async (appointmentId: string) => {
+    try {
+      // Update appointment status in Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId);
+
+      if (error) {
+        toast.error("Fehler beim Ablehnen des Termins");
+        return;
+      }
+
+      // Update local state
+      setAllAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointmentId 
+            ? { ...apt, status: 'cancelled' as const, isPending: false }
+            : apt
+        )
+      );
+
+      toast.success("Termin abgelehnt");
+    } catch (error) {
+      console.error('Error rejecting appointment:', error);
+      toast.error("Fehler beim Ablehnen des Termins");
+    }
   };
 
   if (!isAuthorized) {
@@ -285,6 +396,7 @@ export default function AdminAppointments() {
   }
 
   const completedCount = filteredAppointments.filter(apt => apt.isCompleted).length;
+  const pendingApprovalCount = filteredAppointments.filter(apt => apt.isPending).length;
   const totalCount = filteredAppointments.length;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -303,7 +415,7 @@ export default function AdminAppointments() {
         </PageSection>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <FloatingCard index={0}>
             <Card className="shadow-lg">
               <CardContent className="p-4">
@@ -323,10 +435,10 @@ export default function AdminAppointments() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-psychText/70">Erledigt</p>
-                    <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+                    <p className="text-sm font-medium text-psychText/70">Warten auf Genehmigung</p>
+                    <p className="text-2xl font-bold text-orange-600">{pendingApprovalCount}</p>
                   </div>
-                  <CheckCircle2 className="h-8 w-8 text-green-500" />
+                  <AlertTriangle className="h-8 w-8 text-orange-500" />
                 </div>
               </CardContent>
             </Card>
@@ -337,16 +449,30 @@ export default function AdminAppointments() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-psychText/70">Ausstehend</p>
-                    <p className="text-2xl font-bold text-orange-600">{totalCount - completedCount}</p>
+                    <p className="text-sm font-medium text-psychText/70">Erledigt</p>
+                    <p className="text-2xl font-bold text-green-600">{completedCount}</p>
                   </div>
-                  <Circle className="h-8 w-8 text-orange-500" />
+                  <CheckCircle2 className="h-8 w-8 text-green-500" />
                 </div>
               </CardContent>
             </Card>
           </FloatingCard>
 
           <FloatingCard index={3}>
+            <Card className="shadow-lg">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-psychText/70">Ausstehend</p>
+                    <p className="text-2xl font-bold text-blue-600">{totalCount - completedCount - pendingApprovalCount}</p>
+                  </div>
+                  <Circle className="h-8 w-8 text-blue-500" />
+                </div>
+              </CardContent>
+            </Card>
+          </FloatingCard>
+
+          <FloatingCard index={4}>
             <Card className="shadow-lg">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -398,6 +524,7 @@ export default function AdminAppointments() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Alle</SelectItem>
+                    <SelectItem value="awaiting_approval">Warten auf Genehmigung</SelectItem>
                     <SelectItem value="completed">Erledigt</SelectItem>
                     <SelectItem value="pending">Ausstehend</SelectItem>
                   </SelectContent>
@@ -416,6 +543,8 @@ export default function AdminAppointments() {
                   key={appointment.id} 
                   appointment={appointment} 
                   onToggleComplete={handleToggleComplete}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
                 />
               ))}
             </StaggeredList>
