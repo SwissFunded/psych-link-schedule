@@ -46,17 +46,16 @@ const AdminAppointmentCard = ({
   
   // Safe date parsing with fallback
   const parseAppointmentDate = () => {
-    console.log('🔍 Parsing date for appointment:', {
-      id: appointment.id,
-      rawDate: appointment.date,
-      metadata: appointment.metadata
-    });
-    
     try {
-      // The date should already be in ISO format from getAllAppointments
-      const date = parseISO(appointment.date);
+      let dateString = appointment.date;
       
-      console.log('🔍 Parsed date object:', date, 'isValid:', isValidDate(date));
+      // Fix malformed Supabase dates that have extra :00 at the end
+      if (dateString.includes('T') && dateString.endsWith(':00')) {
+        dateString = dateString.slice(0, -3); // Remove the extra :00
+      }
+      
+      // Try to parse the date
+      const date = parseISO(dateString);
       
       // Check if the parsed date is valid
       if (!isValidDate(date)) {
@@ -365,28 +364,18 @@ export default function AdminAppointments() {
         const appointments = await appointmentService.getAllAppointments();
         
         console.log('📅 All appointments fetched:', appointments.length);
-        console.log('🔍 First few appointments raw data:', appointments.slice(0, 3));
         
         // Add completion status from localStorage and check for pending status
-        const appointmentsWithCompletion: AdminAppointment[] = appointments.map(apt => {
-          console.log('🔍 Processing appointment:', {
-            id: apt.id,
-            date: apt.date,
-            patientId: apt.patientId,
-            metadata: apt.metadata
-          });
-          
-          return {
-            ...apt,
-            // Extract patient data from metadata for proper display
-            patientName: apt.metadata?.patientName,
-            patientEmail: apt.metadata?.patientEmail || apt.patientId,
-            isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true',
-            isPending: apt.status === 'pending_admin_review',
-            isPendingCancellation: apt.status === 'pending_cancellation',
-            isPendingReschedule: apt.status === 'pending_reschedule'
-          };
-        });
+        const appointmentsWithCompletion: AdminAppointment[] = appointments.map(apt => ({
+          ...apt,
+          // Extract patient data from metadata for proper display
+          patientName: apt.metadata?.patientName,
+          patientEmail: apt.metadata?.patientEmail || apt.patientId,
+          isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true',
+          isPending: apt.status === 'pending_admin_review',
+          isPendingCancellation: apt.status === 'pending_cancellation',
+          isPendingReschedule: apt.status === 'pending_reschedule'
+        }));
         
         setAllAppointments(appointmentsWithCompletion);
         setFilteredAppointments(appointmentsWithCompletion);

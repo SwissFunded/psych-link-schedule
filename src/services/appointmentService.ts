@@ -920,7 +920,7 @@ export const appointmentService = {
             id: booking.id,
             patientId: booking.patient_email,
             therapistId: booking.appointment_type,
-            date: `${booking.appointment_date}T${booking.appointment_time}:00`,
+            date: `${booking.appointment_date}T${booking.appointment_time}`,
             duration: booking.duration || 60,
             status: booking.status as any,
             type: 'in-person' as any,
