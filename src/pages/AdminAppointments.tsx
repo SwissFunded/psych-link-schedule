@@ -332,11 +332,16 @@ const AdminAppointmentCard = ({
                 <div className="flex gap-2">
                   <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     <Button
-                      onClick={() => onApproveReschedule(
-                        appointment.id, 
-                        appointment.metadata?.requested_new_date || '', 
-                        appointment.metadata?.requested_new_time || ''
-                      )}
+                      onClick={() => {
+                        console.log('🔍 Appointment metadata for reschedule:', appointment.metadata);
+                        console.log('🔍 Requested new date:', appointment.metadata?.requested_new_date);
+                        console.log('🔍 Requested new time:', appointment.metadata?.requested_new_time);
+                        onApproveReschedule(
+                          appointment.id, 
+                          appointment.metadata?.requested_new_date || '', 
+                          appointment.metadata?.requested_new_time || ''
+                        );
+                      }}
                       size="sm"
                       className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
                     >
@@ -556,6 +561,42 @@ export default function AdminAppointments() {
   const handleApproveReschedule = async (appointmentId: string, newDate: string, newTime: string) => {
     try {
       console.log('🔄 Approving reschedule:', { appointmentId, newDate, newTime });
+      
+      // If newDate or newTime are empty, fetch the appointment data fresh from database
+      if (!newDate || !newTime) {
+        console.log('⚠️ Missing date/time parameters, fetching fresh appointment data...');
+        
+        const { data: freshAppointment, error: fetchError } = await supabase
+          .from('bookings')
+          .select('*')
+          .eq('id', appointmentId)
+          .single();
+
+        if (fetchError || !freshAppointment) {
+          console.error('❌ Failed to fetch appointment:', fetchError);
+          toast.error("Termin nicht gefunden");
+          return;
+        }
+
+        console.log('📋 Fresh appointment metadata:', (freshAppointment as any).metadata);
+        
+        // Extract the requested new date/time from metadata
+        const metadata = (freshAppointment as any).metadata || {};
+        const requestedNewDate = metadata.requested_new_date;
+        const requestedNewTime = metadata.requested_new_time;
+        
+        if (!requestedNewDate || !requestedNewTime) {
+          console.error('❌ Missing reschedule metadata:', { requestedNewDate, requestedNewTime });
+          toast.error("Verschiebungsdaten nicht gefunden. Bitte versuchen Sie es erneut.");
+          return;
+        }
+        
+        // Use the values from metadata
+        newDate = requestedNewDate;
+        newTime = requestedNewTime;
+        
+        console.log('✅ Using metadata values:', { newDate, newTime });
+      }
       
       // Update appointment with new date/time and set status to scheduled
       const { error } = await supabase
