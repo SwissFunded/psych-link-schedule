@@ -14,7 +14,7 @@ export interface Appointment {
   therapistId: string;
   date: string; // ISO format
   duration: number; // in minutes
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'pending_admin_review';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show' | 'pending_admin_review' | 'pending_cancellation' | 'pending_reschedule';
   type: 'in-person' | 'video' | 'phone';
   notes?: string;
   metadata?: Record<string, any>;
@@ -811,12 +811,20 @@ export const appointmentService = {
     })) || [];
   },
 
-  // Cancel an appointment
+  // Request appointment cancellation (goes to admin for approval)
   cancelAppointment: async (appointmentId: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      // Instead of directly cancelling, create a cancellation request
       const { error } = await supabase
         .from('bookings')
-        .update({ status: 'cancelled' })
+        .update({ 
+          status: 'pending_cancellation',
+          metadata: {
+            cancellation_requested: true,
+            cancellation_timestamp: new Date().toISOString(),
+            requires_admin_approval: true
+          }
+        })
         .eq('id', appointmentId);
 
       if (error) {
@@ -825,8 +833,57 @@ export const appointmentService = {
 
       return { success: true };
     } catch (error) {
-      console.error('Error cancelling appointment:', error);
-      return { success: false, error: 'Failed to cancel appointment' };
+      console.error('Error requesting appointment cancellation:', error);
+      return { success: false, error: 'Failed to request cancellation' };
+    }
+  },
+
+  // Request appointment reschedule (goes to admin for approval)
+  rescheduleAppointment: async (
+    appointmentId: string, 
+    newDate: string, 
+    newTime: string, 
+    reason?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // Get the current appointment data
+      const { data: currentAppointment, error: fetchError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', appointmentId)
+        .single();
+
+      if (fetchError || !currentAppointment) {
+        return { success: false, error: 'Appointment not found' };
+      }
+
+      // Update with reschedule request
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'pending_reschedule',
+          metadata: {
+            ...((currentAppointment as any).metadata || {}),
+            reschedule_requested: true,
+            reschedule_timestamp: new Date().toISOString(),
+            original_date: currentAppointment.appointment_date,
+            original_time: currentAppointment.appointment_time,
+            requested_new_date: newDate,
+            requested_new_time: newTime,
+            reschedule_reason: reason,
+            requires_admin_approval: true
+          }
+        })
+        .eq('id', appointmentId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error requesting appointment reschedule:', error);
+      return { success: false, error: 'Failed to request reschedule' };
     }
   },
 

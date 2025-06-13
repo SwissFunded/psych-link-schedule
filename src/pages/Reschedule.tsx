@@ -90,18 +90,26 @@ export default function Reschedule() {
     try {
       setLoading(true);
       
-      const updated = await appointmentService.rescheduleAppointment(
+      const slotDate = parseISO(selectedTimeSlot.date);
+      const newDate = format(slotDate, 'yyyy-MM-dd');
+      const newTime = format(slotDate, 'HH:mm');
+      
+      const result = await appointmentService.rescheduleAppointment(
         appointment.id,
-        selectedTimeSlot.date
+        newDate,
+        newTime,
+        'Patient möchte Termin verschieben'
       );
       
-      if (updated) {
-        toast.success("Termin erfolgreich verschoben");
+      if (result.success) {
+        toast.success("Verschiebungsanfrage eingereicht - wird geprüft");
         navigate('/appointments');
+      } else {
+        toast.error(result.error || "Verschiebungsanfrage konnte nicht eingereicht werden");
       }
     } catch (error) {
-      console.error('Fehler beim Verschieben des Termins:', error);
-      toast.error("Termin konnte nicht verschoben werden");
+      console.error('Fehler beim Einreichen der Verschiebungsanfrage:', error);
+      toast.error("Verschiebungsanfrage konnte nicht eingereicht werden");
     } finally {
       setLoading(false);
     }

@@ -21,18 +21,26 @@ interface AdminAppointment extends Appointment {
   patientName?: string;
   isCompleted?: boolean;
   isPending?: boolean;
+  isPendingCancellation?: boolean;
+  isPendingReschedule?: boolean;
 }
 
 const AdminAppointmentCard = ({ 
   appointment, 
   onToggleComplete,
   onApprove,
-  onReject
+  onReject,
+  onApproveCancellation,
+  onApproveReschedule,
+  onRejectChange
 }: { 
   appointment: AdminAppointment; 
   onToggleComplete: (aptId: string, completed: boolean) => void;
   onApprove?: (aptId: string) => void;
   onReject?: (aptId: string) => void;
+  onApproveCancellation?: (aptId: string) => void;
+  onApproveReschedule?: (aptId: string, newDate: string, newTime: string) => void;
+  onRejectChange?: (aptId: string) => void;
 }) => {
   const date = parseISO(appointment.date);
   const formattedDate = format(date, "EEEE, d. MMMM yyyy", { locale: de });
@@ -80,17 +88,21 @@ const AdminAppointmentCard = ({
       >
         <Card className={`mb-4 border-psychPurple/10 shadow-sm hover:shadow-lg transition-all duration-300 ${
           appointment.isCompleted ? 'bg-green-50/50 border-green-200/50' : 
-          appointment.isPending ? 'bg-orange-50/50 border-orange-200/50' : 'bg-white'
+          appointment.isPending ? 'bg-orange-50/50 border-orange-200/50' :
+          appointment.isPendingCancellation ? 'bg-red-50/50 border-red-200/50' :
+          appointment.isPendingReschedule ? 'bg-blue-50/50 border-blue-200/50' : 'bg-white'
         }`}>
           <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 flex-1">
-                  {appointment.isPending ? (
+                  {appointment.isPending || appointment.isPendingCancellation || appointment.isPendingReschedule ? (
                     <motion.div
                       className="mt-1 flex-shrink-0"
                       whileHover={{ scale: 1.05 }}
                     >
-                      <AlertTriangle className="h-6 w-6 text-orange-500" />
+                      {appointment.isPending && <AlertTriangle className="h-6 w-6 text-orange-500" />}
+                      {appointment.isPendingCancellation && <X className="h-6 w-6 text-red-500" />}
+                      {appointment.isPendingReschedule && <Calendar className="h-6 w-6 text-blue-500" />}
                     </motion.div>
                   ) : (
                     <motion.button
@@ -131,13 +143,17 @@ const AdminAppointmentCard = ({
                   variant="outline" 
                   className={`text-xs ${
                     appointment.status === 'pending_admin_review' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                    appointment.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                    appointment.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' :
+                    appointment.status === 'pending_cancellation' ? 'bg-red-50 text-red-700 border-red-200' :
+                    appointment.status === 'pending_reschedule' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                    appointment.status === 'scheduled' ? 'bg-green-50 text-green-700 border-green-200' :
+                    appointment.status === 'completed' ? 'bg-gray-50 text-gray-700 border-gray-200' :
                     appointment.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
                     'bg-gray-50 text-gray-700 border-gray-200'
                   }`}
                 >
                   {appointment.status === 'pending_admin_review' ? 'Wartet auf Genehmigung' :
+                   appointment.status === 'pending_cancellation' ? 'Stornierung angefragt' :
+                   appointment.status === 'pending_reschedule' ? 'Verschiebung angefragt' :
                    appointment.status === 'scheduled' ? 'Geplant' : 
                    appointment.status === 'completed' ? 'Abgeschlossen' : 
                    appointment.status === 'cancelled' ? 'Storniert' : 
@@ -153,6 +169,18 @@ const AdminAppointmentCard = ({
                 {appointment.isPending && (
                   <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs">
                     ⏳ Neu
+                  </Badge>
+                )}
+                
+                {appointment.isPendingCancellation && (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+                    🗑️ Stornierung
+                  </Badge>
+                )}
+                
+                {appointment.isPendingReschedule && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                    📅 Verschiebung
                   </Badge>
                 )}
               </div>
@@ -202,6 +230,77 @@ const AdminAppointmentCard = ({
                 </motion.div>
               </div>
             )}
+
+            {appointment.isPendingCancellation && onApproveCancellation && onRejectChange && (
+              <div className="mt-4 flex gap-2">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={() => onApproveCancellation(appointment.id)}
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
+                  >
+                    <Check className="h-4 w-4" />
+                    Stornierung genehmigen
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    onClick={() => onRejectChange(appointment.id)}
+                    size="sm"
+                    variant="outline"
+                    className="border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Ablehnen
+                  </Button>
+                </motion.div>
+              </div>
+            )}
+
+            {appointment.isPendingReschedule && onApproveReschedule && onRejectChange && (
+              <div className="mt-4 space-y-3">
+                {appointment.metadata?.requested_new_date && appointment.metadata?.requested_new_time && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800 font-medium">Neue gewünschte Zeit:</p>
+                    <p className="text-sm text-blue-700">
+                      {format(parseISO(`${appointment.metadata.requested_new_date}T${appointment.metadata.requested_new_time}`), 'dd.MM.yyyy HH:mm', { locale: de })}
+                    </p>
+                    {appointment.metadata?.reschedule_reason && (
+                      <p className="text-sm text-blue-600 mt-1">
+                        <strong>Grund:</strong> {appointment.metadata.reschedule_reason}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      onClick={() => onApproveReschedule(
+                        appointment.id, 
+                        appointment.metadata?.requested_new_date || '', 
+                        appointment.metadata?.requested_new_time || ''
+                      )}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                    >
+                      <Check className="h-4 w-4" />
+                      Verschiebung genehmigen
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      onClick={() => onRejectChange(appointment.id)}
+                      size="sm"
+                      variant="outline"
+                      className="border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Ablehnen
+                    </Button>
+                  </motion.div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -238,7 +337,9 @@ export default function AdminAppointments() {
         const appointmentsWithCompletion = appointments.map(apt => ({
           ...apt,
           isCompleted: localStorage.getItem(`appointment_${apt.id}_completed`) === 'true',
-          isPending: apt.status === 'pending_admin_review'
+          isPending: apt.status === 'pending_admin_review',
+          isPendingCancellation: apt.status === 'pending_cancellation',
+          isPendingReschedule: apt.status === 'pending_reschedule'
         }));
         
         setAllAppointments(appointmentsWithCompletion);
@@ -277,9 +378,13 @@ export default function AdminAppointments() {
     if (completionFilter === 'completed') {
       filtered = filtered.filter(apt => apt.isCompleted);
     } else if (completionFilter === 'pending') {
-      filtered = filtered.filter(apt => !apt.isCompleted);
+      filtered = filtered.filter(apt => !apt.isCompleted && !apt.isPending && !apt.isPendingCancellation && !apt.isPendingReschedule);
     } else if (completionFilter === 'awaiting_approval') {
       filtered = filtered.filter(apt => apt.isPending);
+    } else if (completionFilter === 'awaiting_cancellation') {
+      filtered = filtered.filter(apt => apt.isPendingCancellation);
+    } else if (completionFilter === 'awaiting_reschedule') {
+      filtered = filtered.filter(apt => apt.isPendingReschedule);
     }
 
     setFilteredAppointments(filtered);
@@ -359,6 +464,107 @@ export default function AdminAppointments() {
     }
   };
 
+  const handleApproveCancellation = async (appointmentId: string) => {
+    try {
+      // Update appointment status in Supabase to cancelled
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId);
+
+      if (error) {
+        toast.error("Fehler beim Genehmigen der Stornierung");
+        return;
+      }
+
+      // Update local state
+      setAllAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointmentId 
+            ? { ...apt, status: 'cancelled' as const, isPendingCancellation: false }
+            : apt
+        )
+      );
+
+      toast.success("Stornierung erfolgreich genehmigt!");
+    } catch (error) {
+      console.error('Error approving cancellation:', error);
+      toast.error("Fehler beim Genehmigen der Stornierung");
+    }
+  };
+
+  const handleApproveReschedule = async (appointmentId: string, newDate: string, newTime: string) => {
+    try {
+      // Update appointment with new date/time and set status to scheduled
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'scheduled',
+          appointment_date: newDate,
+          appointment_time: newTime
+        })
+        .eq('id', appointmentId);
+
+      if (error) {
+        toast.error("Fehler beim Genehmigen der Verschiebung");
+        return;
+      }
+
+      // Update local state
+      setAllAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointmentId 
+            ? { 
+                ...apt, 
+                status: 'scheduled' as const, 
+                isPendingReschedule: false,
+                date: `${newDate}T${newTime}:00`
+              }
+            : apt
+        )
+      );
+
+      toast.success("Verschiebung erfolgreich genehmigt!");
+    } catch (error) {
+      console.error('Error approving reschedule:', error);
+      toast.error("Fehler beim Genehmigen der Verschiebung");
+    }
+  };
+
+  const handleRejectChange = async (appointmentId: string) => {
+    try {
+      // Revert appointment status back to scheduled
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'scheduled' })
+        .eq('id', appointmentId);
+
+      if (error) {
+        toast.error("Fehler beim Ablehnen der Änderung");
+        return;
+      }
+
+      // Update local state
+      setAllAppointments(prev => 
+        prev.map(apt => 
+          apt.id === appointmentId 
+            ? { 
+                ...apt, 
+                status: 'scheduled' as const, 
+                isPendingCancellation: false,
+                isPendingReschedule: false
+              }
+            : apt
+        )
+      );
+
+      toast.success("Änderung abgelehnt - Termin bleibt bestehen");
+    } catch (error) {
+      console.error('Error rejecting change:', error);
+      toast.error("Fehler beim Ablehnen der Änderung");
+    }
+  };
+
   if (!isAuthorized) {
     return (
       <Layout>
@@ -397,6 +603,8 @@ export default function AdminAppointments() {
 
   const completedCount = filteredAppointments.filter(apt => apt.isCompleted).length;
   const pendingApprovalCount = filteredAppointments.filter(apt => apt.isPending).length;
+  const pendingCancellationCount = filteredAppointments.filter(apt => apt.isPendingCancellation).length;
+  const pendingRescheduleCount = filteredAppointments.filter(apt => apt.isPendingReschedule).length;
   const totalCount = filteredAppointments.length;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -435,8 +643,25 @@ export default function AdminAppointments() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-psychText/70">Warten auf Genehmigung</p>
-                    <p className="text-2xl font-bold text-orange-600">{pendingApprovalCount}</p>
+                    <p className="text-sm font-medium text-psychText/70">Benötigen Aktion</p>
+                    <p className="text-2xl font-bold text-orange-600">{pendingApprovalCount + pendingCancellationCount + pendingRescheduleCount}</p>
+                    <div className="flex gap-2 mt-1">
+                      {pendingApprovalCount > 0 && (
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                          {pendingApprovalCount} Neu
+                        </span>
+                      )}
+                      {pendingCancellationCount > 0 && (
+                        <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                          {pendingCancellationCount} Stornierung
+                        </span>
+                      )}
+                      {pendingRescheduleCount > 0 && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          {pendingRescheduleCount} Verschiebung
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-orange-500" />
                 </div>
@@ -464,7 +689,7 @@ export default function AdminAppointments() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-psychText/70">Ausstehend</p>
-                    <p className="text-2xl font-bold text-blue-600">{totalCount - completedCount - pendingApprovalCount}</p>
+                    <p className="text-2xl font-bold text-blue-600">{totalCount - completedCount - pendingApprovalCount - pendingCancellationCount - pendingRescheduleCount}</p>
                   </div>
                   <Circle className="h-8 w-8 text-blue-500" />
                 </div>
@@ -512,6 +737,9 @@ export default function AdminAppointments() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Alle Status</SelectItem>
+                    <SelectItem value="pending_admin_review">Warten auf Genehmigung</SelectItem>
+                    <SelectItem value="pending_cancellation">Stornierung angefragt</SelectItem>
+                    <SelectItem value="pending_reschedule">Verschiebung angefragt</SelectItem>
                     <SelectItem value="scheduled">Geplant</SelectItem>
                     <SelectItem value="completed">Abgeschlossen</SelectItem>
                     <SelectItem value="cancelled">Storniert</SelectItem>
@@ -525,6 +753,8 @@ export default function AdminAppointments() {
                   <SelectContent>
                     <SelectItem value="all">Alle</SelectItem>
                     <SelectItem value="awaiting_approval">Warten auf Genehmigung</SelectItem>
+                    <SelectItem value="awaiting_cancellation">Stornierung angefragt</SelectItem>
+                    <SelectItem value="awaiting_reschedule">Verschiebung angefragt</SelectItem>
                     <SelectItem value="completed">Erledigt</SelectItem>
                     <SelectItem value="pending">Ausstehend</SelectItem>
                   </SelectContent>
@@ -545,6 +775,9 @@ export default function AdminAppointments() {
                   onToggleComplete={handleToggleComplete}
                   onApprove={handleApprove}
                   onReject={handleReject}
+                  onApproveCancellation={handleApproveCancellation}
+                  onApproveReschedule={handleApproveReschedule}
+                  onRejectChange={handleRejectChange}
                 />
               ))}
             </StaggeredList>

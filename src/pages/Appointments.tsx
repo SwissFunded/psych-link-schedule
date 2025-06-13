@@ -80,8 +80,17 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
               {appointment.type === 'in-person' ? 'Persönliche' : 'Online'} Sitzung • {appointment.duration} Minuten
             </CardDescription>
           </div>
-          <div className="bg-psychPurple/10 px-3 py-1 rounded-full text-xs font-medium text-psychPurple">
+          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+            appointment.status === 'scheduled' ? 'bg-psychPurple/10 text-psychPurple' :
+            appointment.status === 'pending_cancellation' ? 'bg-red-100 text-red-700' :
+            appointment.status === 'pending_reschedule' ? 'bg-blue-100 text-blue-700' :
+            appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
+            appointment.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
+            'bg-psychPurple/10 text-psychPurple'
+          }`}>
             {appointment.status === 'scheduled' ? 'Bevorstehend' : 
+             appointment.status === 'pending_cancellation' ? 'Stornierung angefragt' :
+             appointment.status === 'pending_reschedule' ? 'Verschiebung angefragt' :
              appointment.status === 'completed' ? 'Abgeschlossen' : 
              appointment.status === 'cancelled' ? 'Storniert' : 
              appointment.status}
@@ -115,6 +124,17 @@ const AppointmentCard = ({ appointment, onReschedule, onCancel }: {
           >
             Verschieben
           </Button>
+        </CardFooter>
+      )}
+      
+      {(appointment.status === 'pending_cancellation' || appointment.status === 'pending_reschedule') && (
+        <CardFooter className="pt-2">
+          <div className="w-full text-center text-sm text-psychText/60">
+            {appointment.status === 'pending_cancellation' ? 
+              '⏳ Stornierungsanfrage wird geprüft' : 
+              '⏳ Verschiebungsanfrage wird geprüft'
+            }
+          </div>
         </CardFooter>
       )}
         </Card>
@@ -172,21 +192,21 @@ export default function Appointments() {
       const result = await appointmentService.cancelAppointment(appointmentId);
       
       if (result.success) {
-        // Update local state
+        // Update local state to show pending cancellation
         setUpcomingAppointments(prev => 
           prev.map(apt => 
             apt.id === appointmentId 
-              ? { ...apt, status: 'cancelled' } 
+              ? { ...apt, status: 'pending_cancellation' } 
               : apt
           )
         );
-        toast.success("Termin erfolgreich storniert");
+        toast.success("Stornierungsanfrage eingereicht - wird geprüft");
       } else {
-        toast.error(result.error || "Termin konnte nicht storniert werden");
+        toast.error(result.error || "Stornierungsanfrage konnte nicht eingereicht werden");
       }
     } catch (error) {
-      console.error('Fehler beim Stornieren des Termins:', error);
-      toast.error("Termin konnte nicht storniert werden");
+      console.error('Fehler beim Einreichen der Stornierungsanfrage:', error);
+      toast.error("Stornierungsanfrage konnte nicht eingereicht werden");
     }
   };
   
