@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, Appointment } from '@/services/appointmentService';
 import { supabase } from '@/integrations/supabase/client';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid as isValidDate } from 'date-fns';
 import { de } from 'date-fns/locale/de';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,10 +42,42 @@ const AdminAppointmentCard = ({
   onApproveReschedule?: (aptId: string, newDate: string, newTime: string) => void;
   onRejectChange?: (aptId: string) => void;
 }) => {
-  const date = parseISO(appointment.date);
-  const formattedDate = format(date, "EEEE, d. MMMM yyyy", { locale: de });
-  const formattedTime = format(date, "HH:mm", { locale: de });
   const [therapistName, setTherapistName] = useState('');
+  
+  // Safe date parsing with fallback
+  const parseAppointmentDate = () => {
+    try {
+      // Handle different date formats
+      let dateToParse = appointment.date;
+      
+      // If it's a Supabase appointment, construct the date from separate fields
+      if (appointment.metadata?.source === 'supabase' && appointment.metadata?.appointment_date && appointment.metadata?.appointment_time) {
+        dateToParse = `${appointment.metadata.appointment_date}T${appointment.metadata.appointment_time}:00`;
+      }
+      
+      const date = parseISO(dateToParse);
+      
+      // Check if the parsed date is valid
+      if (!isValidDate(date)) {
+        throw new Error('Invalid date');
+      }
+      
+      return {
+        formattedDate: format(date, "EEEE, d. MMMM yyyy", { locale: de }),
+        formattedTime: format(date, "HH:mm", { locale: de }),
+        isValid: true
+      };
+    } catch (error) {
+      console.warn('Failed to parse appointment date:', appointment.date, error);
+      return {
+        formattedDate: 'Ungültiges Datum',
+        formattedTime: '--:--',
+        isValid: false
+      };
+    }
+  };
+  
+  const { formattedDate, formattedTime, isValid } = parseAppointmentDate();
 
   const appointmentTitle = appointment.metadata?.appointmentTitle || 
                           appointment.metadata?.appointmentType || 

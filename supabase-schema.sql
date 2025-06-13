@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS public.bookings (
     appointment_type TEXT NOT NULL,
     duration INTEGER DEFAULT 50 NOT NULL,
     notes TEXT,
-    status TEXT DEFAULT 'scheduled' NOT NULL CHECK (status IN ('scheduled', 'cancelled', 'completed', 'no-show'))
+    status TEXT DEFAULT 'pending_admin_review' NOT NULL CHECK (status IN ('scheduled', 'cancelled', 'completed', 'no-show', 'pending_admin_review', 'pending_cancellation', 'pending_reschedule')),
+    metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- Create indexes for better performance
@@ -23,6 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_bookings_patient_email ON public.bookings(patient
 CREATE INDEX IF NOT EXISTS idx_bookings_appointment_date ON public.bookings(appointment_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON public.bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_vitabyte_patient_id ON public.bookings(vitabyte_patient_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_metadata ON public.bookings USING GIN (metadata);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
@@ -31,6 +33,24 @@ ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 -- Note: In production, you'd want more restrictive policies
 CREATE POLICY "Enable all access for authenticated users" ON public.bookings
     FOR ALL USING (auth.role() = 'authenticated');
+
+-- If the table already exists, add the new columns
+DO $$ 
+BEGIN
+    -- Add metadata column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bookings' AND column_name = 'metadata') THEN
+        ALTER TABLE public.bookings ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
+        CREATE INDEX IF NOT EXISTS idx_bookings_metadata ON public.bookings USING GIN (metadata);
+    END IF;
+    
+    -- Update status constraint to include new statuses
+    ALTER TABLE public.bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
+    ALTER TABLE public.bookings ADD CONSTRAINT bookings_status_check 
+        CHECK (status IN ('scheduled', 'cancelled', 'completed', 'no-show', 'pending_admin_review', 'pending_cancellation', 'pending_reschedule'));
+        
+    -- Update default status
+    ALTER TABLE public.bookings ALTER COLUMN status SET DEFAULT 'pending_admin_review';
+END $$;
 
 -- Insert some test data (optional - remove this if you don't want test data)
 INSERT INTO public.bookings (
@@ -42,7 +62,8 @@ INSERT INTO public.bookings (
     appointment_type,
     duration,
     notes,
-    status
+    status,
+    metadata
 ) VALUES 
 (
     'miromw@icloud.com',
@@ -53,7 +74,8 @@ INSERT INTO public.bookings (
     'consultation',
     50,
     'Erstes Beratungsgespräch',
-    'scheduled'
+    'pending_admin_review',
+    '{"source": "test_data"}'::jsonb
 ),
 (
     'elena.pellizzon@psychcentral.ch',
@@ -64,5 +86,7 @@ INSERT INTO public.bookings (
     'therapy',
     50,
     'Therapiesitzung',
-    'scheduled'
-); 
+    'pending_admin_review',
+    '{"source": "test_data"}'::jsonb
+)
+ON CONFLICT (id) DO NOTHING; 
