@@ -242,13 +242,13 @@ export default function Book() {
 
   return (
     <Layout>
-      <div className="w-full max-w-6xl mx-auto p-4 space-y-6">
+      <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-psychText">Neuen Termin buchen</h1>
-          <p className="text-psychText/60">Wählen Sie Datum und Zeit für Ihren Besuch</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-psychText">Neuen Termin buchen</h1>
+          <p className="text-psychText/60 text-sm sm:text-base">Wählen Sie Datum und Zeit für Ihren Besuch</p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           <Card className="h-fit">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -343,12 +343,12 @@ export default function Book() {
                       </div>
                     ) : (
                       <>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                           {timeSlots.map((slot) => (
                             <motion.div
                               key={slot.time}
                               whileHover={slot.available ? { scale: 1.02 } : {}}
-                              whileTap={slot.available ? { scale: 0.98 } : {}}
+                              whileTap={slot.available ? { scale: 0.95 } : {}}
                             >
                               <Button
                                 variant={
@@ -358,22 +358,22 @@ export default function Book() {
                                     ? "outline"
                                     : "ghost"
                                 }
-                                className={`w-full h-12 transition-all duration-200 ${
+                                className={`w-full h-14 sm:h-12 text-sm sm:text-base transition-all duration-200 ${
                                   !slot.available
                                     ? "opacity-50 cursor-not-allowed"
                                     : bookingState.selectedSlot?.time === slot.time
-                                    ? "bg-psychPurple hover:bg-psychPurple/90"
+                                    ? "bg-psychPurple hover:bg-psychPurple/90 shadow-lg"
                                     : "hover:shadow-md hover:bg-psychPurple/10 hover:text-psychPurple hover:border-psychPurple/50"
                                 }`}
                                 onClick={() => handleSlotSelect(slot)}
                                 disabled={!slot.available}
                                 aria-label={`${slot.time} ${slot.available ? 'verfügbar' : 'nicht verfügbar'}`}
                               >
-                                <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4" />
-                                  {slot.time}
+                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  <span className="font-medium">{slot.time}</span>
                                   {!slot.available && (
-                                    <Badge variant="destructive" className="text-xs">
+                                    <Badge variant="destructive" className="text-xs hidden sm:inline-flex">
                                       Belegt
                                     </Badge>
                                   )}
@@ -437,103 +437,102 @@ export default function Book() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              <Card className="border-psychPurple/20 bg-psychPurple/5">
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="font-medium text-psychText">Termin bestätigen</p>
-                      <div className="flex items-center gap-4 text-sm text-psychText/60">
-                        <div className="flex items-center gap-1">
-                          <CalendarIcon className="h-4 w-4" />
-                          {formatDate(bookingState.selectedDate)}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {bookingState.selectedSlot.time} Uhr
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                             <Card className="border-psychPurple/20 bg-psychPurple/5">
+                 <CardContent className="pt-4 sm:pt-6 space-y-4">
+                   <div className="space-y-3">
+                     <p className="font-medium text-psychText text-lg">Termin bestätigen</p>
+                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-psychText/60">
+                       <div className="flex items-center gap-2">
+                         <CalendarIcon className="h-4 w-4 text-psychPurple" />
+                         <span className="font-medium">{formatDate(bookingState.selectedDate)}</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <Clock className="h-4 w-4 text-psychPurple" />
+                         <span className="font-medium">{bookingState.selectedSlot.time} Uhr</span>
+                       </div>
+                     </div>
+                   </div>
 
-                  {/* Treater Selection - only show if multiple treaters available */}
-                  {availableTreaters.length > 1 && (
-                    <div>
-                      <Label htmlFor="treater-select">Therapeut/in wählen *</Label>
-                      <Select 
-                        value={selectedTreater?.provider.toString() || ''} 
-                        onValueChange={(value) => {
-                          const treater = availableTreaters.find(t => t.provider.toString() === value);
-                          setSelectedTreater(treater || null);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wählen Sie Ihren Therapeuten/Ihre Therapeutin" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableTreaters.map((treater) => (
-                            <SelectItem key={treater.provider} value={treater.provider.toString()}>
-                              <div className="flex items-center gap-2">
-                                <Users className="w-4 h-4" />
-                                <span>
-                                  {treater.name || `Therapeut ${treater.provider}`}
-                                  {treater.specialty && (
-                                    <span className="text-sm text-gray-500 ml-2">({treater.specialty})</span>
-                                  )}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                                     {/* Treater Selection - only show if multiple treaters available */}
+                   {availableTreaters.length > 1 && (
+                     <div className="space-y-2">
+                       <Label htmlFor="treater-select" className="text-sm font-medium">Therapeut/in wählen *</Label>
+                       <Select 
+                         value={selectedTreater?.provider.toString() || ''} 
+                         onValueChange={(value) => {
+                           const treater = availableTreaters.find(t => t.provider.toString() === value);
+                           setSelectedTreater(treater || null);
+                         }}
+                       >
+                         <SelectTrigger className="h-12 text-base">
+                           <SelectValue placeholder="Wählen Sie Ihren Therapeuten/Ihre Therapeutin" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {availableTreaters.map((treater) => (
+                             <SelectItem key={treater.provider} value={treater.provider.toString()} className="text-base py-3">
+                               <div className="flex items-center gap-2">
+                                 <Users className="w-4 h-4" />
+                                 <span>
+                                   {treater.name || `Therapeut ${treater.provider}`}
+                                   {treater.specialty && (
+                                     <span className="text-sm text-gray-500 ml-2">({treater.specialty})</span>
+                                   )}
+                                 </span>
+                               </div>
+                             </SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </div>
+                   )}
 
-                  <div>
-                    <Label htmlFor="appointment-type">Terminart *</Label>
-                    <Select value={appointmentType} onValueChange={setAppointmentType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Wählen Sie die Terminart" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="consultation">Beratungsgespräch</SelectItem>
-                        <SelectItem value="therapy">Therapiesitzung</SelectItem>
-                        <SelectItem value="followup">Nachkontrolle</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                                     <div className="space-y-2">
+                     <Label htmlFor="appointment-type" className="text-sm font-medium">Terminart *</Label>
+                     <Select value={appointmentType} onValueChange={setAppointmentType}>
+                       <SelectTrigger className="h-12 text-base">
+                         <SelectValue placeholder="Wählen Sie die Terminart" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="consultation" className="text-base py-3">Beratungsgespräch</SelectItem>
+                         <SelectItem value="therapy" className="text-base py-3">Therapiesitzung</SelectItem>
+                         <SelectItem value="followup" className="text-base py-3">Nachkontrolle</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
 
-                  <div>
-                    <Label htmlFor="notes">Anmerkungen (optional)</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Teilen Sie uns mit, wenn Sie spezielle Anliegen haben..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="notes" className="text-sm font-medium">Anmerkungen (optional)</Label>
+                     <Textarea
+                       id="notes"
+                       placeholder="Teilen Sie uns mit, wenn Sie spezielle Anliegen haben..."
+                       value={notes}
+                       onChange={(e) => setNotes(e.target.value)}
+                       rows={3}
+                       className="text-base resize-none"
+                     />
+                   </div>
 
-                  <Button
-                    onClick={handleBooking}
-                    disabled={
-                      bookingState.isBooking || 
-                      !appointmentType || 
-                      (availableTreaters.length > 1 && !selectedTreater)
-                    }
-                    className="w-full bg-psychPurple hover:bg-psychPurple/90"
-                  >
-                    {bookingState.isBooking ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Buchung läuft...
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        Termin buchen
-                      </div>
-                    )}
-                  </Button>
+                   <Button
+                     onClick={handleBooking}
+                     disabled={
+                       bookingState.isBooking || 
+                       !appointmentType || 
+                       (availableTreaters.length > 1 && !selectedTreater)
+                     }
+                     className="w-full h-12 sm:h-10 bg-psychPurple hover:bg-psychPurple/90 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                   >
+                     {bookingState.isBooking ? (
+                       <div className="flex items-center gap-2">
+                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                         <span>Buchung läuft...</span>
+                       </div>
+                     ) : (
+                       <div className="flex items-center gap-2">
+                         <User className="h-4 w-4" />
+                         <span>Termin buchen</span>
+                       </div>
+                     )}
+                   </Button>
                 </CardContent>
               </Card>
             </motion.div>

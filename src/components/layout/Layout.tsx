@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem } from "@/components/ui/menubar";
 import { Logo } from '@/components/ui/logo';
+import { MobileNav } from '@/components/ui/mobile-nav';
 import { toast } from 'sonner';
 
 interface LayoutProps {
@@ -76,18 +77,18 @@ export default function Layout({ children }: LayoutProps) {
       </motion.div>
     );
   }
-  
+
   // Animation variants
   const navItemVariants = {
     initial: { opacity: 0, y: -8 },
     animate: { opacity: 1, y: 0 }
   };
 
-  // Desktop navigation items
+  // Navigation items for both desktop and mobile
   const navItems = [
-    { name: "Termine", path: "/termine", icon: <Calendar size={18} className="mr-1.5" /> },
-    { name: "Buchen", path: "/buchen", icon: <Clock size={18} className="mr-1.5" /> },
-    { name: "Profil", path: "/profil", icon: <UserCircle size={18} className="mr-1.5" /> },
+    { name: "Termine", url: "/appointments", icon: Calendar },
+    { name: "Buchen", url: "/book", icon: Clock },
+    { name: "Profil", url: "/profile", icon: UserCircle },
   ];
   
   return (
@@ -97,11 +98,11 @@ export default function Layout({ children }: LayoutProps) {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: [0.19, 1.0, 0.22, 1.0] }}
-          className="bg-white/95 backdrop-blur-lg border-b border-psychText/5 py-3 px-4 sm:px-6 sticky top-0 z-10 shadow-sm"
+          className="bg-white/95 backdrop-blur-lg border-b border-psychText/5 py-3 px-4 sm:px-6 sticky top-0 z-40 shadow-sm"
         >
           <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center space-x-8">
-              <Link to="/termine" className="flex items-center group">
+              <Link to="/appointments" className="flex items-center group">
                 <motion.div 
                   initial={{ x: -10, opacity: 0 }} 
                   animate={{ x: 0, opacity: 1 }}
@@ -112,27 +113,28 @@ export default function Layout({ children }: LayoutProps) {
                 </motion.div>
               </Link>
               
+              {/* Desktop Navigation */}
               <div className="hidden md:block">
                 <NavigationMenu>
                   <NavigationMenuList className="space-x-1">
                     {navItems.map((item) => (
                       <motion.div
-                        key={item.path}
+                        key={item.url}
                         initial="initial"
                         animate="animate"
                         variants={navItemVariants}
                       >
                         <NavigationMenuItem>
                           <Link
-                            to={item.path}
+                            to={item.url}
                             className={cn(
-                              "inline-flex items-center rounded-md px-3 py-2 text-sm font-gt-pressura transition-colors",
-                              location.pathname === item.path 
-                              ? "bg-psychText/5 text-psychText" 
-                              : "text-psychText/70 hover:bg-psychText/5 hover:text-psychText"
+                              "inline-flex items-center rounded-md px-4 py-2.5 text-sm font-medium transition-all duration-200",
+                              location.pathname === item.url 
+                              ? "bg-psychPurple/10 text-psychPurple shadow-sm" 
+                              : "text-psychText/70 hover:bg-psychPurple/5 hover:text-psychPurple"
                             )}
                           >
-                            {item.icon}
+                            <item.icon size={18} className="mr-2" />
                             {item.name}
                           </Link>
                         </NavigationMenuItem>
@@ -143,6 +145,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             </div>
             
+            {/* User Menu */}
             <AnimatePresence>
               <motion.div 
                 className="flex items-center"
@@ -152,25 +155,28 @@ export default function Layout({ children }: LayoutProps) {
               >
                 <Menubar className="border-none bg-transparent">
                   <MenubarMenu>
-                    <MenubarTrigger className="flex items-center space-x-2 rounded-md border border-psychText/10 px-3 py-1.5 hover:bg-psychText/5 data-[state=open]:bg-psychText/5">
-                      <div className="hidden md:flex flex-col items-end mr-2">
-                        <span className="text-sm font-gt-pressura">{patient?.name}</span>
+                    <MenubarTrigger className="flex items-center space-x-2 rounded-lg border border-psychText/10 px-3 py-2 hover:bg-psychPurple/5 data-[state=open]:bg-psychPurple/5 transition-all duration-200">
+                      <div className="hidden sm:flex flex-col items-end mr-2">
+                        <span className="text-sm font-medium">{patient?.name}</span>
                         <span className="text-xs text-psychText/60">{patient?.email}</span>
                       </div>
-                      <Avatar className="h-8 w-8">
+                      <Avatar className="h-8 w-8 ring-2 ring-psychPurple/10">
                         <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${patient?.name}`} alt={patient?.name} />
-                        <AvatarFallback className="bg-psychText text-white">
+                        <AvatarFallback className="bg-psychPurple text-white text-sm font-medium">
                           {patient?.name?.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                     </MenubarTrigger>
-                    <MenubarContent className="min-w-[180px] mr-2 mt-1">
-                      <div className="md:hidden px-2 py-1.5 mb-2">
-                        <div className="font-gt-pressura text-sm">{patient?.name}</div>
+                    <MenubarContent className="min-w-[200px] mr-2 mt-2 rounded-lg border border-psychText/10 shadow-lg">
+                      <div className="sm:hidden px-3 py-2 mb-2 border-b border-psychText/10">
+                        <div className="font-medium text-sm">{patient?.name}</div>
                         <div className="text-xs text-psychText/70 truncate">{patient?.email}</div>
                       </div>
-                      <MenubarItem className="flex items-center cursor-pointer font-gt-pressura" onClick={logout}>
-                        <LogOut className="mr-2 h-4 w-4" />
+                      <MenubarItem 
+                        className="flex items-center cursor-pointer font-medium px-3 py-2 hover:bg-psychPurple/5 rounded-md mx-1 transition-colors" 
+                        onClick={logout}
+                      >
+                        <LogOut className="mr-3 h-4 w-4" />
                         <span>Abmelden</span>
                       </MenubarItem>
                     </MenubarContent>
@@ -182,60 +188,24 @@ export default function Layout({ children }: LayoutProps) {
         </motion.header>
       )}
       
+      {/* Main Content */}
       <motion.main 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex-1 bg-gradient-to-br from-psychPurple/5 to-psychBeige/50"
+        className={cn(
+          "flex-1 bg-gradient-to-br from-psychPurple/5 to-psychBeige/50",
+          // Add bottom padding on mobile to account for floating nav
+          isAuthenticated && "pb-24 md:pb-0"
+        )}
       >
         <PageTransition>{children}</PageTransition>
       </motion.main>
       
+      {/* Mobile Navigation */}
       {isAuthenticated && (
-        <motion.nav 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
-          className="bg-white/95 backdrop-blur-lg border-t border-psychText/5 py-3 md:hidden fixed bottom-0 left-0 right-0 z-10 shadow-[0_-1px_5px_rgba(0,0,0,0.05)]"
-        >
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex justify-around">
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className={`transition-all duration-300 ${location.pathname === '/termine' ? 'text-psychText bg-psychText/5 rounded-md' : 'text-psychText/60'}`}
-              >
-                <Link to="/termine">
-                  <Calendar size={20} />
-                </Link>
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className={`transition-all duration-300 ${location.pathname === '/buchen' ? 'text-psychText bg-psychText/5 rounded-md' : 'text-psychText/60'}`}
-              >
-                <Link to="/buchen">
-                  <Clock size={20} />
-                </Link>
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className={`transition-all duration-300 ${location.pathname === '/profil' ? 'text-psychText bg-psychText/5 rounded-md' : 'text-psychText/60'}`}
-              >
-                <Link to="/profil">
-                  <UserCircle size={20} />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </motion.nav>
+        <MobileNav items={navItems} />
       )}
     </div>
   );
