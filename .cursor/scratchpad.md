@@ -450,6 +450,44 @@ The booking system now allows appointments to be scheduled on Friday and Saturda
 - Confirm that appointments can be successfully booked on these days
 - Monitor for any issues with weekend appointment handling
 
+**🔍 INVESTIGATING: Saturday Booking "Keine verfügbaren Zeiten" Issue**
+
+**User Report**: Saturday shows "keine verfügbaren zeiten zu diesem datum" despite enabling Friday/Saturday booking
+
+**Investigation Status**: 🔄 **IN PROGRESS - Debugging Deployed**
+
+**Analysis Completed:**
+1. ✅ **Calendar Selection Logic**: Confirmed Saturday is enabled in `isDateDisabled()` function (only Sunday blocked)
+2. ✅ **Slot Generation Logic**: Confirmed `getCalendarSlots()` includes Saturday (day !== 0, so Saturday day=6 is included)
+3. ✅ **Working Hours**: Confirmed working hours array has 20 time slots (8:00 AM - 5:30 PM)
+
+**Hypothesis**: ICS calendar from Vitabyte might be marking ALL Saturday time slots as "busy" (existing appointments), leaving no available slots
+
+**Debugging Measures Implemented:**
+- ✅ **Saturday-Specific Logging**: Added detailed console logs for Saturday slot generation
+- ✅ **Busy Times Analysis**: Log count and list of busy times found for Saturday dates  
+- ✅ **Blocked Time Tracking**: Log which specific Saturday times are being blocked by busy times
+- ✅ **Slot Count Verification**: Log final count of available Saturday slots generated
+
+**Next Steps:**
+1. 🔄 **User Testing Required**: User needs to select a Saturday date and check browser console (F12) for debugging logs
+2. 📊 **Log Analysis**: Review Saturday debugging output to identify if:
+   - ICS calendar has appointments blocking all Saturday slots
+   - Working hours generation is working correctly for Saturday
+   - Busy times filtering is working as expected
+
+**Expected Debug Output Format:**
+```
+🔍 Saturday debugging for 2025-01-XX: {dayOfWeek: 6, busyTimesCount: X, busyTimes: [...], workingHoursCount: 20}
+🚫 Saturday time blocked: 2025-01-XX 08:00 (found in busy times)  [if any blocked]
+✅ Generated X available slots for Saturday 2025-01-XX
+```
+
+**Potential Solutions Based on Findings:**
+- If all Saturday slots blocked by ICS: Override Saturday busy times or use different working hours for Saturday
+- If no slots generated: Fix slot generation logic for Saturday specifically
+- If working hours issue: Adjust Saturday working hours configuration
+
 ## Appendix: Vitabyte API Documentation Summary (Provided by User)
 
 This section summarizes the API documentation provided by the user for quick reference.

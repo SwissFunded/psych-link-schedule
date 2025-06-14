@@ -168,6 +168,12 @@ async function getCalendarSlots(): Promise<CalendarSlot[]> {
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + 30);
     
+    console.log('📅 Slot generation date range:', {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      today: new Date().toISOString().split('T')[0]
+    });
+    
     // Working hours: 8:00 AM to 6:00 PM, Monday to Saturday
     const workingHours = [
       '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
