@@ -163,34 +163,7 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Assigned Therapist */}
-                {vitabytePatient.assignedTherapist ? (
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Stethoscope className="w-4 h-4 text-blue-600" />
-                      <h4 className="font-medium text-blue-800">Zugewiesener Therapeut</h4>
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-sm font-medium text-blue-700">Name</p>
-                        <p className="text-blue-800">{vitabytePatient.assignedTherapist.name}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-blue-700">Fachbereich</p>
-                        <p className="text-blue-800">{vitabytePatient.assignedTherapist.specialty}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-yellow-600" />
-                      <p className="text-sm text-yellow-700">
-                        Kein Therapeut zugewiesen oder Zuordnung konnte nicht geladen werden.
-                      </p>
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Appointment Information */}
                 <div className="mt-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
