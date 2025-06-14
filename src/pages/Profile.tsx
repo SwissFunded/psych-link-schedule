@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, User, Stethoscope, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
+import { User, Stethoscope, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Profile() {
-  const { patient, vitabytePatient, vitabyteLoading, refreshVitabyteData, logout } = useAuth();
+  const { patient, vitabytePatient, vitabyteLoading, logout } = useAuth();
   
   if (!patient) {
     return (
@@ -34,24 +34,7 @@ export default function Profile() {
           >
             Ihr Profil
           </motion.h1>
-          <motion.div
-            initial={{ opacity: 0, x: 20, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.19, 1.0, 0.22, 1.0] }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Button
-              onClick={refreshVitabyteData}
-              disabled={vitabyteLoading}
-              variant="outline"
-              size="sm"
-              className="border-psychPurple/20 shadow-sm hover:shadow-md transition-all duration-200"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${vitabyteLoading ? 'animate-spin' : ''}`} />
-              {vitabyteLoading ? 'Aktualisiere...' : 'Daten aktualisieren'}
-            </Button>
-          </motion.div>
+
         </PageSection>
         
         {/* Supabase User Information */}
