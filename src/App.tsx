@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import { AnimatePresence } from "framer-motion";
 import { Suspense, lazy } from "react";
 
@@ -93,9 +94,11 @@ const App = () => (
           v7_relativeSplatPath: true,
         }}
       >
-        <AuthProvider>
-          <AnimationRoutes />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <AnimationRoutes />
+          </AuthProvider>
+        </LanguageProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

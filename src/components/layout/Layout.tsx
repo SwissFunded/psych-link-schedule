@@ -11,6 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem } from "@/components/ui/menubar";
 import { Logo } from '@/components/ui/logo';
 import { MobileNav } from '@/components/ui/mobile-nav';
+import { LanguageDropdown } from '@/components/ui/LanguageDropdown';
+import { useTranslation } from '@/hooks/useTranslation';
 import { toast } from 'sonner';
 
 interface LayoutProps {
@@ -19,16 +21,17 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { isAuthenticated, logout, loading, patient } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   
   // Add a safety redirect if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated && location.pathname !== '/') {
-      toast.error("Bitte melden Sie sich an");
+      toast.error(t('auth.please_login'));
       navigate('/', { replace: true });
     }
-  }, [isAuthenticated, loading, location.pathname, navigate]);
+  }, [isAuthenticated, loading, location.pathname, navigate, t]);
   
   if (loading) {
     return (
@@ -41,7 +44,7 @@ export default function Layout({ children }: LayoutProps) {
           className="flex flex-col items-center"
         >
           <div className="w-10 h-10 rounded-full border-3 border-psychText/30 border-t-transparent animate-spin mb-4"></div>
-          <div className="text-psychText/60 font-gt-pressura">Ihre Informationen werden geladen...</div>
+          <div className="text-psychText/60 font-gt-pressura">{t('common.loading')}</div>
         </motion.div>
       </div>
     );
@@ -65,13 +68,13 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex justify-center mb-6">
             <Logo variant="full" />
           </div>
-          <h2 className="text-xl font-gt-pressura mb-4 text-center">Authentifizierung erforderlich</h2>
-          <p className="text-center mb-6 text-psychText/70 font-gt-pressura">Bitte nutzen Sie Ihren Login-Link, um auf Ihre Termine zuzugreifen.</p>
+          <h2 className="text-xl font-gt-pressura mb-4 text-center">{t('auth.required')}</h2>
+          <p className="text-center mb-6 text-psychText/70 font-gt-pressura">{t('auth.use_login_link')}</p>
           <Button 
             onClick={() => navigate('/')} 
             className="w-full bg-psychText hover:bg-psychText/90 font-gt-pressura"
           >
-            Zurück zum Login
+            {t('common.back_to_login')}
           </Button>
         </motion.div>
       </motion.div>
@@ -86,15 +89,15 @@ export default function Layout({ children }: LayoutProps) {
 
   // Navigation items for both desktop and mobile
   const navItems = [
-    { name: "Termine", url: "/appointments", icon: Calendar },
-    { name: "Buchen", url: "/book", icon: Clock },
-    { name: "Profil", url: "/profile", icon: UserCircle },
+    { name: t('nav.appointments'), url: "/appointments", icon: Calendar },
+    { name: t('nav.book'), url: "/book", icon: Clock },
+    { name: t('nav.profile'), url: "/profile", icon: UserCircle },
   ];
 
   // Add admin navigation for authorized user
   const isAdmin = patient?.email === 'miromw@icloud.com';
   if (isAdmin) {
-    navItems.push({ name: "Admin", url: "/admin/appointments", icon: Code });
+    navItems.push({ name: t('nav.admin'), url: "/admin/appointments", icon: Code });
   }
   
   return (
@@ -151,14 +154,15 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             </div>
             
-            {/* User Menu */}
+            {/* Language Dropdown and User Menu */}
             <AnimatePresence>
               <motion.div 
-                className="flex items-center"
+                className="flex items-center gap-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
               >
+                <LanguageDropdown />
                 <Menubar className="border-none bg-transparent">
                   <MenubarMenu>
                     <MenubarTrigger className="flex items-center space-x-2 rounded-lg border border-psychText/10 px-3 py-2 hover:bg-psychPurple/5 data-[state=open]:bg-psychPurple/5 transition-all duration-200">
@@ -183,7 +187,7 @@ export default function Layout({ children }: LayoutProps) {
                         onClick={logout}
                       >
                         <LogOut className="mr-3 h-4 w-4" />
-                        <span>Abmelden</span>
+                        <span>{t('common.logout')}</span>
                       </MenubarItem>
                     </MenubarContent>
                   </MenubarMenu>
