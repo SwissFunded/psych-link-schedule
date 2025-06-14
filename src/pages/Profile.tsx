@@ -98,13 +98,13 @@ export default function Profile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Stethoscope className="w-5 h-5 text-psychPurple" />
-              Patienteninformationen
+              Zusätzliche Informationen
               {vitabyteLoading && (
                 <div className="w-4 h-4 border-2 border-psychPurple/30 border-t-psychPurple rounded-full animate-spin ml-2"></div>
               )}
             </CardTitle>
             <CardDescription>
-              Ihre Daten aus dem Praxissystem
+              Weitere Details zu Ihrem Profil
               {vitabytePatient?.lastSync && (
                 <span className="text-xs text-psychText/50 ml-2">
                   (Zuletzt aktualisiert: {vitabytePatient.lastSync.toLocaleString('de-DE')})
@@ -119,15 +119,7 @@ export default function Profile() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
               >
-                <div className="flex items-center gap-2 mb-4">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-sm font-medium text-green-700">
-                    Patientendaten gefunden
-                  </span>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                    Patient ID: {vitabytePatient.patid}
-                  </Badge>
-                </div>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -210,13 +202,12 @@ export default function Profile() {
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <AlertCircle className="w-8 h-8 text-psychText/30" />
                 </div>
-                <h3 className="text-lg font-medium text-psychText mb-2">Keine Patientendaten gefunden</h3>
+                <h3 className="text-lg font-medium text-psychText mb-2">Zusätzliche Informationen nicht verfügbar</h3>
                 <p className="text-psychText/70 mb-4">
-                  Ihre E-Mail-Adresse wurde nicht im Praxissystem gefunden.
+                  Ihre zusätzlichen Profilinformationen konnten nicht geladen werden.
                 </p>
                 <p className="text-sm text-psychText/60">
-                  Falls Sie bereits Patient sind, wenden Sie sich bitte an die Praxis, 
-                  um Ihre E-Mail-Adresse zu aktualisieren.
+                  Falls Sie Fragen haben, wenden Sie sich bitte an die Praxis.
                 </p>
               </motion.div>
             )}
