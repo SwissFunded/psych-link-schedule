@@ -179,12 +179,6 @@ export default function Profile() {
                         <p className="text-sm font-medium text-blue-700">Fachbereich</p>
                         <p className="text-blue-800">{vitabytePatient.assignedTherapist.specialty}</p>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-blue-700">Provider ID</p>
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
-                          {vitabytePatient.assignedTherapist.providerId}
-                        </Badge>
-                      </div>
                     </div>
                   </div>
                 ) : (
