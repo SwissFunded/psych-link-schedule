@@ -17,6 +17,7 @@ const Appointments = lazy(() => import("./pages/Appointments"));
 const Book = lazy(() => import("./pages/Book"));
 const Reschedule = lazy(() => import("./pages/Reschedule"));
 const Profile = lazy(() => import("./pages/Profile"));
+const GoogleCalendarCallback = lazy(() => import("./pages/GoogleCalendarCallback"));
 
 // Create a fallback loading component
 const PageLoading = () => (
@@ -67,6 +68,11 @@ const AnimationRoutes = () => {
           </Suspense>
         } />
         <Route path="/profil" element={<Navigate to="/profile" replace />} />
+        <Route path="/oauth/google/callback" element={
+          <Suspense fallback={<PageLoading />}>
+            <GoogleCalendarCallback />
+          </Suspense>
+        } />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
