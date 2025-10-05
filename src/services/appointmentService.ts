@@ -1,11 +1,13 @@
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  addToGoogleCalendar, 
-  updateGoogleCalendarEvent, 
-  deleteFromGoogleCalendar,
-  formatAppointmentForCalendar,
-  GoogleCalendarAuth
-} from './calendarService';
+// TODO: Google Calendar sync needs to be moved to server-side (Supabase Edge Functions)
+// The googleapis package is Node.js-only and cannot run in the browser
+// import { 
+//   addToGoogleCalendar, 
+//   updateGoogleCalendarEvent, 
+//   deleteFromGoogleCalendar,
+//   formatAppointmentForCalendar,
+//   GoogleCalendarAuth
+// } from './calendarService';
 
 export interface Therapist {
   id: string;
@@ -172,16 +174,17 @@ const generateFixedAvailableSlots = (): TimeSlot[] => {
 
 const fixedAvailableSlots = generateFixedAvailableSlots();
 
+// TODO: Move to server-side
 // Helper function to get user's Google Calendar auth
-async function getGoogleCalendarAuth(): Promise<GoogleCalendarAuth | null> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.user_metadata?.google_calendar_auth || null;
-  } catch (error) {
-    console.error('Error getting calendar auth:', error);
-    return null;
-  }
-}
+// async function getGoogleCalendarAuth(): Promise<GoogleCalendarAuth | null> {
+//   try {
+//     const { data: { user } } = await supabase.auth.getUser();
+//     return user?.user_metadata?.google_calendar_auth || null;
+//   } catch (error) {
+//     console.error('Error getting calendar auth:', error);
+//     return null;
+//   }
+// }
 
 // Service functions
 export const appointmentService = {
@@ -280,24 +283,25 @@ export const appointmentService = {
       fixedAvailableSlots[fixedSlotIndex].available = false;
     }
     
+    // TODO: Google Calendar sync - needs server-side implementation
     // Sync to Google Calendar if connected
-    try {
-      const calendarAuth = await getGoogleCalendarAuth();
-      if (calendarAuth) {
-        const therapist = await appointmentService.getTherapistById(appointment.therapistId);
-        if (therapist) {
-          const calendarEvent = formatAppointmentForCalendar(newAppointment, therapist.name);
-          const eventId = await addToGoogleCalendar(calendarEvent, calendarAuth);
-          if (eventId) {
-            newAppointment.googleCalendarEventId = eventId;
-            console.log('✓ Appointment synced to Google Calendar');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to sync to Google Calendar:', error);
-      // Don't fail the booking if calendar sync fails
-    }
+    // try {
+    //   const calendarAuth = await getGoogleCalendarAuth();
+    //   if (calendarAuth) {
+    //     const therapist = await appointmentService.getTherapistById(appointment.therapistId);
+    //     if (therapist) {
+    //       const calendarEvent = formatAppointmentForCalendar(newAppointment, therapist.name);
+    //       const eventId = await addToGoogleCalendar(calendarEvent, calendarAuth);
+    //       if (eventId) {
+    //         newAppointment.googleCalendarEventId = eventId;
+    //         console.log('✓ Appointment synced to Google Calendar');
+    //       }
+    //     }
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to sync to Google Calendar:', error);
+    //   // Don't fail the booking if calendar sync fails
+    // }
     
     return newAppointment;
   },
@@ -331,22 +335,23 @@ export const appointmentService = {
         fixedAvailableSlots[fixedSlotIndex].available = true;
       }
       
+      // TODO: Google Calendar sync - needs server-side implementation
       // Delete from Google Calendar if synced
-      try {
-        const calendarAuth = await getGoogleCalendarAuth();
-        if (calendarAuth && appointment.googleCalendarEventId) {
-          const deleted = await deleteFromGoogleCalendar(
-            appointment.googleCalendarEventId,
-            calendarAuth
-          );
-          if (deleted) {
-            console.log('✓ Appointment removed from Google Calendar');
-          }
-        }
-      } catch (error) {
-        console.error('Failed to delete from Google Calendar:', error);
-        // Don't fail the cancellation if calendar sync fails
-      }
+      // try {
+      //   const calendarAuth = await getGoogleCalendarAuth();
+      //   if (calendarAuth && appointment.googleCalendarEventId) {
+      //     const deleted = await deleteFromGoogleCalendar(
+      //       appointment.googleCalendarEventId,
+      //       calendarAuth
+      //     );
+      //     if (deleted) {
+      //       console.log('✓ Appointment removed from Google Calendar');
+      //     }
+      //   }
+      // } catch (error) {
+      //   console.error('Failed to delete from Google Calendar:', error);
+      //   // Don't fail the cancellation if calendar sync fails
+      // }
       
       return true;
     }
@@ -404,30 +409,31 @@ export const appointmentService = {
         fixedAvailableSlots[newFixedSlotIndex].available = false;
       }
       
+      // TODO: Google Calendar sync - needs server-side implementation
       // Update in Google Calendar if synced
-      try {
-        const calendarAuth = await getGoogleCalendarAuth();
-        if (calendarAuth && appointment.googleCalendarEventId) {
-          const therapist = await appointmentService.getTherapistById(appointment.therapistId);
-          if (therapist) {
-            const calendarEvent = formatAppointmentForCalendar(
-              patientAppointments[appointmentIndex],
-              therapist.name
-            );
-            const updated = await updateGoogleCalendarEvent(
-              appointment.googleCalendarEventId,
-              calendarEvent,
-              calendarAuth
-            );
-            if (updated) {
-              console.log('✓ Appointment updated in Google Calendar');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Failed to update Google Calendar:', error);
-        // Don't fail the reschedule if calendar sync fails
-      }
+      // try {
+      //   const calendarAuth = await getGoogleCalendarAuth();
+      //   if (calendarAuth && appointment.googleCalendarEventId) {
+      //     const therapist = await appointmentService.getTherapistById(appointment.therapistId);
+      //     if (therapist) {
+      //       const calendarEvent = formatAppointmentForCalendar(
+      //         patientAppointments[appointmentIndex],
+      //         therapist.name
+      //       );
+      //       const updated = await updateGoogleCalendarEvent(
+      //         appointment.googleCalendarEventId,
+      //         calendarEvent,
+      //         calendarAuth
+      //       );
+      //       if (updated) {
+      //         console.log('✓ Appointment updated in Google Calendar');
+      //       }
+      //     }
+      //   }
+      // } catch (error) {
+      //   console.error('Failed to update Google Calendar:', error);
+      //   // Don't fail the reschedule if calendar sync fails
+      // }
       
       return patientAppointments[appointmentIndex];
     }

@@ -97,7 +97,8 @@ export default function Profile() {
           </CardContent>
         </Card>
         
-        <Card className="border-psychPurple/10 card-shadow mb-6">
+        {/* TODO: Google Calendar sync - needs server-side implementation */}
+        {/* <Card className="border-psychPurple/10 card-shadow mb-6">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -168,7 +169,7 @@ export default function Profile() {
               </div>
             )}
           </CardContent>
-        </Card>
+        </Card> */}
         
         <Card className="border-psychPurple/10 card-shadow">
           <CardHeader>
