@@ -1,4 +1,6 @@
-import { google } from 'googleapis';
+// TODO: googleapis is a Node.js package and cannot run in the browser
+// This entire service needs to be moved to server-side (Supabase Edge Functions)
+// import { google } from 'googleapis';
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -6,7 +8,7 @@ import { de } from 'date-fns/locale';
 // These need to be set up in Google Cloud Console and added to environment variables
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = import.meta.env.VITE_GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = import.meta.env.VITE_GOOGLE_REDIRECT_URI || window.location.origin + '/oauth/google/callback';
+const GOOGLE_REDIRECT_URI = import.meta.env.VITE_GOOGLE_REDIRECT_URI || (typeof window !== 'undefined' ? window.location.origin + '/oauth/google/callback' : '');
 
 // OAuth scopes needed for calendar access
 const SCOPES = ['https://www.googleapis.com/auth/calendar.events'];
