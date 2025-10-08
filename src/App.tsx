@@ -18,6 +18,7 @@ const Book = lazy(() => import("./pages/Book"));
 const Reschedule = lazy(() => import("./pages/Reschedule"));
 const Profile = lazy(() => import("./pages/Profile"));
 const GoogleCalendarCallback = lazy(() => import("./pages/GoogleCalendarCallback"));
+const BookingConfirmation = lazy(() => import("./pages/BookingConfirmation"));
 
 // Create a fallback loading component
 const PageLoading = () => (
@@ -71,6 +72,11 @@ const AnimationRoutes = () => {
         <Route path="/oauth/google/callback" element={
           <Suspense fallback={<PageLoading />}>
             <GoogleCalendarCallback />
+          </Suspense>
+        } />
+        <Route path="/booking-confirmation" element={
+          <Suspense fallback={<PageLoading />}>
+            <BookingConfirmation />
           </Suspense>
         } />
         <Route path="*" element={<NotFound />} />

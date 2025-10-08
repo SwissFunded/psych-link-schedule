@@ -47,25 +47,6 @@ export default function Login() {
     }
   }, [isAuthenticated, navigate]);
 
-  // Demo accounts for the app
-  const demoAccounts = [
-    {
-      name: 'Miró Waltisberg',
-      email: 'miromw@icloud.com',
-      password: 'password123'
-    },
-    {
-      name: 'Elena Pellizon',
-      email: 'elena.pellizzon@psychcentral.ch',
-      password: 'password123'
-    },
-    {
-      name: 'Jane Smith',
-      email: 'jane.smith@example.com',
-      password: 'password123'
-    }
-  ];
-
   const validateForm = (schema: z.ZodType<any>, data: any): boolean => {
     try {
       schema.parse(data);
@@ -121,17 +102,6 @@ export default function Login() {
       setActiveTab('login');
     } catch (error) {
       console.error('Registration failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loginWithDemoAccount = async (account: typeof demoAccounts[0]) => {
-    setIsLoading(true);
-    try {
-      await login(account.email, account.password);
-    } catch (error) {
-      console.error('Demo login failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -302,27 +272,6 @@ export default function Login() {
                   </CardContent>
                 </TabsContent>
               </Tabs>
-              
-              <CardFooter className="flex-col space-y-2 border-t border-psychPurple/10 pt-4 bg-gradient-to-b from-transparent to-psychPurple/5">
-                <p className="text-center text-xs text-psychText/50 max-w-[90%] mx-auto">
-                  Demo-Accounts verfügbar für Tests:
-                </p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {demoAccounts.map((account, index) => (
-                    <Button 
-                      key={index}
-                      variant="outline" 
-                      size="sm"
-                      className="text-xs py-1 h-auto"
-                      disabled={isLoading}
-                      onClick={() => loginWithDemoAccount(account)}
-                    >
-                      <User className="h-3 w-3 mr-1" />
-                      {account.name}
-                    </Button>
-                  ))}
-                </div>
-              </CardFooter>
             </Card>
           </motion.div>
           

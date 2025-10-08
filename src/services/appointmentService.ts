@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { checkTimeSlotAvailability } from './vitabyteCalendarService';
 // TODO: Google Calendar sync needs to be moved to server-side (Supabase Edge Functions)
 // The googleapis package is Node.js-only and cannot run in the browser
 // import { 
@@ -99,30 +100,37 @@ const generateAvailableSlots = (): TimeSlot[] => {
     
     // Generate slots for each therapist
     for (const therapist of therapists) {
-      // Morning slots: 09:00, 10:00, 11:00
-      for (let hour = 9; hour <= 11; hour++) {
-        const slotDate = new Date(currentDate);
-        slotDate.setHours(hour, 0, 0, 0);
-        
-        slots.push({
-          therapistId: therapist.id,
-          date: slotDate.toISOString(),
-          duration: 50,
-          available: true
-        });
+      // Morning slots: 08:00, 08:30, 09:00, 09:30, 10:00, 10:30, 11:00, 11:30
+      for (let hour = 8; hour < 12; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          const slotDate = new Date(currentDate);
+          slotDate.setHours(hour, minute, 0, 0);
+          
+          slots.push({
+            therapistId: therapist.id,
+            date: slotDate.toISOString(),
+            duration: 30,
+            available: true
+          });
+        }
       }
       
-      // Afternoon slots: 13:00, 14:00, 15:00, 16:00, 17:00
-      for (let hour = 13; hour <= 17; hour++) {
-        const slotDate = new Date(currentDate);
-        slotDate.setHours(hour, 0, 0, 0);
-        
-        slots.push({
-          therapistId: therapist.id,
-          date: slotDate.toISOString(),
-          duration: 50,
-          available: true
-        });
+      // Afternoon slots: 13:00, 13:30, 14:00, 14:30, 15:00, 15:30, 16:00, 16:30, 17:00, 17:30
+      for (let hour = 13; hour < 18; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          // Skip slots after 17:30
+          if (hour === 17 && minute > 30) continue;
+          
+          const slotDate = new Date(currentDate);
+          slotDate.setHours(hour, minute, 0, 0);
+          
+          slots.push({
+            therapistId: therapist.id,
+            date: slotDate.toISOString(),
+            duration: 30,
+            available: true
+          });
+        }
       }
     }
   }
@@ -151,18 +159,34 @@ const generateFixedAvailableSlots = (): TimeSlot[] => {
     
     // Generate slots for each therapist - full schedule
     for (const therapist of therapists) {
-      // Morning: 09:00, 10:00, 11:00
-      // Afternoon: 13:00, 14:00, 15:00, 16:00, 17:00
-      const availableHours = [9, 10, 11, 13, 14, 15, 16, 17];
+      // Morning: 08:00-11:30 in 30-minute intervals
+      // Afternoon: 13:00-17:30 in 30-minute intervals
+      const timeSlots: {hour: number, minute: number}[] = [];
       
-      for (const hour of availableHours) {
+      // Morning slots
+      for (let hour = 8; hour < 12; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          timeSlots.push({ hour, minute });
+        }
+      }
+      
+      // Afternoon slots
+      for (let hour = 13; hour < 18; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+          // Skip slots after 17:30
+          if (hour === 17 && minute > 30) continue;
+          timeSlots.push({ hour, minute });
+        }
+      }
+      
+      for (const slot of timeSlots) {
         const slotDate = new Date(currentDate);
-        slotDate.setHours(hour, 0, 0, 0);
+        slotDate.setHours(slot.hour, slot.minute, 0, 0);
         
         fixedSlots.push({
           therapistId: therapist.id,
           date: slotDate.toISOString(),
-          duration: 50,
+          duration: 30,
           available: true
         });
       }
@@ -241,14 +265,18 @@ export const appointmentService = {
     
     // If no slots are available, return fixed guaranteed slots
     if (filteredSlots.length === 0) {
-      return fixedAvailableSlots.filter(slot => 
+      const fixedSlots = fixedAvailableSlots.filter(slot => 
         slot.therapistId === therapistId &&
         new Date(slot.date) >= startDate &&
         new Date(slot.date) <= endDate
       );
+      
+      // Check against Vitabyte calendar for real availability
+      return checkTimeSlotAvailability(therapistId, fixedSlots);
     }
     
-    return filteredSlots;
+    // Check against Vitabyte calendar for real availability
+    return checkTimeSlotAvailability(therapistId, filteredSlots);
   },
   
   bookAppointment: async (appointment: Omit<Appointment, 'id'>): Promise<Appointment> => {
@@ -281,6 +309,29 @@ export const appointmentService = {
     
     if (fixedSlotIndex !== -1) {
       fixedAvailableSlots[fixedSlotIndex].available = false;
+    }
+    
+    // For 60-minute appointments, also mark the next slot as unavailable
+    if (appointment.duration === 60) {
+      const nextSlotTime = new Date(appointment.date);
+      nextSlotTime.setMinutes(nextSlotTime.getMinutes() + 30);
+      const nextSlotDate = nextSlotTime.toISOString();
+      
+      const nextSlotIndex = availableSlots.findIndex(slot =>
+        slot.therapistId === appointment.therapistId &&
+        slot.date === nextSlotDate
+      );
+      if (nextSlotIndex !== -1) {
+        availableSlots[nextSlotIndex].available = false;
+      }
+      
+      const nextFixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
+        slot.therapistId === appointment.therapistId &&
+        slot.date === nextSlotDate
+      );
+      if (nextFixedSlotIndex !== -1) {
+        fixedAvailableSlots[nextFixedSlotIndex].available = false;
+      }
     }
     
     // TODO: Google Calendar sync - needs server-side implementation
@@ -335,6 +386,29 @@ export const appointmentService = {
         fixedAvailableSlots[fixedSlotIndex].available = true;
       }
       
+      // For 60-minute appointments, also free up the next slot
+      if (appointment.duration === 60) {
+        const nextSlotTime = new Date(appointment.date);
+        nextSlotTime.setMinutes(nextSlotTime.getMinutes() + 30);
+        const nextSlotDate = nextSlotTime.toISOString();
+        
+        const nextSlotIndex = availableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === nextSlotDate
+        );
+        if (nextSlotIndex !== -1) {
+          availableSlots[nextSlotIndex].available = true;
+        }
+        
+        const nextFixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === nextSlotDate
+        );
+        if (nextFixedSlotIndex !== -1) {
+          fixedAvailableSlots[nextFixedSlotIndex].available = true;
+        }
+      }
+      
       // TODO: Google Calendar sync - needs server-side implementation
       // Delete from Google Calendar if synced
       // try {
@@ -387,6 +461,29 @@ export const appointmentService = {
         fixedAvailableSlots[oldFixedSlotIndex].available = true;
       }
       
+      // For 60-minute appointments, also free up the next old slot
+      if (appointment.duration === 60) {
+        const oldNextSlotTime = new Date(oldDate);
+        oldNextSlotTime.setMinutes(oldNextSlotTime.getMinutes() + 30);
+        const oldNextSlotDate = oldNextSlotTime.toISOString();
+        
+        const oldNextSlotIndex = availableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === oldNextSlotDate
+        );
+        if (oldNextSlotIndex !== -1) {
+          availableSlots[oldNextSlotIndex].available = true;
+        }
+        
+        const oldNextFixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === oldNextSlotDate
+        );
+        if (oldNextFixedSlotIndex !== -1) {
+          fixedAvailableSlots[oldNextFixedSlotIndex].available = true;
+        }
+      }
+      
       // Update appointment date
       patientAppointments[appointmentIndex].date = newDate;
       
@@ -407,6 +504,29 @@ export const appointmentService = {
       
       if (newFixedSlotIndex !== -1) {
         fixedAvailableSlots[newFixedSlotIndex].available = false;
+      }
+      
+      // For 60-minute appointments, also mark the next new slot as unavailable
+      if (appointment.duration === 60) {
+        const newNextSlotTime = new Date(newDate);
+        newNextSlotTime.setMinutes(newNextSlotTime.getMinutes() + 30);
+        const newNextSlotDate = newNextSlotTime.toISOString();
+        
+        const newNextSlotIndex = availableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === newNextSlotDate
+        );
+        if (newNextSlotIndex !== -1) {
+          availableSlots[newNextSlotIndex].available = false;
+        }
+        
+        const newNextFixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === newNextSlotDate
+        );
+        if (newNextFixedSlotIndex !== -1) {
+          fixedAvailableSlots[newNextFixedSlotIndex].available = false;
+        }
       }
       
       // TODO: Google Calendar sync - needs server-side implementation

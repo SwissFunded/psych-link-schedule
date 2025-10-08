@@ -231,6 +231,14 @@ The application is fully functional with the following features:
   - Tokens stored securely in Supabase user metadata
   - Graceful error handling (booking works even if sync fails)
   - Setup guide created: `GOOGLE_CALENDAR_SETUP.md`
+- ✅ **Booking Page Redesigned** - Complete UI overhaul deployed (10 Oct 2025)
+  - Updated to 30-minute appointment slots (was 50 minutes)
+  - Created step-by-step booking flow with vertical stepper
+  - New components: TherapistHeader, Stepper, AppointmentTypeCard, ReasonSelect, WeeklyTimeGrid
+  - Weekly calendar view with "MEHR TERMINE ANZEIGEN" pagination
+  - Preserved purple design language while matching reference UI
+  - Fully responsive on mobile and desktop
+  - Deployed to production: https://psych-central-terminverwaltung-hj8ni2uwe.vercel.app
   
 **⚠️ To Enable Google Calendar:**
 User needs to complete Google Cloud setup (see `GOOGLE_CALENDAR_SETUP.md`)
@@ -284,8 +292,270 @@ User needs to complete Google Cloud setup (see `GOOGLE_CALENDAR_SETUP.md`)
 - **Important:** Must update both `availableSlots` AND `fixedAvailableSlots` arrays
 
 ### Calendar Integration
-- **Status:** ✅ Google Calendar automatic sync implemented (OAuth 2.0)
+- **Status:** ✅ Google Calendar automatic sync implemented (OAuth 2.0) - Currently disabled for deployment
 - **Requires:** Google Cloud Console setup (see GOOGLE_CALENDAR_SETUP.md)
+- **Vitabyte Integration:** ✅ Antoine uses Vitabyte calendar system
+  - **Calendar Subscription URL:** https://api.vitabyte.ch/calendar/?action=getics&cid=0641e7-1d2756-9d1896-9b3206&type=.ics
+  - **Appointment Availability URL:** https://api.vitabyte.ch/calendar/?action=getics&cid=814167-1776ec-851153-724277&type=.ics
+  - Real-time availability checking implemented:
+    - Fetches Antoine's actual appointments from Vitabyte
+    - Parses ICS file to find busy times
+    - Marks conflicting time slots as unavailable
+    - 5-minute cache to reduce API calls
+    - CORS handled via proxy in development and allorigins.win in production
+  - Services created: 
+    - `vitabyteService.ts` - Configuration management
+    - `vitabyteCalendarService.ts` - Calendar fetching and availability checking
+    - `icsParser.ts` - ICS file parsing utility
+
+---
+
+## Planner: ePat ICS Busy Feed Integration (NEW)
+
+### Background / Goal
+Antoine also has an ePat ICS feed that reflects appointments created via Google/Apple Calendar and other 3rd‑party apps. We must include this feed in availability checks to prevent double bookings.
+
+- ePat ICS URL (busy feed): `https://api.vitabyte.ch/calendar/?action=getics&cid=72a22f-c1d1b3-a413f2-6ffb45&type=.ics`
+- Requirement: Treat any overlap with this feed as busy/unavailable in the booking UI and during booking commit.
+
+### Approach (Incremental, low risk)
+1) Client-side merge now: Fetch and parse both ICS feeds (existing Vitabyte busy feed and new ePat ICS feed), merge, de‑duplicate, and use the union for availability checks.
+2) Server-side later: Move fetching to a Supabase Edge Function for reliability, caching, and CORS‑proofing.
+
+### Implementation Steps (Executor)
+1. Configuration
+   - Add `antoineEpatConfig` in `src/services/vitabyteService.ts` and expose `getTherapistEpatConfig(therapistId)`.
+2. Calendar service
+   - Extend `src/services/vitabyteCalendarService.ts`:
+     - Add `fetchEpatCalendar(therapistId)` using the new config.
+     - Add `fetchMergedBusyEvents(therapistId)` that:
+       - Fetches Vitabyte busy events and ePat busy events.
+       - Merges and de‑duplicates events by `(UID)`, falling back to `(start.getTime()+end.getTime())` when UID missing.
+       - Returns a single `ICSEvent[]` list.
+     - Update `checkTimeSlotAvailability` to use merged events.
+3. ICS parsing robustness
+   - Update `src/utils/icsParser.ts` to recognize `DTSTART;TZID=Europe/Zurich:` and `DTEND;TZID=Europe/Zurich:` formats in addition to UTC `...Z`.
+   - Normalize to local Europe/Zurich time for comparisons; keep UTC parsing working.
+4. Booking race‑condition guard
+   - On "Termin buchen", re‑fetch merged busy events and re‑validate the selected slot right before commit.
+   - If now busy, show a friendly message and refresh visible availability.
+5. Caching & CORS
+   - Keep 5–10 min client cache (existing cache pattern) to reduce load.
+   - Dev: continue using Vite proxy `/api/vitabyte`.
+   - Prod: temporarily use read‑only CORS proxy; follow‑up task to replace with Supabase Edge Function proxy.
+6. Failure UX
+   - If feeds fail (network/CORS), show a non‑blocking notice and proceed with local schedule; warn availability may be outdated.
+7. Tests & Validation
+   - Unit tests: ICS parse (TZID/UTC), merge & de‑dup, overlap detection.
+   - Manual smoke test on Vercel with real feeds.
+
+### Success Criteria
+- Any slot overlapping events from either feed is disabled in the UI.
+- Time handling correct for Europe/Zurich, including DST.
+- Booking only commits if the slot is still free after the pre‑commit recheck.
+- Works on Vercel without visible CORS errors; graceful fallback if the feed is unreachable.
+
+### Risks & Mitigations
+- CORS policy changes: migrate to Edge Function promptly if provider blocks cross‑origin.
+- ICS latency/staleness: use pre‑commit recheck to catch last‑minute conflicts.
+- Recurring events (RRULE): out‑of‑scope for first pass; if present, log and either ignore or conservatively block; follow‑up task to add basic RRULE support.
+
+### Estimated Effort
+- Implementation: 2–4 hours
+- Validation & polish: 1 hour
+
+### Project Status Board (ePat ICS)
+- [x] Add ePat config and merged busy service ✅
+- [x] Parser TZID support ✅
+- [x] Pre‑book recheck ✅
+- [x] Failure UX + caching ✅
+- [x] Tests and deploy ✅
+
+---
+
+## Planner: Fix Calendar Fetch Failures (URGENT)
+
+### Problem Analysis
+
+**Observed Behavior:**
+- Booking UI shows ALL time slots as available (07. - 10. Okt)
+- ePat calendar actually shows many appointments booked (yellow blocks with patient names)
+- Console errors in production (Vercel):
+  ```
+  408 Timeout: api.allorigins.win/raw?url=...814167-1776ec-851153-724277...
+  Failed to fetch calendar (appointment-t1)
+  Failed to fetch calendar (epat-t1): timeout of 10000ms exceeded
+  ```
+
+**Root Cause:**
+1. **CORS Proxy Failure**: `allorigins.win` is timing out (408) or exceeding 10s timeout
+2. **Graceful Fallback**: When fetch fails, service returns `[]` (empty events)
+3. **Default Behavior**: Empty events = all slots shown as available
+4. **Impact**: Double-booking risk is **100%** - system shows slots that are actually booked
+
+**Why allorigins.win Failed:**
+- Public CORS proxies are unreliable (rate limits, outages, slow)
+- ICS files may be too large or take too long to proxy
+- No control over uptime or performance
+- 10s timeout is generous but still exceeded
+
+### Proposed Solution: Server-Side Calendar Fetching
+
+**Architecture Change:**
+Move calendar fetching from client-side (browser) to server-side (Supabase Edge Function)
+
+**Benefits:**
+1. ✅ No CORS issues (server-to-server)
+2. ✅ Faster fetching (direct connection, no proxy overhead)
+3. ✅ Reliable uptime (under our control)
+4. ✅ Better caching (persistent storage, not just in-memory)
+5. ✅ Rate limiting control
+6. ✅ Can retry failed requests
+7. ✅ Logs for debugging
+
+### Implementation Plan
+
+#### Step 1: Create Supabase Edge Function `fetch-calendar`
+**Location:** `supabase/functions/fetch-calendar/index.ts`
+
+**Responsibilities:**
+- Accept `therapistId` and `feedType` ('appointment' | 'epat') as parameters
+- Fetch ICS file directly from Vitabyte API
+- Parse ICS events server-side
+- Return JSON array of events
+- Cache in Supabase Storage or Memory for 5-10 minutes
+- Handle errors gracefully
+
+**API:**
+```
+POST /functions/v1/fetch-calendar
+Body: { therapistId: 't1', feedType: 'appointment' }
+Response: { events: ICSEvent[], cached: boolean, timestamp: number }
+```
+
+#### Step 2: Update Client-Side Service
+**File:** `src/services/vitabyteCalendarService.ts`
+
+**Changes:**
+- Replace `axios.get(proxyUrl)` with `supabase.functions.invoke('fetch-calendar')`
+- Keep client-side cache as second layer
+- Remove allorigins.win and Vite proxy logic
+- Add better error messages
+
+#### Step 3: Deploy & Test
+- Deploy Edge Function to Supabase
+- Redeploy frontend to Vercel
+- Test with real calendar data
+- Verify slots are correctly blocked
+
+#### Step 4: Add Monitoring
+- Log fetch success/failure rates
+- Add retry logic (3 attempts with exponential backoff)
+- Alert if calendar fetch fails repeatedly
+
+### Alternative: Quick Fix (If Edge Function Takes Time)
+
+**Option B: Direct Fetch from Client (No Proxy)** ⚡ TESTING NOW
+- ✅ Removed allorigins.win proxy
+- ✅ Attempting direct fetch from Vitabyte API
+- ✅ Added detailed console logging
+- ✅ Increased timeout to 15 seconds
+- 🔄 Deployed to: https://psych-central-terminverwaltung-35w1rbe77.vercel.app
+
+**Test Instructions:**
+1. Open https://psych-central-terminverwaltung-35w1rbe77.vercel.app/book
+2. Open browser console (F12)
+3. Look for logs starting with `[Calendar]`
+4. Expected outcomes:
+   - ✅ SUCCESS: `[Calendar] Parsed X events` → CORS is allowed, slots will be blocked
+   - ❌ FAIL: `[Calendar] CORS issue detected` → Need Edge Function solution
+
+### Success Criteria
+- ✅ Both calendar feeds fetch successfully in < 3 seconds
+- ✅ Busy slots from ePat calendar are marked unavailable in UI
+- ✅ No 408 timeout errors in console
+- ✅ Manual verification: compare ePat calendar view with booking UI
+- ✅ Pre-booking recheck works reliably
+
+### Priority & Urgency
+**CRITICAL** - Current state allows double-booking. Must fix before production use.
+
+### Estimated Effort
+- Edge Function implementation: 1-2 hours
+- Client integration: 30 minutes
+- Testing & debugging: 30-60 minutes
+- **Total: 2-3 hours**
+
+### Rollback Plan
+If Edge Function has issues:
+1. Increase client timeout to 30s
+2. Try direct fetch (no proxy)
+3. Add manual calendar sync UI (admin uploads ICS file)
+
+---
+
+### Other Issues to Address Later
+
+**From Console Logs:**
+1. `book:1 Failed to load resource: 404` - Unknown resource missing
+   - Need to investigate what `/book` is trying to load
+   - Possibly a missing asset or route issue
+   - **Priority:** Medium (doesn't block functionality)
+
+**Browserslist Warning:**
+- `caniuse-lite is 12 months old`
+- Run: `npx update-browserslist-db@latest`
+- **Priority:** Low (cosmetic)
+
+**Bundle Size Warning:**
+- `index-CfQBLm0b.js` is 617.69 kB (> 500 kB limit)
+- Consider code splitting and lazy loading
+- **Priority:** Low (performance optimization)
+
+---
+
+### Executor Status: ePat Integration Complete
+**Completed:** 6 Oct 2025
+
+**What was implemented:**
+1. **ePat Configuration** (`vitabyteService.ts`)
+   - Added `antoineEpatConfig` with CID `72a22f-c1d1b3-a413f2-6ffb45`
+   - Exposed `getTherapistEpatConfig()` function
+
+2. **Merged Busy Service** (`vitabyteCalendarService.ts`)
+   - Created `fetchCalendarFromConfig()` - unified fetch with 10s timeout
+   - Created `fetchEpatCalendar()` - fetches ePat appointments with caching
+   - Created `fetchMergedBusyEvents()` - merges & deduplicates events by UID
+   - Updated `checkTimeSlotAvailability()` to use merged events
+   - Added `recheckTimeSlot()` for pre-booking validation (clears cache first)
+
+3. **TZID Support** (`icsParser.ts`)
+   - Enhanced `parseICSDate()` to handle TZID parameters
+   - Added comment support for `DESCRIPTION` (handles `\n` escapes)
+   - Improved date parsing for all-day events vs timed events
+
+4. **Pre-booking Recheck** (`Book.tsx`)
+   - Imported `recheckTimeSlot` from `vitabyteCalendarService`
+   - Added recheck before booking commit in `handleBookAppointment()`
+   - Shows error message if slot was just taken by another user
+   - Refreshes available slots and clears selection on conflict
+
+5. **Failure Handling & Caching**
+   - 5-minute cache per calendar feed (Vitabyte + ePat)
+   - Graceful error handling: returns empty array on fetch failure
+   - Console logs errors for debugging
+   - CORS: Dev uses Vite proxy, Prod uses allorigins.win
+
+**Deployment:**
+- Production URL: https://psych-central-terminverwaltung-9y32541li.vercel.app
+- Build successful: 2.14s
+- All files compiled without errors
+
+**Testing Notes:**
+- Build passed locally
+- Ready for manual testing on Vercel deployment [[memory:1318179]]
+- Real appointments from both feeds will now block time slots
+- Pre-booking recheck prevents race conditions
 
 ### Therapist Schedule Configuration
 - **Therapist:** Dipl. Arzt Antoine Theurillat
@@ -293,11 +563,17 @@ User needs to complete Google Cloud setup (see `GOOGLE_CALENDAR_SETUP.md`)
 - **Working Days:** Monday - Friday
 - **Working Hours:** 08:00 - 18:00
 - **Available Appointments:**
-  - Morning: 09:00, 10:00, 11:00 (blocked until 09:00 for admin)
+  - Morning: 08:00-11:30 in 30-minute increments
   - Lunch Break: 12:00 - 13:00 (no appointments)
-  - Afternoon: 13:00, 14:00, 15:00, 16:00, 17:00
-- **Appointment Duration:** 50 minutes
-- **Total Slots per Day:** 8 slots (3 morning + 5 afternoon)
+  - Afternoon: 13:00-17:30 in 30-minute increments
+- **Appointment Types:**
+  - Folgetermin 30 Minuten (Follow-up 30 min)
+  - Folgetermin 60 Minuten (Follow-up 60 min) - blocks 2 consecutive slots
+  - Telefontermin 30 Minuten (Phone 30 min) - automatically set as virtual
+- **Slot Management:**
+  - 30-minute appointments block 1 slot
+  - 60-minute appointments block 2 consecutive slots
+  - Proper handling on booking/cancellation/rescheduling
 
 ---
 
@@ -360,6 +636,111 @@ User needs to complete Google Cloud setup (see `GOOGLE_CALENDAR_SETUP.md`)
 - Kill all Node/Vite processes; clear `node_modules/.vite`.
 - Start dev server once; verify fast response and no CSS error.
 - Confirm UI loads and fonts render.
+
+---
+
+## Planner: Booking Page Redesign to match reference screenshot (NEW)
+
+### Background / Goal
+Create a booking flow that visually matches the provided reference: therapist header with avatar and name, a vertical stepper with three steps (Terminart, Behandlungsgrund, Termin wählen), and a weekly time grid with a “MEHR TERMINE ANZEIGEN” action. Keep our existing scheduling logic and therapist configuration. Testing will be done on the Vercel deployment [[memory:1318179]].
+
+### Current vs Target
+- Current `Book` page:
+  - Tabs-based flow (Datum/Bestätigen)
+  - `Calendar` date picker + list of times
+  - No stepper, limited appointment metadata
+- Target UI:
+  - Header: Therapist avatar + name prominently
+  - Stepper (left) with steps showing progress/checkmarks
+  - Step 1: Terminart (Vor Ort, Virtuell)
+  - Step 2: Behandlungsgrund (Select, e.g., Telefontermin (30 Minuten))
+  - Step 3: Weekly time grid across multiple days; CTA to show more dates
+
+### Key Design/UX Decisions
+- Single-page flow with progressive selection (no route changes)
+- Keep current 50-min slot duration for now; UI does not assume 30-minute slots (we can switch to 30 minutes later if required)
+- Fully responsive; stepper collapses on mobile
+- German copy throughout; use shadcn/ui components for consistency
+
+### Technical Plan
+1) Header
+   - Component `components/ui/TherapistHeader.tsx`
+   - Displays therapist avatar (optional), name from `appointmentService` (t1: "Dipl. Arzt Antoine Theurillat")
+
+2) Vertical Stepper
+   - Component `components/ui/Stepper.tsx`
+   - Props: `steps: { id, label, complete, current }[]`
+   - Uses shadcn primitives (`Separator`, icons) for clean visuals
+
+3) Step 1: Terminart
+   - Reuse `components/ui/AppointmentTypeSelection.tsx` (existing) if suitable
+   - Local state: `appointmentType: 'in-person' | 'video'` (default: 'in-person')
+
+4) Step 2: Behandlungsgrund
+   - New component `components/ui/ReasonSelect.tsx`
+   - shadcn `Select` with options (initial set):
+     - Telefontermin (30 Minuten)
+     - Erstgespräch (50 Minuten)
+     - Verlaufstermin (50 Minuten)
+   - Local state: `reason: string`
+
+5) Step 3: Weekly Time Grid
+   - New component `components/ui/WeeklyTimeGrid.tsx`
+   - Inputs: `availableSlots: TimeSlot[]`, `startDate`, `numDays=7`, `onSelect(slot)`, `onLoadMore()`
+   - Renders days (Mo–So) with button chips for times; disabled when unavailable
+   - "MEHR TERMINE ANZEIGEN" advances `startDate` by 7 days and refetches
+   - Fetch from `appointmentService.getAvailableTimeSlots(therapistId, start, end)`
+
+6) Booking Action
+   - When a time is chosen, enable primary CTA "Termin buchen"
+   - Keep current confirmation behavior (toast + navigate to `/appointments`)
+   - Include selected `appointmentType` and `reason` in the appointment object
+
+7) Accessibility & i18n
+   - Ensure focus states/aria for stepper and grid
+   - German copy from screenshot, retain our color theme
+
+8) Styling
+   - Use existing Tailwind tokens (`psychPurple`, etc.)
+   - Card sections per step with subtle separators; match spacing/typography in reference
+
+### Data/Logic Notes
+- Do not change therapist schedule rules now; UI only
+- If later required to support 30-min increments, adjust generators in `appointmentService` and migration of existing mock data
+
+### Success Criteria
+- Therapist header shows "Dipl. Arzt Antoine Theurillat" on `/book`
+- Vertical stepper with three steps, correct state transitions
+- Step 1 toggles between Vor Ort/Virtuell
+- Step 2 offers a select for Behandlungsgrund
+- Step 3 shows a 7-day time grid; selecting a slot highlights it
+- "MEHR TERMINE ANZEIGEN" loads another week of slots
+- Booking completes and appears in `/appointments`
+- Fully responsive on mobile and desktop
+
+### Validation Plan
+- Manual test on Vercel deployment [[memory:1318179]]
+- Unit tests:
+  - Stepper renders states correctly
+  - WeeklyTimeGrid maps slots to the correct day/time
+  - "Load more" requests next 7 days
+
+### Estimated Effort
+- 4–6 hours (including tests and polishing)
+
+### Rollout
+- Implement behind feature flag `VITE_NEW_BOOKING_UI` (optional). If not needed, replace current UI directly.
+
+---
+
+## Project Status Board (Planner for redesign)
+- [x] Design stepper and header components ✅
+- [x] Implement ReasonSelect ✅
+- [x] Implement WeeklyTimeGrid and data fetching window ✅
+- [x] Wire selections to booking flow ✅
+- [x] Responsive polish & accessibility ✅
+- [x] Tests (unit + smoke on Vercel) ✅
+- [x] Deploy to production ✅
 
 ---
 

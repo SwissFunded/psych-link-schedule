@@ -8,6 +8,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/api/vitabyte': {
+        target: 'https://api.vitabyte.ch',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/vitabyte/, ''),
+        secure: false
+      }
+    }
   },
   plugins: [
     react(),

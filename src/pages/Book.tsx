@@ -2,41 +2,68 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot } from '@/services/appointmentService';
+import { recheckTimeSlot } from '@/services/vitabyteCalendarService';
 import { format, addDays, startOfWeek, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
-import { Calendar } from '@/components/ui/calendar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
+import TherapistHeader from '@/components/ui/TherapistHeader';
+import Stepper, { Step } from '@/components/ui/Stepper';
+import AppointmentTypeCard from '@/components/ui/AppointmentTypeCard';
+import ReasonSelect, { reasons } from '@/components/ui/ReasonSelect';
+import WeeklyTimeGrid from '@/components/ui/WeeklyTimeGrid';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertCircle } from 'lucide-react';
 
 export default function Book() {
-  const [date, setDate] = useState<Date | undefined>(() => {
-    const today = new Date();
-    const nextMonday = startOfWeek(addDays(today, 7), { weekStartsOn: 1 });
-    return nextMonday;
-  });
+  const [appointmentType, setAppointmentType] = useState<'in-person' | 'video'>('in-person');
+  const [reason, setReason] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("date");
+  const [currentStep, setCurrentStep] = useState(0);
+  const [startDate, setStartDate] = useState(new Date());
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const { patient } = useAuth();
   const navigate = useNavigate();
   
   // Default therapist ID - since we're removing therapist selection
   const defaultTherapistId = "t1";
+  const therapistName = "Dipl. Arzt Antoine Theurillat"; // Therapist name for display
   
+  // Stepper configuration
+  const steps: Step[] = [
+    {
+      id: 'terminart',
+      label: 'Terminart',
+      complete: currentStep > 0,
+      current: currentStep === 0
+    },
+    {
+      id: 'behandlungsgrund',
+      label: 'Behandlungsgrund',
+      complete: currentStep > 1,
+      current: currentStep === 1
+    },
+    {
+      id: 'termin',
+      label: 'Wählen Sie einen Termin',
+      complete: currentStep > 2,
+      current: currentStep === 2
+    }
+  ];
+
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      if (!date) return;
-      
       try {
         setLoading(true);
+        const endDate = addDays(startDate, 7);
         const slots = await appointmentService.getAvailableTimeSlots(
           defaultTherapistId,
-          date,
-          addDays(date, 7)
+          startDate,
+          endDate
         );
         setAvailableSlots(slots.filter(slot => slot.available));
       } catch (error) {
@@ -48,33 +75,81 @@ export default function Book() {
     };
     
     fetchTimeSlots();
-  }, [date]);
+  }, [startDate]);
   
-  const handleTimeSlotSelect = (slot: TimeSlot) => {
-    setSelectedTimeSlot(slot);
-    setActiveTab("confirm");
+  const handleLoadMore = () => {
+    setStartDate(prev => addDays(prev, 7));
+  };
+  
+  const handleNext = () => {
+    if (currentStep === 0 && appointmentType) {
+      setCurrentStep(1);
+    } else if (currentStep === 1 && reason) {
+      // Skip appointment type selection for phone appointments
+      if (reason === 'telefontermin') {
+        setAppointmentType('video');
+      }
+      setCurrentStep(2);
+    }
+  };
+  
+  const isStepValid = () => {
+    switch(currentStep) {
+      case 0: return !!appointmentType;
+      case 1: return !!reason;
+      case 2: return !!selectedTimeSlot;
+      default: return false;
+    }
   };
   
   const handleBookAppointment = async () => {
-    if (!selectedTimeSlot || !patient?.id) return;
+    if (!selectedTimeSlot || !patient?.id || !reason || !policyAccepted) return;
     
     try {
       setLoading(true);
+      
+      // Determine duration based on appointment type
+      const duration = reason === 'folgetermin-60' ? 60 : 30;
+      const appointmentTypeDisplay = reasons.find(r => r.value === reason)?.label || reason;
+      
+      // Pre-booking recheck: verify slot is still available
+      const isStillAvailable = await recheckTimeSlot(
+        defaultTherapistId,
+        selectedTimeSlot.date,
+        duration
+      );
+      
+      if (!isStillAvailable) {
+        toast.error("Dieser Termin wurde gerade gebucht. Bitte wählen Sie einen anderen Zeitpunkt.");
+        // Refresh available slots
+        loadAvailableSlots(startDate);
+        setSelectedTimeSlot(null);
+        setLoading(false);
+        return;
+      }
+      
+      // Phone appointments are always virtual
+      const finalAppointmentType = reason === 'telefontermin' ? 'video' : appointmentType;
       
       const newAppointment = {
         patientId: patient.id,
         therapistId: defaultTherapistId,
         date: selectedTimeSlot.date,
-        duration: selectedTimeSlot.duration,
+        duration: duration,
         status: 'scheduled' as const,
-        type: 'video' as const,
+        type: finalAppointmentType,
+        notes: appointmentTypeDisplay,
       };
       
       const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
       
       if (bookedAppointment) {
-        toast.success("Termin erfolgreich gebucht");
-        navigate('/appointments');
+        navigate('/booking-confirmation', { 
+          state: { 
+            appointment: bookedAppointment,
+            therapistName: therapistName 
+          } 
+        });
       }
     } catch (error) {
       console.error('Failed to book appointment:', error);
@@ -86,92 +161,145 @@ export default function Book() {
   
   return (
     <Layout>
-      <div className="container max-w-4xl mx-auto py-8 px-4">
-        <h1 className="text-2xl font-semibold mb-6">Buchen Sie Ihren Termin</h1>
+      <div className="container max-w-5xl mx-auto py-8 px-4">
+        <TherapistHeader name={therapistName} />
         
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="date">Datum & Zeit wählen</TabsTrigger>
-            <TabsTrigger value="confirm" disabled={!selectedTimeSlot}>Bestätigen</TabsTrigger>
-          </TabsList>
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
+          {/* Left side - Stepper */}
+          <div className="lg:sticky lg:top-8 lg:h-fit">
+            <Stepper steps={steps} />
+          </div>
           
-          <TabsContent value="date" className="animate-fade-in">
-            <h2 className="text-lg font-medium mb-4">Wählen Sie ein Datum und eine Uhrzeit</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-md font-medium mb-2">Datum auswählen</h3>
-                <Card className="border-psychPurple/10">
-                  <CardContent className="p-3">
-                    <Calendar 
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                      disabled={(date) => date < new Date()}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div>
-                <h3 className="text-md font-medium mb-2">Verfügbare Zeiten</h3>
-                {loading ? (
-                  <div className="animate-pulse">
-                    <div className="h-10 bg-psychPurple/10 rounded mb-2"></div>
-                    <div className="h-10 bg-psychPurple/10 rounded mb-2"></div>
-                  </div>
-                ) : availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {availableSlots.map(slot => (
-                      <Button
-                        key={slot.date}
-                        variant="outline"
-                        className={`border-psychPurple/20 ${selectedTimeSlot?.date === slot.date ? 'bg-psychPurple text-white border-psychPurple' : 'hover:border-psychPurple hover:text-psychPurple'}`}
-                        onClick={() => handleTimeSlotSelect(slot)}
-                      >
-                        {format(parseISO(slot.date), 'HH:mm', { locale: de })} Uhr
-                      </Button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-psychText/70">Keine verfügbaren Zeiten für dieses Datum</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="confirm" className="animate-fade-in">
-            <h2 className="text-lg font-medium mb-4">Bestätigen Sie Ihren Termin</h2>
-            {selectedTimeSlot ? (
+          {/* Right side - Content */}
+          <div className="space-y-6">
+            {/* Step 1: Appointment Type */}
+            {currentStep === 0 && (
               <Card className="border-psychPurple/10">
                 <CardContent className="p-6">
-                  <div className="mb-4">
-                    <h3 className="text-md font-medium">Datum und Uhrzeit</h3>
-                    <p className="text-psychText/70">
-                      {format(parseISO(selectedTimeSlot.date), 'EEEE, d. MMMM yyyy', { locale: de })}
-                    </p>
-                    <p className="text-psychText/70">
-                      {format(parseISO(selectedTimeSlot.date), 'HH:mm', { locale: de })} Uhr
-                    </p>
+                  <h2 className="text-lg font-semibold mb-4">Terminart</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <AppointmentTypeCard
+                      type="in-person"
+                      selected={appointmentType === 'in-person'}
+                      onClick={() => setAppointmentType('in-person')}
+                    />
+                    <AppointmentTypeCard
+                      type="video"
+                      selected={appointmentType === 'video'}
+                      onClick={() => setAppointmentType('video')}
+                    />
                   </div>
-                  <Button 
-                    className="w-full bg-psychPurple hover:bg-psychPurple/90"
-                    onClick={handleBookAppointment}
-                    disabled={loading}
-                  >
-                    Termin buchen
-                  </Button>
+                  <div className="mt-6 flex justify-end">
+                    <Button 
+                      onClick={handleNext}
+                      disabled={!appointmentType}
+                      className="bg-psychPurple hover:bg-psychPurple/90"
+                    >
+                      Weiter
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
-            ) : (
-              <div className="text-center py-6">
-                <p className="text-psychText/70">Bitte wählen Sie zuerst eine Uhrzeit aus</p>
-              </div>
             )}
-          </TabsContent>
-        </Tabs>
+            
+            {/* Step 2: Treatment Reason */}
+            {currentStep === 1 && (
+              <Card className="border-psychPurple/10">
+                <CardContent className="p-6">
+                  <h2 className="text-lg font-semibold mb-4">Behandlungsgrund</h2>
+                  <ReasonSelect
+                    value={reason}
+                    onChange={setReason}
+                  />
+                  <div className="mt-6 flex justify-between">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setCurrentStep(0)}
+                    >
+                      Zurück
+                    </Button>
+                    <Button 
+                      onClick={handleNext}
+                      disabled={!reason}
+                      className="bg-psychPurple hover:bg-psychPurple/90"
+                    >
+                      Weiter
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Step 3: Select Time */}
+            {currentStep === 2 && (
+              <Card className="border-psychPurple/10">
+                <CardContent className="p-6">
+                  <h2 className="text-lg font-semibold mb-4">Wählen Sie einen Termin</h2>
+                  <WeeklyTimeGrid
+                    availableSlots={availableSlots}
+                    selectedSlot={selectedTimeSlot}
+                    onSelectSlot={setSelectedTimeSlot}
+                    onLoadMore={handleLoadMore}
+                    loading={loading}
+                  />
+                  
+                  {selectedTimeSlot && (
+                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-amber-900 mb-2">
+                            Bitte vor der Buchung lesen
+                          </h3>
+                          <p className="text-sm text-amber-800 mb-2">
+                            Wenn es Ihnen nicht möglich ist, den vereinbarten Behandlungstermin
+                            einzuhalten, so bitten wir Sie um rechtzeitige Terminabsage (24 Std. im
+                            Voraus an Werktagen). Andernfalls wird eine Gebühr verrechnet.
+                          </p>
+                          <p className="text-sm text-amber-800 mb-2">
+                            Dies gilt auch im Fall von Krankheitsbedingter Absage.
+                          </p>
+                          <p className="text-sm text-amber-800">
+                            Freundliche Grüsse PsychCentral Psychologie CH
+                          </p>
+                          <div className="flex items-center space-x-2 mt-4">
+                            <Checkbox
+                              id="policy"
+                              checked={policyAccepted}
+                              onCheckedChange={(checked) => setPolicyAccepted(checked as boolean)}
+                            />
+                            <label
+                              htmlFor="policy"
+                              className="text-sm font-medium text-amber-900 cursor-pointer"
+                            >
+                              Ich habe die Stornierungsbedingungen gelesen und akzeptiert
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-6 flex justify-between">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setCurrentStep(1)}
+                    >
+                      Zurück
+                    </Button>
+                    <Button 
+                      onClick={handleBookAppointment}
+                      disabled={!selectedTimeSlot || loading || !policyAccepted}
+                      className="bg-psychPurple hover:bg-psychPurple/90 disabled:opacity-50"
+                    >
+                      Termin buchen
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </div>
     </Layout>
   );
