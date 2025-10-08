@@ -809,3 +809,103 @@ Create a booking flow that visually matches the provided reference: therapist he
 
 ---
 
+## Planner: Fix Edge Function CORS Error (URGENT - 08 Oct 2025)
+
+### Problem Analysis
+
+**Observed Behavior:**
+- Edge Function deployed successfully
+- Frontend calls Edge Function via `supabase.functions.invoke()`
+- **CORS error in browser console:**
+  ```
+  Request header field x-client-info is not allowed by Access-Control-Allow-Headers in preflight response
+  ```
+- Calendar data not loading, all slots showing as available
+- Apple Calendar subscription to same ICS URL works instantly
+
+**Root Cause:**
+- Supabase client library sends `x-client-info` header with all function requests
+- Edge Function CORS configuration only allows: `Content-Type, Authorization`
+- Missing: `x-client-info`, `apikey`, and other Supabase-specific headers
+- Preflight OPTIONS request fails → main request blocked
+
+**Why Apple Calendar Works:**
+- Direct HTTP GET to ICS URL (no CORS, no custom headers)
+- Standard calendar protocol (iCal/ICS)
+- No JavaScript same-origin policy
+
+### Solution Options
+
+**Option A: Fix CORS Headers in Edge Function** ✅ RECOMMENDED
+- Update `Access-Control-Allow-Headers` to include Supabase headers
+- Add all required headers: `x-client-info`, `apikey`, `x-requested-with`
+- Fastest fix: 5 minutes
+- Pros: Simple, maintains current architecture
+- Cons: None
+
+**Option B: Use Third-Party Calendar Service**
+- Services like Cal.com, Calendly, Nylas, etc.
+- Pros: Managed infrastructure, webhooks, UI components
+- Cons: Monthly cost, vendor lock-in, overkill for our use case
+- Not needed - we just need to fix CORS headers
+
+**Option C: Direct ICS Fetch (Skip Edge Function)**
+- Fetch ICS URLs directly from browser
+- Pros: Simpler, fewer moving parts
+- Cons: CORS issues with Vitabyte API, already tried this
+
+### Implementation Plan (Executor)
+
+#### Step 1: Update Edge Function CORS Headers
+**File:** `supabase/functions/fetch-calendar/index.ts`
+
+**Change:**
+```typescript
+// OLD:
+'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+
+// NEW:
+'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey, x-requested-with',
+```
+
+**Apply to:**
+- OPTIONS preflight response (line ~22)
+- All other responses throughout the function
+
+#### Step 2: Redeploy Edge Function
+```bash
+supabase functions deploy fetch-calendar --project-ref bdmloghbaeqocmgfikjo --no-verify-jwt
+```
+
+#### Step 3: Test
+- Clear browser cache
+- Visit booking page
+- Check console - should see successful fetches
+- Verify slots are blocked based on calendar data
+
+### Success Criteria
+- ✅ No CORS errors in browser console
+- ✅ `[Calendar] Parsed X events` logs appear
+- ✅ Busy slots from test calendar are blocked in UI
+- ✅ Refresh button works without errors
+
+### Estimated Effort
+- Fix: 5 minutes
+- Test: 2 minutes
+- **Total: 7 minutes**
+
+### Regarding Third-Party Services
+User asked about AI/services to avoid reinventing wheel. **Answer: Not needed.**
+- ICS/iCal is a standard protocol (works perfectly in Apple Calendar)
+- We're just missing CORS headers (simple fix)
+- Third-party services (Cal.com, Calendly, Nylas) would be overkill and expensive
+- Current approach is correct, just needs CORS fix
+
+---
+
+## Executor: Fixing Edge Function CORS (08 Oct 2025)
+
+**Status:** 🔧 In Progress
+
+---
+
