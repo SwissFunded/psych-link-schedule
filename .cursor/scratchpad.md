@@ -905,7 +905,326 @@ User asked about AI/services to avoid reinventing wheel. **Answer: Not needed.**
 
 ## Executor: Fixing Edge Function CORS (08 Oct 2025)
 
-**Status:** 🔧 In Progress
+**Status:** ✅ COMPLETED
+
+### What Was Done:
+
+1. **Updated CORS Headers** (`supabase/functions/fetch-calendar/index.ts`)
+   - Changed line 22 from:
+     ```typescript
+     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+     ```
+   - To:
+     ```typescript
+     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey, x-requested-with',
+     ```
+
+2. **Redeployed Edge Function**
+   - Command: `supabase functions deploy fetch-calendar --project-ref bdmloghbaeqocmgfikjo --no-verify-jwt`
+   - Status: ✅ Deployed successfully
+   - Dashboard: https://supabase.com/dashboard/project/bdmloghbaeqocmgfikjo/functions
+
+3. **Tested with Supabase Headers**
+   - Test command included `x-client-info` header
+   - Result: ✅ Returns valid ICS calendar data
+   - No CORS errors
+
+### Next Step for User:
+**Visit booking page and test:** https://psych-central-terminverwaltung.vercel.app/book
+- CORS errors should be gone
+- Calendar should load successfully
+- Busy slots from test calendar should be blocked
+- Dev refresh button should work
+
+**Note:** No frontend redeploy needed - this was a server-side fix only. Just refresh your browser (hard refresh: Cmd+Shift+R / Ctrl+Shift+F5).
+
+---
+
+## Planner: Implement Day Carousel Time Selector (Option 3) - 08 Oct 2025
+
+### User Decision
+User selected **Option 3 (Day Carousel)** from UI prototypes.
+
+### Goals
+1. Replace current weekly time grid with day carousel design
+2. Match existing purple design language (`psychPurple`)
+3. Prioritize mobile UX (touch-friendly, swipeable)
+4. Maintain all existing booking logic and calendar sync
+
+### Current State Analysis
+
+**Current Implementation (`src/pages/Book.tsx`):**
+- Uses `WeeklyTimeGrid` component
+- Shows 7 days in a grid layout
+- "MEHR TERMINE ANZEIGEN" loads next 7 days
+- Works but overwhelming on mobile (too many buttons)
+
+**What Needs to Change:**
+- Replace `WeeklyTimeGrid` with new `DayCarousel` component
+- Horizontal scrollable day pills
+- Show times only for selected day
+- Better touch gestures
+
+### Design Requirements
+
+**Visual Consistency:**
+- Use `psychPurple` (#7c3aed) for selected states
+- Use existing Tailwind classes from current design
+- Match therapist header, stepper, and form styling
+- Smooth transitions and hover effects
+
+**Mobile-First:**
+- Touch-friendly day pills (minimum 44x44px tap targets)
+- Horizontal scroll with momentum
+- Larger time buttons (easier to tap)
+- Works on small screens (iPhone SE)
+
+**Accessibility:**
+- Keyboard navigation (arrow keys)
+- Focus states
+- ARIA labels
+- Screen reader support
+
+### Implementation Plan
+
+#### Step 1: Create DayCarousel Component
+**File:** `src/components/ui/DayCarousel.tsx`
+
+**Props Interface:**
+```typescript
+interface DayCarouselProps {
+  availableSlots: TimeSlot[];
+  selectedDate: Date | null;
+  onSelectDate: (date: Date) => void;
+  onSelectTime: (slot: TimeSlot) => void;
+  selectedSlot: TimeSlot | null;
+  loading?: boolean;
+}
+```
+
+**Features:**
+- Horizontal scrollable day pills (7-10 days visible)
+- Each pill shows: day name, date, availability count
+- Selected day highlighted in purple
+- Arrows for desktop, swipe for mobile
+- Auto-scroll selected day into view
+
+**Layout:**
+```
+┌──────────────────────────────────────────┐
+│  < [Do 9.] [Fr 10.] [Mo 13.] [Di 14.] >  │
+│      5 frei  8 frei  3 frei  12 frei     │
+└──────────────────────────────────────────┘
+
+Selected: Freitag, 10. Oktober 2025
+
+Vormittag
+┌────────┬────────┬────────┬────────┐
+│ 08:00  │ 08:30  │ 09:00  │ 09:30  │
+└────────┴────────┴────────┴────────┘
+
+Nachmittag  
+┌────────┬────────┬────────┬────────┐
+│ 13:30  │ 15:00  │ 16:00  │ 17:30  │
+└────────┴────────┴────────┴────────┘
+```
+
+#### Step 2: Create DayPill Component
+**File:** `src/components/ui/DayPill.tsx`
+
+**Features:**
+- Compact pill design (rounded-xl)
+- Shows day abbreviation, date, availability count
+- Active state with purple background
+- Hover effects
+- Touch-friendly sizing
+
+**States:**
+- Default: white bg, gray border
+- Hover: purple border
+- Active: purple bg, white text
+- Disabled: gray out if no slots
+
+#### Step 3: Create TimeGrid Component  
+**File:** `src/components/ui/TimeGrid.tsx`
+
+**Features:**
+- Shows times for ONE selected day
+- Groups by morning/afternoon
+- 3-4 columns on mobile, 4-6 on desktop
+- Larger touch targets (min 48px height)
+- Selected time highlighted
+- Disabled times grayed out
+
+#### Step 4: Update Book.tsx
+
+**Changes:**
+1. Remove `WeeklyTimeGrid` import
+2. Import `DayCarousel`
+3. Add state for selected date
+4. Filter slots by selected date
+5. Group slots by time of day
+6. Update "MEHR TERMINE ANZEIGEN" to load more days
+
+**New State:**
+```typescript
+const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+const [dateRange, setDateRange] = useState({ start: new Date(), days: 14 });
+```
+
+**Logic:**
+```typescript
+// Auto-select first day with slots
+useEffect(() => {
+  if (!selectedDate && availableSlots.length > 0) {
+    setSelectedDate(parseISO(availableSlots[0].date));
+  }
+}, [availableSlots]);
+
+// Filter slots for selected day
+const slotsForSelectedDay = useMemo(() => {
+  if (!selectedDate) return [];
+  const dayStr = format(selectedDate, 'yyyy-MM-dd');
+  return availableSlots.filter(slot => 
+    format(parseISO(slot.date), 'yyyy-MM-dd') === dayStr
+  );
+}, [selectedDate, availableSlots]);
+```
+
+#### Step 5: Styling & Polish
+
+**Colors (maintain consistency):**
+- Primary: `bg-purple-600` (#7c3aed)
+- Hover: `bg-purple-700`
+- Selected: `bg-purple-600 text-white`
+- Available: `bg-purple-50 border-purple-200`
+- Disabled: `bg-gray-100 text-gray-400`
+
+**Animations:**
+- Smooth scroll behavior
+- Fade in times when day selected
+- Scale on hover
+- Transition duration: 200ms
+
+**Typography:**
+- Day pills: font-semibold, text-sm
+- Time buttons: font-medium, text-base
+- Section headers: font-medium, text-sm, text-gray-600
+
+#### Step 6: Mobile Optimization
+
+**Touch Targets:**
+- Day pills: min 44x44px
+- Time buttons: min 48px height
+- Comfortable spacing: 12-16px gaps
+
+**Scroll Behavior:**
+- Momentum scrolling
+- Snap to pills (optional)
+- Hide scrollbar on mobile
+- Show scrollbar on desktop
+
+**Responsive Breakpoints:**
+- Mobile (<640px): 2-3 time columns, smaller day pills
+- Tablet (640-1024px): 3-4 time columns
+- Desktop (>1024px): 4-6 time columns
+
+#### Step 7: Testing Checklist
+
+**Functionality:**
+- [ ] Day selection updates times displayed
+- [ ] Time selection highlights correctly
+- [ ] Calendar sync shows blocked times
+- [ ] "Load more" adds more days
+- [ ] Pre-booking recheck works
+- [ ] Booking completes successfully
+
+**Mobile:**
+- [ ] Swipe scrolling smooth
+- [ ] Touch targets large enough
+- [ ] No horizontal overflow
+- [ ] Works on iPhone SE (smallest)
+- [ ] Works on Android
+
+**Desktop:**
+- [ ] Arrow navigation works
+- [ ] Keyboard navigation (arrow keys)
+- [ ] Hover states visible
+- [ ] Responsive at all sizes
+
+**Accessibility:**
+- [ ] Focus visible on all elements
+- [ ] Tab order logical
+- [ ] ARIA labels present
+- [ ] Screen reader announces selections
+
+### Success Criteria
+
+**User Experience:**
+- ✅ Booking takes ≤ 3 taps (select day → select time → confirm)
+- ✅ Feels fast and responsive
+- ✅ No confusion about what to do
+- ✅ Works perfectly on mobile
+
+**Visual:**
+- ✅ Matches existing purple theme
+- ✅ Professional appearance
+- ✅ Smooth animations
+- ✅ No visual glitches
+
+**Technical:**
+- ✅ No TypeScript errors
+- ✅ No console errors
+- ✅ Calendar sync working
+- ✅ All existing features preserved
+
+### Risks & Mitigations
+
+**Risk 1: Complex date filtering logic**
+- Mitigation: Use date-fns for reliable date comparison
+- Group slots by date first, then display
+
+**Risk 2: Scroll performance on mobile**
+- Mitigation: Use CSS `scroll-snap`, optimize re-renders with useMemo
+
+**Risk 3: Existing calendar sync might break**
+- Mitigation: Don't touch `vitabyteCalendarService`, only change UI layer
+
+**Risk 4: Touch gestures conflict with page scroll**
+- Mitigation: Use `overflow-x-auto` on carousel container only
+
+### Estimated Effort
+
+- **DayCarousel component:** 1 hour
+- **DayPill component:** 30 min
+- **TimeGrid component:** 45 min
+- **Book.tsx integration:** 1 hour
+- **Styling & polish:** 1 hour
+- **Testing & fixes:** 1 hour
+- **Total: ~5-6 hours**
+
+### Rollout Plan
+
+1. Create components in isolation
+2. Test components in Storybook (optional) or dev page
+3. Integrate into Book.tsx
+4. Test locally
+5. Deploy to Vercel
+6. User tests on real mobile device
+7. Iterate based on feedback
+
+---
+
+## Project Status Board (Day Carousel Implementation)
+
+- [ ] Create DayCarousel component
+- [ ] Create DayPill component  
+- [ ] Create TimeGrid component
+- [ ] Update Book.tsx integration
+- [ ] Style and polish
+- [ ] Test on mobile devices
+- [ ] Deploy to Vercel
+- [ ] User acceptance testing
 
 ---
 

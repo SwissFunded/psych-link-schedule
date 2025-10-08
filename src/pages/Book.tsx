@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot } from '@/services/appointmentService';
 import { recheckTimeSlot, clearAllCalendarCache } from '@/services/vitabyteCalendarService';
-import { format, addDays, startOfWeek, parseISO } from 'date-fns';
+import { format, addDays, startOfDay, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import TherapistHeader from '@/components/ui/TherapistHeader';
 import Stepper, { Step } from '@/components/ui/Stepper';
 import AppointmentTypeCard from '@/components/ui/AppointmentTypeCard';
 import ReasonSelect, { reasons } from '@/components/ui/ReasonSelect';
-import WeeklyTimeGrid from '@/components/ui/WeeklyTimeGrid';
+import DayCarousel from '@/components/ui/DayCarousel';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
@@ -22,6 +22,7 @@ export default function Book() {
   const [reason, setReason] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [startDate, setStartDate] = useState(new Date());
@@ -59,7 +60,7 @@ export default function Book() {
     const fetchTimeSlots = async () => {
       try {
         setLoading(true);
-        const endDate = addDays(startDate, 7);
+        const endDate = addDays(startDate, 14); // Load 14 days instead of 7
         const slots = await appointmentService.getAvailableTimeSlots(
           defaultTherapistId,
           startDate,
@@ -77,8 +78,16 @@ export default function Book() {
     fetchTimeSlots();
   }, [startDate]);
   
+  // Auto-select first day with available slots
+  useEffect(() => {
+    if (!selectedDate && availableSlots.length > 0) {
+      const firstSlotDate = parseISO(availableSlots[0].date);
+      setSelectedDate(startOfDay(firstSlotDate));
+    }
+  }, [availableSlots, selectedDate]);
+  
   const handleLoadMore = () => {
-    setStartDate(prev => addDays(prev, 7));
+    setStartDate(prev => addDays(prev, 14)); // Load 14 more days
   };
   
   const handleRefreshCalendar = async () => {
@@ -88,7 +97,7 @@ export default function Book() {
       toast.info("🔄 Kalender wird aktualisiert...");
       
       // Refetch time slots
-      const endDate = addDays(startDate, 7);
+      const endDate = addDays(startDate, 14);
       const slots = await appointmentService.getAvailableTimeSlots(
         defaultTherapistId,
         startDate,
@@ -276,13 +285,13 @@ export default function Book() {
             
             {/* Step 3: Select Time */}
             {currentStep === 2 && (
-              <Card className="border-psychPurple/10">
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">Wählen Sie einen Termin</h2>
-                  <WeeklyTimeGrid
+              <div>
+                  <DayCarousel
                     availableSlots={availableSlots}
-                    selectedSlot={selectedTimeSlot}
+                    selectedDate={selectedDate}
+                    onSelectDate={setSelectedDate}
                     onSelectSlot={setSelectedTimeSlot}
+                    selectedSlot={selectedTimeSlot}
                     onLoadMore={handleLoadMore}
                     loading={loading}
                   />
@@ -339,8 +348,7 @@ export default function Book() {
                       Termin buchen
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+              </div>
             )}
           </div>
         </div>
