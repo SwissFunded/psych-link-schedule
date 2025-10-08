@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot } from '@/services/appointmentService';
-import { recheckTimeSlot } from '@/services/vitabyteCalendarService';
+import { recheckTimeSlot, clearAllCalendarCache } from '@/services/vitabyteCalendarService';
 import { format, addDays, startOfWeek, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import AppointmentTypeCard from '@/components/ui/AppointmentTypeCard';
 import ReasonSelect, { reasons } from '@/components/ui/ReasonSelect';
 import WeeklyTimeGrid from '@/components/ui/WeeklyTimeGrid';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function Book() {
   const [appointmentType, setAppointmentType] = useState<'in-person' | 'video'>('in-person');
@@ -81,6 +81,29 @@ export default function Book() {
     setStartDate(prev => addDays(prev, 7));
   };
   
+  const handleRefreshCalendar = async () => {
+    try {
+      setLoading(true);
+      clearAllCalendarCache(); // Clear all calendar caches
+      toast.info("🔄 Kalender wird aktualisiert...");
+      
+      // Refetch time slots
+      const endDate = addDays(startDate, 7);
+      const slots = await appointmentService.getAvailableTimeSlots(
+        defaultTherapistId,
+        startDate,
+        endDate
+      );
+      setAvailableSlots(slots.filter(slot => slot.available));
+      toast.success("✅ Kalender aktualisiert!");
+    } catch (error) {
+      console.error('Failed to refresh calendar:', error);
+      toast.error("Kalender konnte nicht aktualisiert werden");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   const handleNext = () => {
     if (currentStep === 0 && appointmentType) {
       setCurrentStep(1);
@@ -122,7 +145,13 @@ export default function Book() {
       if (!isStillAvailable) {
         toast.error("Dieser Termin wurde gerade gebucht. Bitte wählen Sie einen anderen Zeitpunkt.");
         // Refresh available slots
-        loadAvailableSlots(startDate);
+        const endDate = addDays(startDate, 7);
+        const refreshedSlots = await appointmentService.getAvailableTimeSlots(
+          defaultTherapistId,
+          startDate,
+          endDate
+        );
+        setAvailableSlots(refreshedSlots.filter(slot => slot.available));
         setSelectedTimeSlot(null);
         setLoading(false);
         return;
@@ -162,7 +191,22 @@ export default function Book() {
   return (
     <Layout>
       <div className="container max-w-5xl mx-auto py-8 px-4">
-        <TherapistHeader name={therapistName} />
+        <div className="flex items-center justify-between mb-6">
+          <TherapistHeader name={therapistName} />
+          
+          {/* DEV: Temporary refresh button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshCalendar}
+            disabled={loading}
+            className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">DEV: Kalender aktualisieren</span>
+            <span className="sm:hidden">Refresh</span>
+          </Button>
+        </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
           {/* Left side - Stepper */}

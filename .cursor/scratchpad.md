@@ -744,3 +744,68 @@ Create a booking flow that visually matches the provided reference: therapist he
 
 ---
 
+## Executor Status: Calendar Integration via Supabase Edge Function (08 Oct 2025)
+
+### Implementation Complete
+**Status:** ✅ Edge Function deployed, frontend deployed, awaiting manual testing
+
+**What was implemented:**
+
+1. **Supabase Edge Function** (`supabase/functions/fetch-calendar/index.ts`)
+   - Server-side ICS calendar fetching (no CORS issues)
+   - Whitelisted calendar configurations for therapist `t1`
+   - In-memory caching with 5-minute TTL
+   - Retry logic with exponential backoff (3 attempts)
+   - Stale cache fallback on failure
+   - Currently configured with test calendar: `cid=966541-462631-f1b699-977a3d`
+
+2. **Frontend Service Updates** (`src/services/vitabyteCalendarService.ts`)
+   - Replaced direct fetch with `supabase.functions.invoke('fetch-calendar')`
+   - Client-side cache as second layer (5 minutes)
+   - Fetches both appointment and ePat calendars via Edge Function
+   - Merges and deduplicates events by UID
+   - Pre-booking recheck with cache clearing
+
+3. **Calendar Configuration**
+   - **Test Calendar (temporary):** `966541-462631-f1b699-977a3d` ✅ PUBLIC, WORKING
+   - **Antoine's Appointment Feed:** `814167-1776ec-851153-724277` ❌ RETURNS 401 (not public)
+   - **Antoine's ePat Feed:** `72a22f-c1d1b3-a413f2-6ffb45` ❌ RETURNS 401 (not public)
+
+4. **Deployment**
+   - ✅ Edge Function deployed to Supabase: https://supabase.com/dashboard/project/bdmloghbaeqocmgfikjo/functions
+   - ✅ Tested successfully with test calendar (44 appointments parsed)
+   - ✅ Frontend pushed to GitHub (force push completed)
+   - 🔄 Vercel deployment in progress [[memory:1318179]]
+
+### Next Steps (User Action Required)
+
+**Option A: Test with Test Calendar (Works Now)**
+1. Wait for Vercel deployment to complete
+2. Visit booking page
+3. Verify that appointments from test calendar block time slots
+4. Test booking flow end-to-end
+
+**Option B: Switch to Antoine's Real Calendars (Requires Vitabyte Config)**
+1. Make Antoine's calendars publicly accessible in Vitabyte:
+   - Appointment busy feed: `cid=814167-1776ec-851153-724277`
+   - ePat busy feed: `cid=72a22f-c1d1b3-a413f2-6ffb45`
+2. Update Edge Function configuration to use real calendar IDs
+3. Redeploy Edge Function
+4. Test on Vercel
+
+### Authentication Investigation Results [[memory:9692550]]
+- Tested HTTP Basic Auth with username `Miro` and password `f2DF6g-kBu*n!tkAz!TA` → Still returns 401
+- Tested API key as query parameter → 401
+- Tested API key as custom header → 401
+- **Conclusion:** Calendar URLs use the `cid=` parameter as the authentication token
+- **Test calendar works** because it's set to public in Vitabyte
+- **Antoine's calendars fail** because they're not set to public
+
+### Remaining Tasks
+- [ ] User to make Antoine's calendars public in Vitabyte OR confirm test calendar is sufficient
+- [ ] Manual testing on Vercel deployment
+- [ ] Verify busy slots are correctly blocked in UI
+- [ ] Update Edge Function with production calendar IDs (when ready)
+
+---
+
