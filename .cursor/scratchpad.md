@@ -1401,3 +1401,111 @@ const slotsForSelectedDay = useMemo(() => {
 
 ---
 
+## Executor: CRITICAL FIX - Smart Duration Validation (09 Oct 2025)
+
+**🔴 CRITICAL BUG FIXED:** Prevented double-booking when insufficient consecutive time available.
+
+### The Problem:
+
+**Scenario:**
+- Calendar shows: 10:30-11:00 FREE, 11:00-12:00 BUSY (existing appointment)
+- User selects: "Folgetermin 60 Min" (60-minute appointment)
+- System showed: 10:30 as available ❌ WRONG!
+- User could book: 10:30-11:30 (60 min) ❌ OVERLAPS with 11:00 appointment!
+
+**Root Cause:**
+- All slots generated with fixed 30-minute duration
+- Calendar check only validated the 30-minute window
+- Didn't verify enough **consecutive free time** for longer appointments
+
+### The Solution:
+
+**Smart Duration Validation:**
+
+1. **Check BOTH 30 and 60 minutes** for every slot:
+   ```typescript
+   // Check if 60 consecutive minutes are free
+   const has60MinutesFree = isTimeSlotAvailable(slotStart, slotEnd60, events);
+   
+   // Check if at least 30 minutes is free
+   const has30MinutesFree = has60MinutesFree || isTimeSlotAvailable(slotStart, slotEnd30, events);
+   ```
+
+2. **Store metadata** on each slot:
+   ```typescript
+   metadata: {
+     has60MinutesFree: boolean  // Whether 60 consecutive minutes available
+   }
+   ```
+
+3. **Filter slots based on appointment duration**:
+   - **30-min appointment** → Show all 30-min available slots
+   - **60-min appointment** → Show ONLY slots with 60 consecutive minutes free
+
+4. **Dynamic filtering** when user changes appointment type:
+   ```typescript
+   const filteredSlots = useMemo(() => {
+     const duration = reason === 'folgetermin-60' ? 60 : 30;
+     if (duration === 60) {
+       return availableSlots.filter(slot => slot.metadata?.has60MinutesFree === true);
+     }
+     return availableSlots;
+   }, [availableSlots, reason]);
+   ```
+
+### Examples:
+
+**Scenario 1: Partial availability**
+- 10:30-11:00: FREE (30 min)
+- 11:00-12:00: BUSY
+- **Result:**
+  - ✅ Shows in 30-min appointment list
+  - ❌ Hidden from 60-min appointment list
+
+**Scenario 2: Full availability**
+- 10:30-11:00: FREE
+- 11:00-11:30: FREE
+- **Result:**
+  - ✅ Shows in 30-min appointment list
+  - ✅ Shows in 60-min appointment list
+
+### Code Changes:
+
+**Files Modified:**
+1. `src/services/vitabyteCalendarService.ts`
+   - Enhanced `checkTimeSlotAvailability()` to check both durations
+   - Stores `has60MinutesFree` metadata
+
+2. `src/services/appointmentService.ts`
+   - Updated `TimeSlot` interface with metadata field
+
+3. `src/pages/Book.tsx`
+   - Added `filteredSlots` useMemo
+   - Filters based on selected appointment reason
+   - DayCarousel uses filtered slots
+   - Auto-selection uses filtered slots
+
+### Deployment:
+
+**Git Commit:** `049209c`
+**Deployed:** Vercel ✅
+
+### Testing Checklist:
+
+**For 30-Minute Appointments:**
+- [ ] All available 30-minute slots show up
+- [ ] Can book slots with only 30 minutes free
+
+**For 60-Minute Appointments:**
+- [ ] Only slots with 60 consecutive minutes show up
+- [ ] Slots with partial time (like 10:30 example) are hidden
+- [ ] Can successfully book 60-minute appointments
+- [ ] No overlaps with existing calendar events
+
+**Edge Cases:**
+- [ ] Slot at 17:30 doesn't show for 60-min (no time after 18:00)
+- [ ] Slot before lunch break (11:30) doesn't show for 60-min if lunch at 12:00
+- [ ] Changing appointment type filters slots correctly
+
+---
+
