@@ -1338,3 +1338,21 @@ const slotsForSelectedDay = useMemo(() => {
 
 ---
 
+## Executor: Removed Calendar Buttons from Confirmation (08 Oct 2025)
+
+**Quick Update:** Removed "TERMIN HINZUFÜGEN" and "KALENDER ABONNIEREN" buttons from booking confirmation page per user request.
+
+**Changes:**
+- Removed both calendar action buttons
+- Cleaned up unused imports (`downloadICSFile`, `getVitabyteCalendarUrl`, etc.)
+- Removed unused functions (`handleAddToCalendar`, `handleSubscribeToCalendar`)
+- Removed unused import `addMinutes` from date-fns
+- Simplified layout - confirmation shows appointment details without calendar export options
+
+**Git Commit:** `b1cba4d`
+**Deployed to:** Vercel ✅
+
+**Result:** Cleaner confirmation page focusing on appointment details and next steps (view appointments / book new appointment).
+
+---
+
