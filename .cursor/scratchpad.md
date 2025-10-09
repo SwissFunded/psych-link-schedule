@@ -1626,3 +1626,93 @@ return availableSlots.filter(slot => {
 
 ---
 
+## Executor: Auto-Search for 60-Min Appointments (09 Oct 2025)
+
+**Problem:** When user selects "Folgetermin 60 Min", system showed "no appointments available" even when slots existed far in the future (e.g., October 20th).
+
+**Root Cause:** 
+- Initial 14-day fetch had no 60-min slots (no 2 consecutive 30-min available)
+- User couldn't see "MEHR TERMINE ANZEIGEN" to manually page forward
+- Had to manually search through weeks to find availability
+
+**Solution: Progressive Auto-Search**
+
+Implemented automatic progressive search strategy: **14 days → +30 days → +90 days**
+
+### How It Works:
+
+**Step 1: Initial Load (14 days)**
+- Normal fetch of 14 days from today
+- Filters for 60-min slots (2 consecutive 30-min)
+
+**Step 2: Auto-Search Triggered** (if no 60-min slots found)
+1. Shows toast: "🔍 Suche nach verfügbaren 60-Minuten-Terminen..."
+2. Searches next 30 days (days 15-44)
+3. If found → Updates to that range, shows toast: "✅ Termine in den nächsten Monat gefunden!"
+4. If not found → Searches next 90 days (days 45-134)
+5. If found → Updates to that range
+6. If still none → Error toast: "Keine 60-Minuten-Termine in den nächsten 3 Monaten verfügbar. Bitte kontaktieren Sie uns direkt."
+
+**UX Improvements:**
+- Auto-search only for 60-min appointments
+- 30-min appointments work normally (no auto-search)
+- Console logging for debugging
+- Preserves manual "MEHR TERMINE ANZEIGEN" button
+- DayCarousel always visible with empty state message
+
+### Code Changes:
+
+**1. Book.tsx - Auto-Search useEffect**
+```typescript
+useEffect(() => {
+  // Only for 60-min appointments
+  if (reason !== 'folgetermin-60') return;
+  if (filteredSlots.length > 0) return; // Already have slots
+  
+  // Progressive search: 14 → 30 → 90 days
+  const searchRanges = [
+    { days: 14, label: 'nächsten 2 Wochen' },
+    { days: 30, label: 'nächsten Monat' },
+    { days: 90, label: 'nächsten 3 Monaten' }
+  ];
+  
+  // Search each range until found
+  // Update startDate and availableSlots when found
+}, [filteredSlots, reason, loading]);
+```
+
+**2. DayCarousel.tsx - Empty State**
+- Changed early return to conditional rendering
+- Shows empty message + "MEHR TERMINE ANZEIGEN" button always
+- Wrapped carousel content in Fragment for proper structure
+
+### Benefits:
+
+✅ **User finds slots automatically** - no manual paging  
+✅ **Smart search** - only for 60-min (30-min unchanged)  
+✅ **Transparent UX** - toast messages show progress  
+✅ **Graceful degradation** - manual load more still works  
+✅ **Performance** - stops on first hit  
+✅ **Console logging** - easy debugging  
+
+### Deployment:
+
+**Git Commit:** `75f9b5b`
+**Deployed:** Vercel ✅
+
+### Testing:
+
+**Test Scenario:**
+1. Select "Folgetermin 60 Min"
+2. Watch for auto-search toast notification
+3. Should automatically find October 20th slot
+4. Should jump to that date range
+5. Day pills should show available days
+
+**Edge Cases:**
+- No 60-min slots in 134 days → Shows helpful error
+- 30-min selection → No auto-search, normal behavior
+- Switching 30↔60 → Auto-search triggers for 60-min
+
+---
+
