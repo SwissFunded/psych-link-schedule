@@ -1,26 +1,27 @@
 // Vitabyte Calendar Integration Service
-// Antoine's calendar: https://api.vitabyte.ch/calendar/?action=getics&cid=0641e7-1d2756-9d1896-9b3206&type=.ics
+// Antoine's main calendar: https://api.vitabyte.ch/calendar/?action=getics&cid=6ad3d7-1ad15c-16007e-d6a924&type=.ics
+// This calendar includes ALL appointments: therapy sessions, admin time, START blocks, and non-billable appointments
 
 export interface VitabyteConfig {
   cid: string;
   baseUrl: string;
 }
 
-// Antoine's Vitabyte configuration
+// Antoine's main Vitabyte calendar (comprehensive - includes all appointment types)
 export const antoineVitabyteConfig: VitabyteConfig = {
-  cid: '0641e7-1d2756-9d1896-9b3206',
+  cid: '6ad3d7-1ad15c-16007e-d6a924',
   baseUrl: 'https://api.vitabyte.ch/calendar/'
 };
 
-// Antoine's appointment calendar (shows busy times)
+// Antoine's appointment calendar (same as main calendar)
 export const antoineAppointmentConfig: VitabyteConfig = {
-  cid: '814167-1776ec-851153-724277',
+  cid: '6ad3d7-1ad15c-16007e-d6a924',
   baseUrl: 'https://api.vitabyte.ch/calendar/'
 };
 
-// Antoine's ePat calendar (shows appointments from Google/Apple/3rd-party apps)
+// Antoine's ePat calendar (same as main calendar - includes all appointments)
 export const antoineEpatConfig: VitabyteConfig = {
-  cid: '72a22f-c1d1b3-a413f2-6ffb45',
+  cid: '6ad3d7-1ad15c-16007e-d6a924',
   baseUrl: 'https://api.vitabyte.ch/calendar/'
 };
 
