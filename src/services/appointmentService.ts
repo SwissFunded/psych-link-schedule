@@ -32,11 +32,8 @@ export interface Appointment {
 export interface TimeSlot {
   therapistId: string;
   date: string; // ISO format
-  duration: number; // in minutes
+  duration: number; // in minutes (always 30)
   available: boolean;
-  metadata?: {
-    has60MinutesFree?: boolean; // Whether this slot has 60 consecutive minutes free
-  };
 }
 
 // Mock therapists data

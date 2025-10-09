@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot } from '@/services/appointmentService';
 import { recheckTimeSlot, clearAllCalendarCache } from '@/services/vitabyteCalendarService';
-import { format, addDays, startOfDay, parseISO } from 'date-fns';
+import { format, addDays, startOfDay, parseISO, addMinutes } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -84,8 +84,22 @@ export default function Book() {
     const duration = reason === 'folgetermin-60' ? 60 : 30;
     
     if (duration === 60) {
-      // For 60-minute appointments, only show slots with 60 consecutive minutes free
-      return availableSlots.filter(slot => slot.metadata?.has60MinutesFree === true);
+      // For 60-minute appointments, only show slots where both current AND next 30-min slot are available
+      return availableSlots.filter(slot => {
+        // Check if current slot is available
+        if (!slot.available) return false;
+        
+        // Find the next 30-minute slot (current + 30 minutes)
+        const currentTime = parseISO(slot.date);
+        const nextSlotTime = addMinutes(currentTime, 30);
+        const nextSlotDate = nextSlotTime.toISOString();
+        
+        // Find next slot in availableSlots
+        const nextSlot = availableSlots.find(s => s.date === nextSlotDate);
+        
+        // Both current and next slot must be available
+        return nextSlot?.available === true;
+      });
     }
     
     // For 30-minute appointments, show all available slots

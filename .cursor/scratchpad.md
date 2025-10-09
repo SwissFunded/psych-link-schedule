@@ -1509,3 +1509,39 @@ const slotsForSelectedDay = useMemo(() => {
 
 ---
 
+## Planner: 60-Min Appointment Filtering Issue (09 Oct 2025)
+
+**User Report:** Selecting "Folgetermin 60 Min" shows "no appointments available" even though there should be slots far in the future.
+
+### Root Cause Analysis:
+
+**Hypotheses:**
+1. Metadata `has60MinutesFree` not being set correctly
+2. Metadata not persisting through state updates
+3. Filtering logic too strict (undefined !== true)
+4. Load more functionality not adding metadata to new slots
+
+### Fix Plan:
+
+**Step 1:** Add debug logging to verify:
+- Slots have metadata
+- `has60MinutesFree` is correctly calculated
+- Filtering logic works as expected
+
+**Step 2:** Make filtering more robust:
+- Ensure metadata always exists (default to checking if needed)
+- Handle undefined metadata gracefully
+- Add fallback logic
+
+**Step 3:** Improve UX:
+- Clear selected slot when appointment type changes
+- Reset date selection if filtered slots are empty
+- Show helpful message when no 60-min slots available
+
+**Success Criteria:**
+- ✅ Can see and book 60-minute appointments
+- ✅ Switching types updates slots correctly
+- ✅ Load more works for both 30 and 60-min appointments
+
+---
+
