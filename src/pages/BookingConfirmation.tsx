@@ -1,14 +1,12 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { format, parseISO, addMinutes } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/layout/Layout';
 import { Calendar, MapPin, Phone, User } from 'lucide-react';
 import { Appointment } from '@/services/appointmentService';
-import { downloadICSFile } from '@/utils/calendar';
-import { getVitabyteCalendarUrl, isVitabyteTherapist, getTherapistVitabyteConfig } from '@/services/vitabyteService';
 
 export default function BookingConfirmation() {
   const location = useLocation();
@@ -20,32 +18,6 @@ export default function BookingConfirmation() {
     navigate('/book');
     return null;
   }
-
-  const handleAddToCalendar = () => {
-    const startDate = parseISO(appointment.date);
-    const endDate = addMinutes(startDate, appointment.duration);
-    
-    const calendarEvent = {
-      title: `Termin bei ${therapistName}`,
-      description: `${appointment.notes}\\n\\nWenn es Ihnen nicht möglich ist, den vereinbarten Behandlungstermin einzuhalten, so bitten wir Sie um rechtzeitige Terminabsage (24 Std. im Voraus an Werktagen).`,
-      location: appointment.type === 'video' ? 'Online / Telefonisch' : 'Weinbergstrasse 29, 8001 Zürich',
-      startDate: appointment.date,
-      endDate: endDate.toISOString(),
-    };
-    
-    downloadICSFile(calendarEvent, `termin-${format(startDate, 'yyyy-MM-dd-HHmm')}.ics`);
-  };
-  
-  const handleSubscribeToCalendar = () => {
-    // Check if therapist uses Vitabyte
-    if (isVitabyteTherapist(appointment.therapistId)) {
-      const vitabyteConfig = getTherapistVitabyteConfig(appointment.therapistId);
-      if (vitabyteConfig) {
-        const calendarUrl = getVitabyteCalendarUrl(vitabyteConfig);
-        window.open(calendarUrl, '_blank');
-      }
-    }
-  };
 
   return (
     <Layout>
@@ -108,28 +80,7 @@ export default function BookingConfirmation() {
                 </span>
               </div>
               
-              <div className="flex gap-2 mt-4">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 border-psychPurple/20 hover:border-psychPurple"
-                  onClick={handleAddToCalendar}
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  TERMIN HINZUFÜGEN
-                </Button>
-                {isVitabyteTherapist(appointment.therapistId) && (
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 border-psychPurple/20 hover:border-psychPurple"
-                    onClick={handleSubscribeToCalendar}
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    KALENDER ABONNIEREN
-                  </Button>
-                )}
-              </div>
-              
-              <div className="pt-4 border-t border-gray-100">
+              <div className="pt-4 border-t border-gray-100 mt-4">
                 <p className="text-sm font-medium text-psychText mb-2">
                   {appointment.notes}
                 </p>
