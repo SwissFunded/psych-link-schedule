@@ -34,6 +34,9 @@ export interface TimeSlot {
   date: string; // ISO format
   duration: number; // in minutes
   available: boolean;
+  metadata?: {
+    has60MinutesFree?: boolean; // Whether this slot has 60 consecutive minutes free
+  };
 }
 
 // Mock therapists data

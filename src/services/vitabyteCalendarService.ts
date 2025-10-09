@@ -122,13 +122,30 @@ export async function checkTimeSlotAvailability(
   
   return slots.map(slot => {
     const slotStart = parseISO(slot.date);
-    const slotEnd = addMinutes(slotStart, slot.duration);
     
-    const available = isTimeSlotAvailable(slotStart, slotEnd, events);
+    // IMPORTANT: Check for 60 minutes of consecutive free time
+    // Even though slot.duration might be 30, we need to ensure 60 min is available
+    // because users might book 60-minute appointments
+    const slotEnd60 = addMinutes(slotStart, 60);
+    
+    // Check if 60 consecutive minutes are free
+    const has60MinutesFree = isTimeSlotAvailable(slotStart, slotEnd60, events);
+    
+    // If 60 minutes isn't free, check if at least 30 minutes is free
+    const slotEnd30 = addMinutes(slotStart, 30);
+    const has30MinutesFree = has60MinutesFree || isTimeSlotAvailable(slotStart, slotEnd30, events);
+    
+    // Mark as available only if at least 30 minutes is free
+    // (We'll do a more specific check when booking based on actual duration)
+    const available = has30MinutesFree;
     
     return {
       ...slot,
-      available: slot.available && available // Keep existing availability logic and add calendar check
+      available: slot.available && available, // Keep existing availability logic and add calendar check
+      // Store whether 60 minutes is available for later filtering
+      metadata: {
+        has60MinutesFree
+      }
     };
   });
 }

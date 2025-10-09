@@ -56,6 +56,7 @@ export default function Book() {
     }
   ];
 
+  // Fetch time slots when startDate changes
   useEffect(() => {
     const fetchTimeSlots = async () => {
       try {
@@ -78,13 +79,26 @@ export default function Book() {
     fetchTimeSlots();
   }, [startDate]);
   
-  // Auto-select first day with available slots
+  // Filter slots based on selected appointment duration
+  const filteredSlots = useMemo(() => {
+    const duration = reason === 'folgetermin-60' ? 60 : 30;
+    
+    if (duration === 60) {
+      // For 60-minute appointments, only show slots with 60 consecutive minutes free
+      return availableSlots.filter(slot => slot.metadata?.has60MinutesFree === true);
+    }
+    
+    // For 30-minute appointments, show all available slots
+    return availableSlots;
+  }, [availableSlots, reason]);
+  
+  // Auto-select first day with available slots (use filtered slots)
   useEffect(() => {
-    if (!selectedDate && availableSlots.length > 0) {
-      const firstSlotDate = parseISO(availableSlots[0].date);
+    if (!selectedDate && filteredSlots.length > 0) {
+      const firstSlotDate = parseISO(filteredSlots[0].date);
       setSelectedDate(startOfDay(firstSlotDate));
     }
-  }, [availableSlots, selectedDate]);
+  }, [filteredSlots, selectedDate]);
   
   const handleLoadMore = () => {
     setStartDate(prev => addDays(prev, 14)); // Load 14 more days
@@ -287,7 +301,7 @@ export default function Book() {
             {currentStep === 2 && (
               <div>
                   <DayCarousel
-                    availableSlots={availableSlots}
+                    availableSlots={filteredSlots}
                     selectedDate={selectedDate}
                     onSelectDate={setSelectedDate}
                     onSelectSlot={setSelectedTimeSlot}
