@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot } from '@/services/appointmentService';
@@ -29,6 +29,10 @@ export default function Book() {
   const [policyAccepted, setPolicyAccepted] = useState(false);
   const { patient } = useAuth();
   const navigate = useNavigate();
+  
+  // One-shot guard for auto-search to prevent loops
+  const autoSearchedRef = useRef(false);
+  const autoSearchReasonRef = useRef<string>('');
   
   // Default therapist ID - since we're removing therapist selection
   const defaultTherapistId = "t1";
@@ -106,6 +110,14 @@ export default function Book() {
     return availableSlots;
   }, [availableSlots, reason]);
   
+  // Reset auto-search guard when reason changes
+  useEffect(() => {
+    if (autoSearchReasonRef.current !== reason) {
+      autoSearchedRef.current = false;
+      autoSearchReasonRef.current = reason;
+    }
+  }, [reason]);
+  
   // Auto-search for 60-minute appointments if none found in current range
   useEffect(() => {
     const autoSearchFor60MinSlots = async () => {
@@ -113,25 +125,39 @@ export default function Book() {
       if (reason !== 'folgetermin-60') return;
       
       // Skip if we already have filtered slots
-      if (filteredSlots.length > 0) return;
+      if (filteredSlots.length > 0) {
+        console.log('[Auto-Search] Skipping - already have', filteredSlots.length, 'filtered slots');
+        return;
+      }
       
       // Skip if already loading
-      if (loading) return;
+      if (loading) {
+        console.log('[Auto-Search] Skipping - already loading');
+        return;
+      }
+      
+      // ONE-SHOT GUARD: Skip if already searched for this reason
+      if (autoSearchedRef.current) {
+        console.log('[Auto-Search] Skipping - already searched for this reason');
+        return;
+      }
       
       console.log('[Auto-Search] No 60-min slots in current range, searching ahead...');
+      autoSearchedRef.current = true; // Mark as searched
       
       try {
         setLoading(true);
         toast.info("🔍 Suche nach verfügbaren 60-Minuten-Terminen...");
         
-        // Progressive search: 14 days → +30 days → +90 days
+        // Progressive search: current+14 days → +30 days → +90 days
         const searchRanges = [
           { days: 14, label: 'nächsten 2 Wochen' },
           { days: 30, label: 'nächsten Monat' },
           { days: 90, label: 'nächsten 3 Monaten' }
         ];
         
-        let currentSearchStart = new Date();
+        // Start from current startDate
+        let currentSearchStart = new Date(startDate);
         
         for (const range of searchRanges) {
           const searchEnd = addDays(currentSearchStart, range.days);
@@ -145,29 +171,34 @@ export default function Book() {
           );
           
           const available = slots.filter(slot => slot.available);
+          console.log(`[Auto-Search] Found ${available.length} available 30-min slots`);
           
-          // Check if we have any 60-minute slots in this range
-          console.log(`[Auto-Search] Checking ${available.length} available slots for 60-min pairs...`);
-          
-          const has60MinSlots = available.some((slot, index) => {
-            if (!slot.available) return false;
+          // Find all 60-minute slot pairs
+          const validPairs: TimeSlot[] = [];
+          for (let i = 0; i < available.length; i++) {
+            const slot = available[i];
+            if (!slot.available) continue;
+            
             const currentTime = parseISO(slot.date);
             const nextSlotTime = addMinutes(currentTime, 30);
             const nextSlotDate = nextSlotTime.toISOString();
             const nextSlot = available.find(s => s.date === nextSlotDate);
             
-            // Debug log for first few slots
-            if (index < 5) {
-              console.log(`[Auto-Search Debug] Slot ${format(currentTime, 'dd.MM HH:mm')} - Next slot ${format(nextSlotTime, 'HH:mm')}: ${nextSlot ? 'FOUND' : 'NOT FOUND'}`);
+            if (nextSlot?.available === true) {
+              validPairs.push(slot);
             }
-            
-            return nextSlot?.available === true;
-          });
+          }
           
-          if (has60MinSlots) {
-            console.log(`[Auto-Search] Found 60-min slots in ${range.label}!`);
+          console.log(`[Auto-Search] Found ${validPairs.length} valid 60-min pairs`);
+          
+          if (validPairs.length > 0) {
+            // Find the earliest slot to set startDate
+            const earliestSlot = validPairs[0];
+            const earliestDate = startOfDay(parseISO(earliestSlot.date));
+            
+            console.log(`[Auto-Search] Found 60-min slots in ${range.label}! Earliest: ${format(earliestDate, 'dd.MM.yyyy')}`);
             setAvailableSlots(available);
-            setStartDate(currentSearchStart);
+            setStartDate(earliestDate);
             toast.success(`✅ Termine in den ${range.label} gefunden!`);
             return;
           }
@@ -189,7 +220,7 @@ export default function Book() {
     };
     
     autoSearchFor60MinSlots();
-  }, [filteredSlots, reason, loading]);
+  }, [filteredSlots, reason, loading, startDate]);
   
   // Auto-select first day with available slots (use filtered slots)
   useEffect(() => {
@@ -207,6 +238,7 @@ export default function Book() {
     try {
       setLoading(true);
       clearAllCalendarCache(); // Clear all calendar caches
+      autoSearchedRef.current = false; // Reset auto-search guard on refresh
       toast.info("🔄 Kalender wird aktualisiert...");
       
       // Refetch time slots

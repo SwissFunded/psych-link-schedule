@@ -88,8 +88,8 @@ const generateAvailableSlots = (): TimeSlot[] => {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
   
-  // Generate slots for the next 14 days
-  for (let day = 0; day < 14; day++) {
+  // Generate slots for the next 180 days (6 months) to support auto-search
+  for (let day = 0; day < 180; day++) {
     const currentDate = new Date(startDate);
     currentDate.setDate(currentDate.getDate() + day);
     
@@ -140,15 +140,15 @@ const generateAvailableSlots = (): TimeSlot[] => {
 
 const availableSlots = generateAvailableSlots();
 
-// Generate a guaranteed list of fixed available time slots for the next 7 days
+// Generate a guaranteed list of fixed available time slots for the next 180 days
 // Matches the same schedule as main slots
 const generateFixedAvailableSlots = (): TimeSlot[] => {
   const fixedSlots: TimeSlot[] = [];
   const startDate = new Date();
   startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
   
-  // Generate slots for the next 7 days
-  for (let day = 0; day < 7; day++) {
+  // Generate slots for the next 180 days (6 months) to support auto-search
+  for (let day = 0; day < 180; day++) {
     const currentDate = new Date(startDate);
     currentDate.setDate(currentDate.getDate() + day);
     
