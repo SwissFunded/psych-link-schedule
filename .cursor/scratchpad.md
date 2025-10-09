@@ -1356,3 +1356,48 @@ const slotsForSelectedDay = useMemo(() => {
 
 ---
 
+## Executor: Updated to Antoine's Main Comprehensive Calendar (09 Oct 2025)
+
+**Calendar Update:** Switched from test calendar to Antoine's real comprehensive calendar.
+
+**New Calendar Link:**
+`https://api.vitabyte.ch/calendar/?action=getics&cid=6ad3d7-1ad15c-16007e-d6a924&type=.ics`
+
+**Calendar Contents (analyzed from feed):**
+- ✅ Patient therapy sessions (Therapie)
+- ✅ Admin time blocks (ADMIN)
+- ✅ START blocks (07:00-08:00 daily)
+- ✅ Non-billable appointments (Nicht Verrechenbar)
+- ✅ Appointments extending to 2026
+
+**Changes Made:**
+
+1. **Edge Function Updated** (`supabase/functions/fetch-calendar/index.ts`)
+   - Changed CID from `966541-462631-f1b699-977a3d` (test) to `6ad3d7-1ad15c-16007e-d6a924` (production)
+   - Both 'appointment' and 'epat' feeds use the same comprehensive calendar
+   - Deployed to Supabase ✅
+
+2. **Frontend Service Updated** (`src/services/vitabyteService.ts`)
+   - Updated all three configs (main, appointment, epat) to use new CID
+   - Added comprehensive documentation about calendar contents
+   - All configs now point to the same unified calendar
+
+**Expected Behavior:**
+- All time slots that have ANY appointment in Antoine's calendar will be blocked
+- This includes therapy sessions, admin time, START blocks, etc.
+- Prevents double-booking across all appointment types
+- Calendar syncs every 5 minutes (cache duration)
+
+**Git Commit:** `9124b29`
+**Edge Function:** Deployed ✅
+**Frontend:** Deployed to Vercel ✅
+
+**Testing Needed:**
+- [ ] Verify that busy slots from calendar are properly blocked
+- [ ] Test that START blocks (07:00-08:00) are unavailable
+- [ ] Test that ADMIN blocks show as unavailable
+- [ ] Test that therapy sessions are blocked
+- [ ] Test refresh button still works
+
+---
+
