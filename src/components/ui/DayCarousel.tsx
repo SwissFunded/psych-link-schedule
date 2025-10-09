@@ -123,7 +123,9 @@ export default function DayCarousel({
                 style={{
                   scrollbarWidth: 'none',
                   msOverflowStyle: 'none',
-                  WebkitOverflowScrolling: 'touch'
+                  WebkitOverflowScrolling: 'touch',
+                  willChange: 'scroll-position',
+                  transform: 'translateZ(0)'
                 }}
               >
                 {dayGroups.map((group) => (

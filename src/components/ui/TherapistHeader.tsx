@@ -16,8 +16,8 @@ export default function TherapistHeader({ name, avatarUrl }: TherapistHeaderProp
     .slice(0, 2);
     
   return (
-    <div className="flex items-center space-x-4 mb-6">
-      <Avatar className="h-16 w-16 border-2 border-psychPurple/10">
+    <div className="flex items-center gap-3 md:gap-4 mb-0 min-w-0">
+      <Avatar className="h-12 w-12 md:h-16 md:w-16 border-2 border-psychPurple/10 flex-shrink-0">
         {avatarUrl && (
           <img src={avatarUrl} alt={name} className="object-cover" />
         )}
@@ -25,9 +25,9 @@ export default function TherapistHeader({ name, avatarUrl }: TherapistHeaderProp
           {initials}
         </AvatarFallback>
       </Avatar>
-      <div>
-        <h2 className="text-xl font-semibold text-psychText">{name}</h2>
-        <p className="text-sm text-psychText/60">Buchen Sie einen Termin online</p>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-base md:text-xl font-semibold text-psychText truncate">{name}</h2>
+        <p className="text-xs md:text-sm text-psychText/60 hidden sm:block">Buchen Sie einen Termin online</p>
       </div>
     </div>
   );

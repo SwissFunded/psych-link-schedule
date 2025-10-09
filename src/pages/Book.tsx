@@ -349,9 +349,11 @@ export default function Book() {
   
   return (
     <Layout>
-      <div className="container max-w-5xl mx-auto py-8 px-4">
-        <div className="flex items-center justify-between mb-6">
-          <TherapistHeader name={therapistName} />
+      <div className="w-full max-w-full lg:max-w-5xl mx-auto py-4 md:py-8 px-4">
+        <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
+          <div className="min-w-0 flex-1">
+            <TherapistHeader name={therapistName} />
+          </div>
           
           {/* DEV: Temporary refresh button */}
           <Button
@@ -359,7 +361,7 @@ export default function Book() {
             size="sm"
             onClick={handleRefreshCalendar}
             disabled={loading}
-            className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50"
+            className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50 flex-shrink-0"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">DEV: Kalender aktualisieren</span>
@@ -367,7 +369,7 @@ export default function Book() {
           </Button>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 md:gap-8">
           {/* Left side - Stepper */}
           <div className="lg:sticky lg:top-8 lg:h-fit">
             <Stepper steps={steps} />

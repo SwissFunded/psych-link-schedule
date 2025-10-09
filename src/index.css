@@ -61,6 +61,13 @@
     /* Prevent horizontal overflow on mobile */
     overflow-x: hidden;
     max-width: 100vw;
+    /* Disable text selection on UI elements for native feel */
+    -webkit-user-select: none;
+    user-select: none;
+    /* Prevent pull-to-refresh on mobile */
+    overscroll-behavior-y: contain;
+    /* Smooth momentum scrolling */
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Smooth scrolling for the whole page */
@@ -85,6 +92,47 @@
   /* Prevent iOS zoom on input focus - ensure min 16px font */
   input, select, textarea {
     font-size: 16px !important;
+    /* Allow text selection in inputs */
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Allow text selection for content */
+  p, span, div[class*="text"], h1, h2, h3, h4, h5, h6 {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* Native iOS active states */
+  button:active, a:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease-out;
+  }
+
+  /* Prevent double-tap zoom on buttons */
+  button, a {
+    touch-action: manipulation;
+  }
+
+  /* Full width constraint */
+  * {
+    max-width: 100vw;
+  }
+
+  /* iOS safe area integration */
+  @supports (padding: max(0px)) {
+    body {
+      padding-left: max(0px, env(safe-area-inset-left));
+      padding-right: max(0px, env(safe-area-inset-right));
+    }
+  }
+
+  /* ProMotion display optimization (120Hz) */
+  @media (prefers-reduced-motion: no-preference) {
+    * {
+      transition-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+      transition-duration: 150ms;
+    }
   }
 
   /* Better typography */
@@ -115,7 +163,7 @@
   }
   
   .highlight-effect {
-    @apply transition-all duration-300 hover:shadow-md hover:shadow-psychPurple/10;
+    @apply transition-all duration-150 hover:shadow-md hover:shadow-psychPurple/10;
   }
 
   .container-padding {
@@ -221,5 +269,23 @@
   
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Performance optimizations */
+  .gpu-accelerate {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Native app feel utilities */
+  .app-container {
+    max-width: 100vw;
+    overflow-x: hidden;
+    min-height: 100vh;
   }
 }
