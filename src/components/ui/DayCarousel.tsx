@@ -87,68 +87,77 @@ export default function DayCarousel({
     }
   }, [selectedDate, dayGroups]);
 
-  if (dayGroups.length === 0 && !loading) {
-    return (
-      <div className="text-center py-12 bg-white rounded-lg shadow-lg">
-        <p className="text-gray-500">Keine verfügbaren Termine gefunden</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Day Carousel */}
       <div className="bg-white rounded-lg shadow-lg p-4">
-        <div className="flex items-center gap-2">
-          {/* Left Arrow */}
-          <button
-            onClick={() => scroll('left')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 hidden sm:block"
-            aria-label="Vorherige Tage"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-
-          {/* Scrollable Day Pills */}
-          <div
-            ref={carouselRef}
-            className="flex gap-3 overflow-x-auto pb-2 flex-1 scrollbar-hide"
-            style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitOverflowScrolling: 'touch'
-            }}
-          >
-            {dayGroups.map((group) => (
-              <DayPill
-                key={format(group.date, 'yyyy-MM-dd')}
-                date={group.date}
-                availableCount={group.availableCount}
-                isSelected={selectedDate ? isSameDay(group.date, selectedDate) : false}
-                onClick={() => onSelectDate(group.date)}
-              />
-            ))}
+        {dayGroups.length === 0 && !loading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">Keine verfügbaren Termine im aktuellen Zeitraum</p>
+            {onLoadMore && (
+              <button
+                onClick={onLoadMore}
+                disabled={loading}
+                className="py-2 px-4 bg-psychPurple hover:bg-psychPurple/90 disabled:bg-gray-300 disabled:text-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {loading ? 'Lädt...' : 'MEHR TERMINE ANZEIGEN'}
+              </button>
+            )}
           </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              {/* Left Arrow */}
+              <button
+                onClick={() => scroll('left')}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 hidden sm:block"
+                aria-label="Vorherige Tage"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              </button>
 
-          {/* Right Arrow */}
-          <button
-            onClick={() => scroll('right')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 hidden sm:block"
-            aria-label="Nächste Tage"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
+              {/* Scrollable Day Pills */}
+              <div
+                ref={carouselRef}
+                className="flex gap-3 overflow-x-auto pb-2 flex-1 scrollbar-hide"
+                style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitOverflowScrolling: 'touch'
+                }}
+              >
+                {dayGroups.map((group) => (
+                  <DayPill
+                    key={format(group.date, 'yyyy-MM-dd')}
+                    date={group.date}
+                    availableCount={group.availableCount}
+                    isSelected={selectedDate ? isSameDay(group.date, selectedDate) : false}
+                    onClick={() => onSelectDate(group.date)}
+                  />
+                ))}
+              </div>
 
-        {/* Load More Button */}
-        {onLoadMore && (
-          <button
-            onClick={onLoadMore}
-            disabled={loading}
-            className="w-full mt-4 py-2 px-4 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 rounded-lg text-sm font-medium transition-colors"
-          >
-            {loading ? 'Lädt...' : 'MEHR TERMINE ANZEIGEN'}
-          </button>
+              {/* Right Arrow */}
+              <button
+                onClick={() => scroll('right')}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 hidden sm:block"
+                aria-label="Nächste Tage"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Load More Button */}
+            {onLoadMore && (
+              <button
+                onClick={onLoadMore}
+                disabled={loading}
+                className="w-full mt-4 py-2 px-4 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 rounded-lg text-sm font-medium transition-colors"
+              >
+                {loading ? 'Lädt...' : 'MEHR TERMINE ANZEIGEN'}
+              </button>
+            )}
+          </>
         )}
       </div>
 

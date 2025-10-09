@@ -61,7 +61,7 @@ export default function Book() {
     const fetchTimeSlots = async () => {
       try {
         setLoading(true);
-        const endDate = addDays(startDate, 14); // Load 14 days instead of 7
+        const endDate = addDays(startDate, 14); // Load 14 days initially
         const slots = await appointmentService.getAvailableTimeSlots(
           defaultTherapistId,
           startDate,
@@ -105,6 +105,83 @@ export default function Book() {
     // For 30-minute appointments, show all available slots
     return availableSlots;
   }, [availableSlots, reason]);
+  
+  // Auto-search for 60-minute appointments if none found in current range
+  useEffect(() => {
+    const autoSearchFor60MinSlots = async () => {
+      // Only auto-search for 60-minute appointments
+      if (reason !== 'folgetermin-60') return;
+      
+      // Skip if we already have filtered slots
+      if (filteredSlots.length > 0) return;
+      
+      // Skip if already loading
+      if (loading) return;
+      
+      console.log('[Auto-Search] No 60-min slots in current range, searching ahead...');
+      
+      try {
+        setLoading(true);
+        toast.info("🔍 Suche nach verfügbaren 60-Minuten-Terminen...");
+        
+        // Progressive search: 14 days → +30 days → +90 days
+        const searchRanges = [
+          { days: 14, label: 'nächsten 2 Wochen' },
+          { days: 30, label: 'nächsten Monat' },
+          { days: 90, label: 'nächsten 3 Monaten' }
+        ];
+        
+        let currentSearchStart = new Date();
+        
+        for (const range of searchRanges) {
+          const searchEnd = addDays(currentSearchStart, range.days);
+          
+          console.log(`[Auto-Search] Searching ${range.label}: ${format(currentSearchStart, 'dd.MM.yyyy')} - ${format(searchEnd, 'dd.MM.yyyy')}`);
+          
+          const slots = await appointmentService.getAvailableTimeSlots(
+            defaultTherapistId,
+            currentSearchStart,
+            searchEnd
+          );
+          
+          const available = slots.filter(slot => slot.available);
+          
+          // Check if we have any 60-minute slots in this range
+          const has60MinSlots = available.some(slot => {
+            if (!slot.available) return false;
+            const currentTime = parseISO(slot.date);
+            const nextSlotTime = addMinutes(currentTime, 30);
+            const nextSlotDate = nextSlotTime.toISOString();
+            const nextSlot = available.find(s => s.date === nextSlotDate);
+            return nextSlot?.available === true;
+          });
+          
+          if (has60MinSlots) {
+            console.log(`[Auto-Search] Found 60-min slots in ${range.label}!`);
+            setAvailableSlots(available);
+            setStartDate(currentSearchStart);
+            toast.success(`✅ Termine in den ${range.label} gefunden!`);
+            return;
+          }
+          
+          // Move to next range
+          currentSearchStart = searchEnd;
+        }
+        
+        // No slots found in any range
+        console.log('[Auto-Search] No 60-min slots found in 134 days');
+        toast.error("Keine 60-Minuten-Termine in den nächsten 3 Monaten verfügbar. Bitte kontaktieren Sie uns direkt.");
+        
+      } catch (error) {
+        console.error('[Auto-Search] Failed:', error);
+        toast.error("Fehler bei der Terminsuche");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    autoSearchFor60MinSlots();
+  }, [filteredSlots, reason, loading]);
   
   // Auto-select first day with available slots (use filtered slots)
   useEffect(() => {
