@@ -27,4 +27,26 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Mobile optimization: smaller chunks, better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-checkbox'],
+          'utils': ['date-fns', 'date-fns-tz', 'clsx', 'tailwind-merge'],
+        },
+      },
+    },
+    // Smaller chunk size warning limit
+    chunkSizeWarningLimit: 600,
+    // Enable minification
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production', // Remove console.logs in production
+      },
+    },
+  },
 }));

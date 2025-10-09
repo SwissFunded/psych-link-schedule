@@ -16,25 +16,26 @@ interface StepperProps {
 
 export default function Stepper({ steps, className }: StepperProps) {
   return (
-    <div className={cn("relative", className)}>
-      {steps.map((step, index) => (
-        <div key={step.id} className="relative">
-          <div className="flex items-start mb-8 last:mb-0">
-            <div className="flex items-center">
+    <>
+      {/* Mobile: Horizontal stepper */}
+      <div className={cn("relative flex md:hidden justify-between items-center mb-6", className)}>
+        {steps.map((step, index) => (
+          <React.Fragment key={step.id}>
+            <div className="flex flex-col items-center flex-1">
               <div 
                 className={cn(
-                  "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all z-10 bg-white",
+                  "w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all z-10 bg-white",
                   step.complete ? "bg-psychPurple border-psychPurple" : 
                   step.current ? "border-psychPurple bg-white" : 
                   "border-gray-300 bg-white"
                 )}
               >
                 {step.complete ? (
-                  <Check className="w-5 h-5 text-white" />
+                  <Check className="w-4 h-4 text-white" />
                 ) : (
                   <span 
                     className={cn(
-                      "text-sm font-medium",
+                      "text-xs font-medium",
                       step.current ? "text-psychPurple" : "text-gray-400"
                     )}
                   >
@@ -42,28 +43,77 @@ export default function Stepper({ steps, className }: StepperProps) {
                   </span>
                 )}
               </div>
-            </div>
-            <div className="ml-4 pt-2">
               <p 
                 className={cn(
-                  "text-sm font-medium transition-colors",
+                  "text-xs font-medium transition-colors mt-1.5 text-center max-w-[80px]",
                   step.complete || step.current ? "text-psychText" : "text-gray-400"
                 )}
               >
                 {step.label}
               </p>
             </div>
+            {index < steps.length - 1 && (
+              <div 
+                className={cn(
+                  "flex-1 h-0.5 mx-1 transition-colors",
+                  step.complete ? "bg-psychPurple" : "bg-gray-300"
+                )}
+              />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Desktop: Vertical stepper */}
+      <div className={cn("relative hidden md:block", className)}>
+        {steps.map((step, index) => (
+          <div key={step.id} className="relative">
+            <div className="flex items-start mb-8 last:mb-0">
+              <div className="flex items-center">
+                <div 
+                  className={cn(
+                    "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all z-10 bg-white",
+                    step.complete ? "bg-psychPurple border-psychPurple" : 
+                    step.current ? "border-psychPurple bg-white" : 
+                    "border-gray-300 bg-white"
+                  )}
+                >
+                  {step.complete ? (
+                    <Check className="w-5 h-5 text-white" />
+                  ) : (
+                    <span 
+                      className={cn(
+                        "text-sm font-medium",
+                        step.current ? "text-psychPurple" : "text-gray-400"
+                      )}
+                    >
+                      {index + 1}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="ml-4 pt-2">
+                <p 
+                  className={cn(
+                    "text-sm font-medium transition-colors",
+                    step.complete || step.current ? "text-psychText" : "text-gray-400"
+                  )}
+                >
+                  {step.label}
+                </p>
+              </div>
+            </div>
+            {index < steps.length - 1 && (
+              <div 
+                className={cn(
+                  "absolute left-5 top-10 w-0.5 h-[calc(100%-40px)] transition-colors",
+                  step.complete ? "bg-psychPurple" : "bg-gray-300"
+                )}
+              />
+            )}
           </div>
-          {index < steps.length - 1 && (
-            <div 
-              className={cn(
-                "absolute left-5 top-10 w-0.5 h-[calc(100%-40px)] transition-colors",
-                step.complete ? "bg-psychPurple" : "bg-gray-300"
-              )}
-            />
-          )}
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }

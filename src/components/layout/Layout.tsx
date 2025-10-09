@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, Calendar, Clock, LogOut, UserCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, Clock, LogOut, UserCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { PageTransition } from '@/components/ui/PageTransition';
 import { NavigationMenu, NavigationMenuList, NavigationMenuItem } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
@@ -74,12 +74,6 @@ export default function Layout({ children }: LayoutProps) {
     );
   }
   
-  // Animation variants
-  const navItemVariants = {
-    initial: { opacity: 0, y: -8 },
-    animate: { opacity: 1, y: 0 }
-  };
-
   // Desktop navigation items
   const navItems = [
     { name: "Termine", path: "/termine", icon: <Calendar size={18} className="mr-1.5" /> },
@@ -90,64 +84,43 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
       {isAuthenticated && (
-        <motion.header 
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, ease: [0.19, 1.0, 0.22, 1.0] }}
+        <header 
           className="bg-white/95 backdrop-blur-lg border-b border-psychText/5 py-3 px-4 sm:px-6 sticky top-0 z-10 shadow-sm"
         >
           <div className="max-w-7xl mx-auto flex justify-between items-center">
             <div className="flex items-center space-x-8">
               <Link to="/termine" className="flex items-center group">
-                <motion.div 
-                  initial={{ x: -10, opacity: 0 }} 
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="overflow-hidden"
-                >
+                <div className="overflow-hidden">
                   <Logo />
-                </motion.div>
+                </div>
               </Link>
               
               <div className="hidden md:block">
                 <NavigationMenu>
                   <NavigationMenuList className="space-x-1">
                     {navItems.map((item) => (
-                      <motion.div
-                        key={item.path}
-                        initial="initial"
-                        animate="animate"
-                        variants={navItemVariants}
-                      >
-                        <NavigationMenuItem>
-                          <Link
-                            to={item.path}
-                            className={cn(
-                              "inline-flex items-center rounded-md px-3 py-2 text-sm font-gt-pressura transition-colors",
-                              location.pathname === item.path 
-                              ? "bg-psychText/5 text-psychText" 
-                              : "text-psychText/70 hover:bg-psychText/5 hover:text-psychText"
-                            )}
-                          >
-                            {item.icon}
-                            {item.name}
-                          </Link>
-                        </NavigationMenuItem>
-                      </motion.div>
+                      <NavigationMenuItem key={item.path}>
+                        <Link
+                          to={item.path}
+                          className={cn(
+                            "inline-flex items-center rounded-md px-3 py-2 text-sm font-gt-pressura transition-colors",
+                            location.pathname === item.path 
+                            ? "bg-psychText/5 text-psychText" 
+                            : "text-psychText/70 hover:bg-psychText/5 hover:text-psychText"
+                          )}
+                        >
+                          {item.icon}
+                          {item.name}
+                        </Link>
+                      </NavigationMenuItem>
                     ))}
                   </NavigationMenuList>
                 </NavigationMenu>
               </div>
             </div>
             
-            <AnimatePresence>
-              <motion.div 
-                className="flex items-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-              >
-                <Menubar className="border-none bg-transparent">
+            <div className="flex items-center">
+              <Menubar className="border-none bg-transparent">
                   <MenubarMenu>
                     <MenubarTrigger className="flex items-center space-x-2 rounded-md border border-psychText/10 px-3 py-1.5 hover:bg-psychText/5 data-[state=open]:bg-psychText/5">
                       <div className="hidden md:flex flex-col items-end mr-2">
@@ -173,10 +146,9 @@ export default function Layout({ children }: LayoutProps) {
                     </MenubarContent>
                   </MenubarMenu>
                 </Menubar>
-              </motion.div>
-            </AnimatePresence>
+              </div>
           </div>
-        </motion.header>
+        </header>
       )}
       
       <motion.main 
@@ -184,17 +156,20 @@ export default function Layout({ children }: LayoutProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex-1 bg-gradient-to-br from-psychPurple/5 to-psychBeige/50"
+        className="flex-1 bg-gradient-to-br from-psychPurple/5 to-psychBeige/50 pb-20 md:pb-0"
+        style={{
+          paddingBottom: 'max(5rem, env(safe-area-inset-bottom))',
+        }}
       >
         <PageTransition>{children}</PageTransition>
       </motion.main>
       
       {isAuthenticated && (
-        <motion.nav 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
+        <nav 
           className="bg-white/95 backdrop-blur-lg border-t border-psychText/5 py-3 md:hidden fixed bottom-0 left-0 right-0 z-10 shadow-[0_-1px_5px_rgba(0,0,0,0.05)]"
+          style={{
+            paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+          }}
         >
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-around">
@@ -232,7 +207,7 @@ export default function Layout({ children }: LayoutProps) {
               </Button>
             </div>
           </div>
-        </motion.nav>
+        </nav>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { TimeSlot } from '@/services/appointmentService';
 import { Clock } from 'lucide-react';
+import { hapticFeedback } from '@/utils/haptics';
 
 interface TimeGridProps {
   slots: TimeSlot[];
@@ -38,7 +39,12 @@ export default function TimeGrid({ slots, selectedSlot, onSelectSlot }: TimeGrid
     return (
       <button
         key={slot.date}
-        onClick={() => !isDisabled && onSelectSlot(slot)}
+        onClick={() => {
+          if (!isDisabled) {
+            hapticFeedback.light(); // Mobile haptic feedback
+            onSelectSlot(slot);
+          }
+        }}
         disabled={isDisabled}
         className={`
           py-4 px-4 rounded-xl font-semibold text-lg transition-all duration-200

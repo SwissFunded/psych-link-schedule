@@ -83,120 +83,68 @@ const patientAppointments: Appointment[] = [
 // Lunch break: 12:00-13:00
 // Last appointment: 17:00
 // Available slots: 09:00, 10:00, 11:00, 13:00, 14:00, 15:00, 16:00, 17:00
-const generateAvailableSlots = (): TimeSlot[] => {
+// PERFORMANCE: Dynamically generate slots on demand instead of all at once
+const generateAvailableSlotsInRange = (startDate: Date, endDate: Date): TimeSlot[] => {
   const slots: TimeSlot[] = [];
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
+  const current = new Date(startDate);
   
-  // Generate slots for the next 180 days (6 months) to support auto-search
-  for (let day = 0; day < 180; day++) {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(currentDate.getDate() + day);
-    
+  while (current <= endDate) {
     // Skip weekends (0 = Sunday, 6 = Saturday)
-    if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-      continue;
+    if (current.getDay() !== 0 && current.getDay() !== 6) {
+      // Generate slots for each therapist
+      for (const therapist of therapists) {
+        // Morning slots: 08:00, 08:30, 09:00, 09:30, 10:00, 10:30, 11:00, 11:30
+        for (let hour = 8; hour < 12; hour++) {
+          for (let minute = 0; minute < 60; minute += 30) {
+            const slotDate = new Date(current);
+            slotDate.setHours(hour, minute, 0, 0);
+            
+            slots.push({
+              therapistId: therapist.id,
+              date: slotDate.toISOString(),
+              duration: 30,
+              available: true
+            });
+          }
+        }
+        
+        // Afternoon slots: 13:00, 13:30, 14:00, 14:30, 15:00, 15:30, 16:00, 16:30, 17:00, 17:30
+        for (let hour = 13; hour < 18; hour++) {
+          for (let minute = 0; minute < 60; minute += 30) {
+            // Skip slots after 17:30
+            if (hour === 17 && minute > 30) continue;
+            
+            const slotDate = new Date(current);
+            slotDate.setHours(hour, minute, 0, 0);
+            
+            slots.push({
+              therapistId: therapist.id,
+              date: slotDate.toISOString(),
+              duration: 30,
+              available: true
+            });
+          }
+        }
+      }
     }
     
-    // Generate slots for each therapist
-    for (const therapist of therapists) {
-      // Morning slots: 08:00, 08:30, 09:00, 09:30, 10:00, 10:30, 11:00, 11:30
-      for (let hour = 8; hour < 12; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-          const slotDate = new Date(currentDate);
-          slotDate.setHours(hour, minute, 0, 0);
-          
-          slots.push({
-            therapistId: therapist.id,
-            date: slotDate.toISOString(),
-            duration: 30,
-            available: true
-          });
-        }
-      }
-      
-      // Afternoon slots: 13:00, 13:30, 14:00, 14:30, 15:00, 15:30, 16:00, 16:30, 17:00, 17:30
-      for (let hour = 13; hour < 18; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-          // Skip slots after 17:30
-          if (hour === 17 && minute > 30) continue;
-          
-          const slotDate = new Date(currentDate);
-          slotDate.setHours(hour, minute, 0, 0);
-          
-          slots.push({
-            therapistId: therapist.id,
-            date: slotDate.toISOString(),
-            duration: 30,
-            available: true
-          });
-        }
-      }
-    }
+    // Move to next day
+    current.setDate(current.getDate() + 1);
   }
   
   return slots;
 };
 
-const availableSlots = generateAvailableSlots();
+// Keep a small cache for immediate use (next 14 days from tomorrow)
+const tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 1);
+const twoWeeksOut = new Date(tomorrow);
+twoWeeksOut.setDate(twoWeeksOut.getDate() + 14);
+const availableSlots = generateAvailableSlotsInRange(tomorrow, twoWeeksOut);
 
-// Generate a guaranteed list of fixed available time slots for the next 180 days
-// Matches the same schedule as main slots
-const generateFixedAvailableSlots = (): TimeSlot[] => {
-  const fixedSlots: TimeSlot[] = [];
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
-  
-  // Generate slots for the next 180 days (6 months) to support auto-search
-  for (let day = 0; day < 180; day++) {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(currentDate.getDate() + day);
-    
-    // Skip weekends
-    if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
-      continue;
-    }
-    
-    // Generate slots for each therapist - full schedule
-    for (const therapist of therapists) {
-      // Morning: 08:00-11:30 in 30-minute intervals
-      // Afternoon: 13:00-17:30 in 30-minute intervals
-      const timeSlots: {hour: number, minute: number}[] = [];
-      
-      // Morning slots
-      for (let hour = 8; hour < 12; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-          timeSlots.push({ hour, minute });
-        }
-      }
-      
-      // Afternoon slots
-      for (let hour = 13; hour < 18; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-          // Skip slots after 17:30
-          if (hour === 17 && minute > 30) continue;
-          timeSlots.push({ hour, minute });
-        }
-      }
-      
-      for (const slot of timeSlots) {
-        const slotDate = new Date(currentDate);
-        slotDate.setHours(slot.hour, slot.minute, 0, 0);
-        
-        fixedSlots.push({
-          therapistId: therapist.id,
-          date: slotDate.toISOString(),
-          duration: 30,
-          available: true
-        });
-      }
-    }
-  }
-  
-  return fixedSlots;
-};
-
-const fixedAvailableSlots = generateFixedAvailableSlots();
+// PERFORMANCE: Generate fixed slots on demand using the same efficient generator
+// This avoids loading 180 days of slots upfront
+const fixedAvailableSlots = generateAvailableSlotsInRange(tomorrow, twoWeeksOut);
 
 // TODO: Move to server-side
 // Helper function to get user's Google Calendar auth
@@ -253,30 +201,27 @@ export const appointmentService = {
   
   getAvailableTimeSlots: async (therapistId: string, startDate: Date, endDate: Date): Promise<TimeSlot[]> => {
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 400)); // Reduced from 800ms for better mobile performance
     
-    // Filter available slots
-    const filteredSlots = availableSlots.filter(slot => 
-      slot.therapistId === therapistId &&
-      slot.available &&
-      new Date(slot.date) >= startDate &&
-      new Date(slot.date) <= endDate
-    );
+    // PERFORMANCE: Generate slots on-demand for the requested range only
+    const generatedSlots = generateAvailableSlotsInRange(startDate, endDate);
     
-    // If no slots are available, return fixed guaranteed slots
-    if (filteredSlots.length === 0) {
-      const fixedSlots = fixedAvailableSlots.filter(slot => 
-        slot.therapistId === therapistId &&
-        new Date(slot.date) >= startDate &&
-        new Date(slot.date) <= endDate
+    // Filter by therapist and check against booked appointments
+    const therapistSlots = generatedSlots.filter(slot => {
+      if (slot.therapistId !== therapistId) return false;
+      
+      // Check if this slot is already booked
+      const isBooked = patientAppointments.some(apt => 
+        apt.therapistId === therapistId && 
+        apt.date === slot.date &&
+        apt.status !== 'cancelled'
       );
       
-      // Check against Vitabyte calendar for real availability
-      return checkTimeSlotAvailability(therapistId, fixedSlots);
-    }
+      return !isBooked;
+    });
     
     // Check against Vitabyte calendar for real availability
-    return checkTimeSlotAvailability(therapistId, filteredSlots);
+    return checkTimeSlotAvailability(therapistId, therapistSlots);
   },
   
   bookAppointment: async (appointment: Omit<Appointment, 'id'>): Promise<Appointment> => {

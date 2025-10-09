@@ -14,8 +14,10 @@ import Stepper, { Step } from '@/components/ui/Stepper';
 import AppointmentTypeCard from '@/components/ui/AppointmentTypeCard';
 import ReasonSelect, { reasons } from '@/components/ui/ReasonSelect';
 import DayCarousel from '@/components/ui/DayCarousel';
+import DayCarouselSkeleton from '@/components/ui/DayCarouselSkeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { hapticFeedback } from '@/utils/haptics';
 
 export default function Book() {
   const [appointmentType, setAppointmentType] = useState<'in-person' | 'video'>('in-person');
@@ -297,6 +299,7 @@ export default function Book() {
       );
       
       if (!isStillAvailable) {
+        hapticFeedback.error(); // Mobile haptic feedback for error
         toast.error("Dieser Termin wurde gerade gebucht. Bitte wählen Sie einen anderen Zeitpunkt.");
         // Refresh available slots
         const endDate = addDays(startDate, 7);
@@ -327,6 +330,7 @@ export default function Book() {
       const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
       
       if (bookedAppointment) {
+        hapticFeedback.success(); // Mobile haptic feedback for success
         navigate('/booking-confirmation', { 
           state: { 
             appointment: bookedAppointment,
@@ -336,6 +340,7 @@ export default function Book() {
       }
     } catch (error) {
       console.error('Failed to book appointment:', error);
+      hapticFeedback.error(); // Mobile haptic feedback for error
       toast.error("Termin konnte nicht gebucht werden");
     } finally {
       setLoading(false);
@@ -431,15 +436,19 @@ export default function Book() {
             {/* Step 3: Select Time */}
             {currentStep === 2 && (
               <div>
-                  <DayCarousel
-                    availableSlots={filteredSlots}
-                    selectedDate={selectedDate}
-                    onSelectDate={setSelectedDate}
-                    onSelectSlot={setSelectedTimeSlot}
-                    selectedSlot={selectedTimeSlot}
-                    onLoadMore={handleLoadMore}
-                    loading={loading}
-                  />
+                  {loading && availableSlots.length === 0 ? (
+                    <DayCarouselSkeleton />
+                  ) : (
+                    <DayCarousel
+                      availableSlots={filteredSlots}
+                      selectedDate={selectedDate}
+                      onSelectDate={setSelectedDate}
+                      onSelectSlot={setSelectedTimeSlot}
+                      selectedSlot={selectedTimeSlot}
+                      onLoadMore={handleLoadMore}
+                      loading={loading}
+                    />
+                  )}
                   
                   {selectedTimeSlot && (
                     <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">

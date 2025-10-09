@@ -1716,3 +1716,173 @@ useEffect(() => {
 
 ---
 
+## Planner: Fix 60-Min Auto-Search Infinite Loop (09 Oct 2025)
+
+**Problem Reported:** Auto-search runs indefinitely, repeating "No 60-min slots found in 134 days" in console.
+
+### Root Cause Analysis:
+
+**Issue 1: Static Slot Generation Horizon**
+- `appointmentService.ts` generates slots for only **14 days** ahead
+- Auto-search requests 30/90 days but there are **no generated slots** beyond day 14
+- Result: Always finds 0 slots, never succeeds
+
+**Issue 2: Infinite Loop Trigger**
+- useEffect dependencies: `[filteredSlots, reason, loading, startDate]`
+- When search completes with no results, these dependencies stay the same
+- useEffect runs again → same result → runs again → **infinite loop**
+
+**Issue 3: Search Window Start**
+- Starts from `new Date()` instead of current `startDate`
+- Creates redundant searches of already-checked ranges
+
+**Issue 4: Target Window Alignment**
+- When first slot found on Nov 5, doesn't update `startDate` to Nov 5
+- Next 14-day fetch still from old date → misses the found slot
+
+### Proposed Solution:
+
+**1. Extend Slot Generation Horizon**
+- Change from 14 days → **180 days** (6 months)
+- Ensures auto-search has slots to check in 30/90 day ranges
+- Update both `generateAvailableSlots` and `generateFixedAvailableSlots`
+
+**2. One-Shot Guard**
+- Add `autoSearchedRef = useRef(false)` 
+- Set to true when search starts
+- Reset to false when `reason` changes
+- Prevents repeated searches for same reason
+
+**3. Correct Search Starting Point**
+- Start from current `startDate` instead of `new Date()`
+- Progressive ranges from where user is viewing
+
+**4. Set startDate to Earliest Found Slot**
+- When slots found, compute earliest slot date
+- Set `startDate = startOfDay(earliestFoundDate)`
+- Ensures next 14-day fetch includes the found day
+
+**5. Reset on Refresh**
+- `handleRefreshCalendar` resets `autoSearchedRef.current = false`
+- Allows manual re-trigger of auto-search
+
+### Implementation Steps:
+
+**Step 1: Extend Horizon** (`appointmentService.ts`)
+```typescript
+// Change from:
+for (let day = 0; day < 14; day++)
+
+// To:
+for (let day = 0; day < 180; day++) // 6 months
+```
+
+**Step 2: Add Guard** (`Book.tsx`)
+```typescript
+const autoSearchedRef = useRef(false);
+const autoSearchReasonRef = useRef<string>('');
+
+// Reset when reason changes
+useEffect(() => {
+  if (autoSearchReasonRef.current !== reason) {
+    autoSearchedRef.current = false;
+    autoSearchReasonRef.current = reason;
+  }
+}, [reason]);
+
+// In auto-search:
+if (autoSearchedRef.current) return;
+autoSearchedRef.current = true;
+```
+
+**Step 3: Fix Search Range** (`Book.tsx`)
+```typescript
+// Start from current startDate
+let currentSearchStart = new Date(startDate);
+
+// When found:
+const earliestDate = startOfDay(parseISO(validPairs[0].date));
+setStartDate(earliestDate);
+setAvailableSlots(available);
+```
+
+### Success Criteria:
+
+- ✅ No infinite loop (searches once per reason)
+- ✅ Finds Nov 5 slot automatically
+- ✅ Sets startDate to Nov 5 so slot appears in UI
+- ✅ 30-min appointments unchanged
+- ✅ Manual "MEHR TERMINE ANZEIGEN" still works
+
+### Estimated Effort:
+- 30-45 minutes implementation
+- 15 minutes testing
+
+---
+
+## Executor: Fixed 60-Min Auto-Search Loop (09 Oct 2025)
+
+**Status:** ✅ FIX IMPLEMENTED AND DEPLOYED
+
+### Changes Made:
+
+**1. Extended Slot Generation Horizon** (`appointmentService.ts`)
+- Changed from 14 days → **180 days** (6 months)
+- Updated both `generateAvailableSlots` and `generateFixedAvailableSlots`
+- Now auto-search has slots to find in 30/90 day ranges
+
+**2. Added One-Shot Guard** (`Book.tsx`)
+- Added `autoSearchedRef = useRef(false)`
+- Added `autoSearchReasonRef = useRef<string>('')`
+- Resets when reason changes (new useEffect)
+- Prevents infinite loop by searching only once per reason
+
+**3. Fixed Search Starting Point** (`Book.tsx`)
+- Changed from `new Date()` → `new Date(startDate)`
+- Starts progressive search from current viewing position
+- More efficient, avoids re-checking already viewed ranges
+
+**4. Set startDate to Earliest Found Slot** (`Book.tsx`)
+- When valid pairs found, computes earliest slot date
+- Sets `setStartDate(startOfDay(parseISO(earliestSlot.date)))`
+- Ensures next 14-day fetch includes the found day
+
+**5. Reset on Refresh** (`Book.tsx`)
+- `handleRefreshCalendar` now sets `autoSearchedRef.current = false`
+- Allows user to manually re-trigger auto-search
+
+**6. Better Logging** (`Book.tsx`)
+- Added guard skip logs for debugging
+- Shows slot counts and valid pair counts
+- Easier to diagnose issues
+
+### Build & Deploy:
+
+**Git Commit:** `8a5625d`
+**Build:** ✅ Successful (1.94s)
+**Deployed:** Vercel ✅
+
+### Expected Behavior:
+
+**When selecting "Folgetermin 60 Min":**
+1. Initial 14-day load (Oct 9-23)
+2. If no slots → Auto-search triggers ONCE
+3. Searches 14 days, then 30 days, then 90 days
+4. Finds Nov 5 slot (example)
+5. Sets startDate to Nov 5
+6. Shows Nov 5 in day carousel
+7. User can select time on Nov 5
+8. **No repeated searches** ✅
+
+### Testing Checklist:
+
+- [ ] Select 60-min → auto-search runs ONCE
+- [ ] Finds slot (Nov 5 or later)
+- [ ] Day carousel jumps to that date
+- [ ] Can select time and book
+- [ ] No infinite loop in console
+- [ ] Switching 30↔60 works correctly
+- [ ] Refresh button resets and re-searches
+
+---
+
