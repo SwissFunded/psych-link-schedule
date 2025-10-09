@@ -147,12 +147,20 @@ export default function Book() {
           const available = slots.filter(slot => slot.available);
           
           // Check if we have any 60-minute slots in this range
-          const has60MinSlots = available.some(slot => {
+          console.log(`[Auto-Search] Checking ${available.length} available slots for 60-min pairs...`);
+          
+          const has60MinSlots = available.some((slot, index) => {
             if (!slot.available) return false;
             const currentTime = parseISO(slot.date);
             const nextSlotTime = addMinutes(currentTime, 30);
             const nextSlotDate = nextSlotTime.toISOString();
             const nextSlot = available.find(s => s.date === nextSlotDate);
+            
+            // Debug log for first few slots
+            if (index < 5) {
+              console.log(`[Auto-Search Debug] Slot ${format(currentTime, 'dd.MM HH:mm')} - Next slot ${format(nextSlotTime, 'HH:mm')}: ${nextSlot ? 'FOUND' : 'NOT FOUND'}`);
+            }
+            
             return nextSlot?.available === true;
           });
           
