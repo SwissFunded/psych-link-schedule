@@ -216,7 +216,8 @@ export default function Appointments() {
               ))
             ) : (
               <div className="text-center py-12">
-                <p className="text-psychText/60">Keine vergangenen Termine gefunden</p>
+                <h3 className="text-lg font-medium text-psychText mb-2">Keine vergangenen Termine</h3>
+                <p className="text-psychText/60">Ihre absolvierten Termine werden hier angezeigt</p>
               </div>
             )}
           </TabsContent>

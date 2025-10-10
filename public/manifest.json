@@ -2,7 +2,7 @@
   "name": "PsychCentral Terminverwaltung",
   "short_name": "PsychCentral",
   "description": "Terminverwaltung für Ihre Therapie bei Dipl. Arzt Antoine Theurillat",
-  "start_url": "/",
+  "start_url": "https://psychcentral.app/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -10,9 +10,15 @@
   "background_color": "#ffffff",
   "icons": [
     {
-      "src": "/icon-192.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {

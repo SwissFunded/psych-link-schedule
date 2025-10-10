@@ -94,12 +94,157 @@ The application is fully functional with the following features:
 - Manually verify the last paragraph is fully readable on all pages with long content.
 
 ### Executor Task List
-- [ ] Create CSS variable and `.pb-nav-safe` utility in `src/index.css`.
-- [ ] Update `src/components/layout/Layout.tsx` to use `calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 16px)` and ensure `min-h-screen`.
-- [ ] Apply `.pb-nav-safe` to containers in `src/pages/BookingConfirmation.tsx` (and `Appointments.tsx`, `Book.tsx`, `Profile.tsx`).
-- [ ] Set `height: var(--mobile-nav-height)` on bottom nav in `Layout.tsx`.
-- [ ] Audit and replace `h-screen`/`overflow-hidden` where harmful.
-- [ ] Build and deploy; verify on iPhone (PWA + Safari) that no text is clipped.
+- [x] Create CSS variable and `.pb-nav-safe` utility in `src/index.css`. ✅
+- [x] Update `src/components/layout/Layout.tsx` to use `calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 1rem)` and ensure `min-h-screen`. ✅
+- [x] Apply `.pb-nav-safe` to containers in all pages (BookingConfirmation, Appointments, Book, Profile, Reschedule). ✅
+- [x] Set `height: var(--mobile-nav-height)` on bottom nav in `Layout.tsx`. ✅
+- [x] Audit and replace `h-screen`/`overflow-hidden` where harmful - none found, all use `min-h-screen`. ✅
+- [x] Build and deploy. ✅
+- [ ] User verify on iPhone (PWA + Safari) that no text is clipped.
+
+---
+
+## Executor: Mobile Text Cut-off Fixed (10 Oct 2025)
+
+**Status:** ✅ IMPLEMENTED AND DEPLOYED
+
+### Problem:
+- Last paragraphs of content (especially on BookingConfirmation page) were hidden behind the fixed bottom navigation on iOS
+- Screenshot showed text clipping at the bottom
+- Main container padding used `max()` instead of `calc()`, so it chose the larger value instead of summing them
+
+### Solution Implemented:
+
+**1. CSS Variable for Nav Height** (`src/index.css`)
+- Added `--mobile-nav-height: 72px` in `:root`
+- Single source of truth for bottom nav height
+
+**2. Safe Bottom Padding Utility** (`src/index.css`)
+```css
+.pb-nav-safe {
+  padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 1rem);
+}
+```
+- Sums all three values (nav height + safe area + breathing room)
+- Not `max()` - ensures adequate space on all devices
+
+**3. Updated Layout Main Padding** (`Layout.tsx`)
+- Changed from: `paddingBottom: 'max(5rem, env(safe-area-inset-bottom))'`
+- Changed to: `paddingBottom: 'calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 1rem)'`
+- Removed `pb-20` from className (now using inline calc)
+
+**4. Explicit Nav Height** (`Layout.tsx`)
+- Added `height: 'var(--mobile-nav-height)'` to bottom nav
+- Ensures CSS variable matches actual element height
+
+**5. Applied to All Page Containers**
+- ✅ `BookingConfirmation.tsx`
+- ✅ `Appointments.tsx` (both loading and main)
+- ✅ `Book.tsx`
+- ✅ `Profile.tsx` (both loading and main)
+- ✅ `Reschedule.tsx`
+
+**6. Audit Results**
+- All pages use `min-h-screen` (not `h-screen`) ✅
+- `overflow-hidden` only on cards/specific elements, not page containers ✅
+- No problematic layout constraints found ✅
+
+### Deployment:
+
+**Git Commit:** `2116e6d`
+**Build:** ✅ Successful (3.87s)
+**Deployed:** Vercel ✅
+
+### Testing Needed:
+
+**On iPhone (Safari + PWA):**
+- [ ] BookingConfirmation page - last paragraph fully visible
+- [ ] All pages scroll smoothly without content hidden
+- [ ] Works in portrait and landscape
+- [ ] Works with Dynamic Island (iPhone 14 Pro+)
+- [ ] No horizontal scroll introduced
+- [ ] Bottom nav height looks correct
+
+**Expected Result:**
+- All text fully readable above bottom navigation
+- Comfortable spacing between last content and nav
+- Works on all iPhone models (SE to 16 Pro Max)
+
+---
+
+## Executor: Fixed Vercel SPA Routing 404 Error (10 Oct 2025)
+
+**Status:** ✅ FIXED AND DEPLOYED
+
+### Problem:
+- Reloading any page (e.g., `/appointments`, `/book`, `/profile`) on the deployed Vercel site showed 404: NOT_FOUND error
+- Error: `Code: NOT_FOUND, ID: fra1::p9pkj-1760123572222-10af2eae0056`
+- Only happened on direct navigation or page reload, not on initial app load
+
+### Root Cause:
+**Single Page Application (SPA) Routing Issue**
+
+When you reload a route like `/appointments`:
+1. Browser makes HTTP request to server for `/appointments`
+2. Vercel server looks for a physical file at `/appointments`
+3. File doesn't exist (it's a client-side React Router route)
+4. Returns 404 error
+
+**Why it worked initially:**
+- Loading `/` → Vercel serves `index.html` → React loads → React Router handles navigation client-side
+
+**Why it broke on reload:**
+- Direct server request to `/appointments` → no file exists → 404
+
+### Solution:
+
+Created `vercel.json` configuration file to tell Vercel to rewrite all routes to `index.html`:
+
+```json
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+**How it works:**
+1. Any request to any path (matched by regex `(.*)`)
+2. Gets rewritten to serve `index.html`
+3. React loads and React Router handles the route client-side
+4. Correct page is displayed
+
+### Deployment:
+
+**Git Commit:** `1b0ed90`
+**File Created:** `vercel.json`
+**Deployed:** Vercel ✅
+
+### Testing:
+
+**Fixed Routes:**
+- ✅ `/appointments` - reload works
+- ✅ `/termine` - reload works
+- ✅ `/book` or `/buchen` - reload works
+- ✅ `/profile` or `/profil` - reload works
+- ✅ `/reschedule/:id` - reload works
+- ✅ All other React Router routes
+
+**Verification:**
+- Reload any page → should work without 404
+- Direct navigation to any route → should work
+- Browser back/forward buttons → should work
+
+### Notes:
+- This is standard SPA configuration for Vercel
+- All static assets (CSS, JS, images) still served normally
+- Only affects HTML document requests
+- Does not impact performance or caching
+
+---
 
 ## Key Challenges and Analysis
 

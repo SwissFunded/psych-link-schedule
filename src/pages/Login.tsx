@@ -114,7 +114,7 @@ export default function Login() {
           <motion.div 
             initial={{ y: -30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="text-center mb-8"
           >
             <div className="flex justify-center mb-5">
@@ -126,7 +126,7 @@ export default function Login() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
           >
             <Card className="w-full border-none shadow-xl backdrop-blur-sm bg-white/90 rounded-xl overflow-hidden">
               <CardHeader className="pb-4">
@@ -278,7 +278,7 @@ export default function Login() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
             className="mt-8 text-center text-psychText/40 text-xs"
           >
             <p>© 2025 PsychCentral. Alle Rechte vorbehalten.</p>

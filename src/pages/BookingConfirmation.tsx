@@ -81,9 +81,11 @@ export default function BookingConfirmation() {
               </div>
               
               <div className="pt-4 border-t border-gray-100 mt-4">
-                <p className="text-sm font-medium text-psychText mb-2">
-                  {appointment.notes}
-                </p>
+                {appointment.notes && (
+                  <p className="text-sm font-medium text-psychText mb-2">
+                    {appointment.notes}
+                  </p>
+                )}
                 <p className="text-sm text-psychText/60">
                   Wenn es Ihnen nicht möglich ist, den vereinbarten Behandlungstermin
                   einzuhalten, so bitten wir Sie um rechtzeitige Terminabsage (24 Std. im
