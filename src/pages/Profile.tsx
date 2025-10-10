@@ -60,7 +60,7 @@ export default function Profile() {
   if (!patient) {
     return (
       <Layout>
-        <div className="container max-w-2xl mx-auto py-8 px-4">
+        <div className="container max-w-2xl mx-auto py-8 px-4 pb-nav-safe">
           <div className="text-center">Profil wird geladen...</div>
         </div>
       </Layout>
@@ -69,7 +69,7 @@ export default function Profile() {
   
   return (
     <Layout>
-      <div className="container max-w-2xl mx-auto py-8 px-4">
+      <div className="container max-w-2xl mx-auto py-8 px-4 pb-nav-safe">
         <h1 className="text-2xl font-semibold mb-6">Ihr Profil</h1>
         
         <Card className="border-psychPurple/10 card-shadow mb-6">

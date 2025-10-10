@@ -50,6 +50,57 @@ The application is fully functional with the following features:
 
 ---
 
+## Planner: Mobile text cut-off under bottom nav (10 Oct 2025)
+
+### Background / Symptom
+- On the booking confirmation screen (and possibly other long pages), the last lines of content are hidden behind the fixed bottom navigation on iOS. Screenshot shows the final paragraph clipped by the bottom nav.
+
+### Hypothesis (Root causes)
+- Insufficient bottom padding on the primary scroll container. Current `main` padding uses `max(5rem, env(safe-area-inset-bottom))` which does not add the nav height; it only chooses the larger of the two.
+- Some pages use tight containers without an extra bottom padding buffer, causing content to scroll under the fixed nav.
+- Potential `h-screen` or `overflow-hidden` on an ancestor preventing natural scroll beyond viewport.
+
+### Fix Strategy (Low risk, centralized)
+1) Introduce a CSS variable for the mobile nav height and a utility class for safe bottom padding.
+   - Define `--mobile-nav-height` on `:root` (default 72px). Expose utility `.pb-nav-safe { padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 16px) }`.
+   - Rationale: Always allocate space for the nav height PLUS safe-area inset PLUS a small breathing room.
+
+2) Update `Layout.tsx` main content padding to sum values, not `max()`.
+   - Replace `paddingBottom: 'max(5rem, env(safe-area-inset-bottom))'` with `paddingBottom: 'calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 16px)'`.
+   - Ensure `main` uses `min-h-screen` (not `h-screen`) and does not set `overflow: hidden`.
+
+3) Standardize page containers to include bottom-safe padding.
+   - Add `.pb-nav-safe` to primary page wrappers on `BookingConfirmation.tsx`, `Appointments.tsx`, `Book.tsx`, and `Profile.tsx`.
+   - Where cards/lists are scrollable, also add inner `pb-6` (or similar) to avoid tight clipping.
+
+4) Ensure the nav element height matches the variable.
+   - Set explicit `height: var(--mobile-nav-height)` on the fixed bottom nav so the buffer equals its real size. Keep `padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))` for extra comfort if needed.
+
+5) Audit for problematic layout constraints.
+   - Grep for `h-screen` or `overflow-hidden` on pages. Replace with `min-h-screen` where appropriate.
+
+### Success Criteria
+- No content is obscured by the bottom nav on iOS Safari and PWA.
+- The booking confirmation page scrolls so the very last line is fully visible above the nav.
+- Works in both portrait and landscape, and with dynamic island/home indicator devices.
+- No horizontal overflow introduced; no layout shift.
+
+### Risks & Mitigations
+- Nav height mismatch: Using a CSS variable allows quick tuning (e.g., 64px → 72px) without touching multiple files.
+- Keyboard overlays on input screens: Confirm input pages still scroll correctly; keep `min-h-screen` and allow natural scroll.
+
+### Rollout & Testing
+- Implement, build, and deploy to Vercel. Test on iPhone as PWA and Safari [[memory:1318179]].
+- Manually verify the last paragraph is fully readable on all pages with long content.
+
+### Executor Task List
+- [ ] Create CSS variable and `.pb-nav-safe` utility in `src/index.css`.
+- [ ] Update `src/components/layout/Layout.tsx` to use `calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 16px)` and ensure `min-h-screen`.
+- [ ] Apply `.pb-nav-safe` to containers in `src/pages/BookingConfirmation.tsx` (and `Appointments.tsx`, `Book.tsx`, `Profile.tsx`).
+- [ ] Set `height: var(--mobile-nav-height)` on bottom nav in `Layout.tsx`.
+- [ ] Audit and replace `h-screen`/`overflow-hidden` where harmful.
+- [ ] Build and deploy; verify on iPhone (PWA + Safari) that no text is clipped.
+
 ## Key Challenges and Analysis
 
 ### Challenge 1: Slot Availability Logic

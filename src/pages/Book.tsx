@@ -349,7 +349,7 @@ export default function Book() {
   
   return (
     <Layout>
-      <div className="w-full max-w-full lg:max-w-5xl mx-auto py-4 md:py-8 px-4">
+      <div className="w-full max-w-full lg:max-w-5xl mx-auto py-4 md:py-8 px-4 pb-nav-safe">
         <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
           <div className="min-w-0 flex-1">
             <TherapistHeader name={therapistName} />

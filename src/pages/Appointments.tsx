@@ -145,7 +145,7 @@ export default function Appointments() {
   if (loading) {
     return (
       <Layout>
-        <div className="w-full max-w-full md:max-w-3xl mx-auto py-4 md:py-8 px-4">
+        <div className="w-full max-w-full md:max-w-3xl mx-auto py-4 md:py-8 px-4 pb-nav-safe">
           <div className="animate-pulse">
             <div className="h-8 bg-psychPurple/10 rounded w-1/3 mb-6"></div>
             <div className="space-y-4">
@@ -163,7 +163,7 @@ export default function Appointments() {
   
   return (
     <Layout>
-      <div className="w-full max-w-full md:max-w-3xl mx-auto py-4 md:py-8 px-4">
+      <div className="w-full max-w-full md:max-w-3xl mx-auto py-4 md:py-8 px-4 pb-nav-safe">
         <div className="flex justify-between items-center mb-4 md:mb-6 gap-2">
           <h1 className="text-2xl font-semibold">Ihre Termine</h1>
           <Button 

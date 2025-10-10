@@ -126,7 +126,7 @@ export default function Reschedule() {
   
   return (
     <Layout>
-      <div className="container max-w-3xl mx-auto py-8 px-4">
+      <div className="container max-w-3xl mx-auto py-8 px-4 pb-nav-safe">
         <Button
           variant="ghost"
           size="sm"

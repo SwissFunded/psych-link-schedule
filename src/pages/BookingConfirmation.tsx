@@ -21,7 +21,7 @@ export default function BookingConfirmation() {
 
   return (
     <Layout>
-      <div className="container max-w-4xl mx-auto py-8 px-4">
+      <div className="container max-w-4xl mx-auto py-8 px-4 pb-nav-safe">
         {/* Progress Steps */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-4">

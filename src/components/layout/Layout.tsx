@@ -156,9 +156,9 @@ export default function Layout({ children }: LayoutProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex-1 bg-gradient-to-br from-psychPurple/5 to-psychBeige/50 pb-20 md:pb-0"
+        className="flex-1 bg-gradient-to-br from-psychPurple/5 to-psychBeige/50 md:pb-0"
         style={{
-          paddingBottom: 'max(5rem, env(safe-area-inset-bottom))',
+          paddingBottom: 'calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 1rem)',
         }}
       >
         <PageTransition>{children}</PageTransition>
@@ -168,6 +168,7 @@ export default function Layout({ children }: LayoutProps) {
         <nav 
           className="bg-white/95 backdrop-blur-lg border-t border-psychText/5 py-3 md:hidden fixed bottom-0 left-0 right-0 z-10 shadow-[0_-1px_5px_rgba(0,0,0,0.05)]"
           style={{
+            height: 'var(--mobile-nav-height)',
             paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
           }}
         >
