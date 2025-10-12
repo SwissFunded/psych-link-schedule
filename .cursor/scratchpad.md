@@ -491,8 +491,8 @@ User needs to complete Google Cloud setup (see `GOOGLE_CALENDAR_SETUP.md`)
 - **Status:** ✅ Google Calendar automatic sync implemented (OAuth 2.0) - Currently disabled for deployment
 - **Requires:** Google Cloud Console setup (see GOOGLE_CALENDAR_SETUP.md)
 - **Vitabyte Integration:** ✅ Antoine uses Vitabyte calendar system
-  - **Calendar Subscription URL:** https://api.vitabyte.ch/calendar/?action=getics&cid=0641e7-1d2756-9d1896-9b3206&type=.ics
-  - **Appointment Availability URL:** https://api.vitabyte.ch/calendar/?action=getics&cid=814167-1776ec-851153-724277&type=.ics
+  - **Calendar URL (Current - Updated 2025-10-12):** https://api.vitabyte.ch/calendar/?action=getics&cid=0aaa93-fd0a04-9ccb36-8e6306&type=.ics
+  - **Note:** Calendar connection was disabled, restored with new CID: `0aaa93-fd0a04-9ccb36-8e6306`
   - Real-time availability checking implemented:
     - Fetches Antoine's actual appointments from Vitabyte
     - Parses ICS file to find busy times
