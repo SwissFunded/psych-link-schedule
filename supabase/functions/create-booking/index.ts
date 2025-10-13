@@ -31,12 +31,21 @@ serve(async (req) => {
     console.log('📅 Creating booking:', {
       therapist: bookingData.therapistId,
       time: bookingData.startTime,
-      patient: `${bookingData.firstName} ${bookingData.lastName}`
+      patient: `${bookingData.firstName} ${bookingData.lastName}`,
+      appointmentType: bookingData.appointmentType,
+      appointmentMode: bookingData.appointmentMode
     })
 
     // Validate required fields
     if (!bookingData.firstName || !bookingData.lastName || !bookingData.email) {
+      console.error('❌ Missing required fields:', { firstName: !!bookingData.firstName, lastName: !!bookingData.lastName, email: !!bookingData.email })
       throw new Error('Vorname, Nachname und Email sind erforderlich')
+    }
+
+    // Validate appointment type
+    if (!['erstgespraech', 'folgetermin', 'telefontermin'].includes(bookingData.appointmentType)) {
+      console.error('❌ Invalid appointment type:', bookingData.appointmentType)
+      throw new Error(`Ungültiger Termintyp: ${bookingData.appointmentType}. Erlaubt sind: erstgespraech, folgetermin, telefontermin`)
     }
 
     // Calculate end time
