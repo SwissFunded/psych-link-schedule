@@ -493,6 +493,16 @@ User needs to complete Google Cloud setup (see `GOOGLE_CALENDAR_SETUP.md`)
 - **Vitabyte Integration:** ✅ Antoine uses Vitabyte calendar system
   - **Calendar URL (Current - Updated 2025-10-12):** https://api.vitabyte.ch/calendar/?action=getics&cid=0aaa93-fd0a04-9ccb36-8e6306&type=.ics
   - **Note:** Calendar connection was disabled, restored with new CID: `0aaa93-fd0a04-9ccb36-8e6306`
+  - **API Credentials (Booking Access):**
+    - **Username:** `Miro`
+    - **Password:** `#dCdGV;f8je,1Tj34nxo`
+    - **Note:** These credentials enable HTTP Basic Auth for Vitabyte booking API
+  - **Vitabyte Booking API Details (Found in previous repo):**
+    - **Base URL:** `https://psych.vitabyte.ch/v1`
+    - **Authentication:** HTTP Basic Auth (username + password → Base64)
+    - **Two APIs:** 
+      - `system` API: `/v1/booking/`, `/v1/getCustomerByMail`, `/v1/getProviders`, etc.
+      - `agenda` API: `/v1/agenda/createAppointment`, `/v1/agenda/getAppointments`, etc.
   - Real-time availability checking implemented:
     - Fetches Antoine's actual appointments from Vitabyte
     - Parses ICS file to find busy times
@@ -2079,6 +2089,193 @@ setAvailableSlots(available);
 - [ ] No infinite loop in console
 - [ ] Switching 30↔60 works correctly
 - [ ] Refresh button resets and re-searches
+
+---
+
+## Vitabyte Booking API Documentation (Discovered)
+
+**Source:** Found in previous repository `psych-link-schedule` commit `534d732`
+
+### API Overview
+
+**Base URL:** `https://psych.vitabyte.ch/v1`
+
+**Authentication:** HTTP Basic Auth
+```javascript
+const username = 'Miro';
+const password = '#dCdGV;f8je,1Tj34nxo';
+const token = btoa(`${username}:${password}`); // Base64 encode
+// Header: Authorization: Basic {token}
+```
+
+### Two Separate APIs
+
+1. **System API** (`/v1/...`) - User/Provider/Service management
+2. **Agenda API** (`/v1/agenda/...`) - Appointment management
+
+---
+
+### System API Endpoints
+
+#### 1. Verify Credentials
+```
+POST /v1/verify
+Response: { "status": true, "msg": "authenticated successfully" }
+```
+
+#### 2. Get Customer by Email
+```
+POST /v1/getCustomerByMail
+Body: { "mail": "patient@example.com" }
+Response: {
+  "status": true,
+  "result": [{
+    "patid": 12345,
+    "firstname": "Max",
+    "lastname": "Mustermann",
+    "gender": "m",
+    "dob": "1990-01-01",
+    "mail": "patient@example.com",
+    "mobile": "+41 79 123 45 67",
+    "deleted": 0
+  }]
+}
+```
+
+#### 3. Get Services/Leistungen
+```
+POST /v1/booking/getServices
+Body: { "location": 0 }
+Response: {
+  "status": true,
+  "result": [{
+    "serviceid": 123,
+    "name": "Folgetermin 30 Min",
+    "category": "Therapie",
+    "duration": 30,
+    "price": 150.00,
+    "providers": [215],
+    "calendars": [120]
+  }]
+}
+```
+
+#### 4. Get Providers/Treaters
+```
+POST /v1/getProviders
+Response: {
+  "status": "ok",
+  "result": [{
+    "userid": 215,
+    "title": "Dipl. Arzt",
+    "givenname": "Antoine",
+    "familyname": "Theurillat",
+    "specialization": "Psychotherapie"
+  }]
+}
+```
+
+#### 5. Get Treater for Patient
+```
+POST /v1/getTreater
+Body: { "patid": 12345 }
+Response: {
+  "status": true,
+  "result": { "provider": 215 }
+}
+```
+
+---
+
+### Agenda API Endpoints
+
+#### 1. Create Appointment ⭐ (MOST IMPORTANT)
+```
+POST /v1/agenda/createAppointment
+Body: {
+  "date": "2025-10-15 14:00:00",      // Start time
+  "end": "2025-10-15 14:30:00",       // End time
+  "dateTs": "2025-10-15 14:00:00",    // Same as date (required per docs)
+  "endTs": "2025-10-15 14:30:00",     // Same as end (required per docs)
+  "calendar": 120,                     // Calendar ID (from provider)
+  "patid": 12345,                      // Patient ID
+  "appointment": "Konsultation",       // Appointment type
+  "comment": "Optional notes",         // Optional
+  "state": "scheduled"                 // Optional
+}
+
+Response: {
+  "status": true,
+  "result": [{ "appointmentid": 98765 }]
+}
+```
+
+#### 2. Get Appointments
+```
+POST /v1/agenda/getAppointments
+Body: { "patid": 12345 }
+Response: {
+  "status": true,
+  "result": [{
+    "id": 98765,
+    "date": "2025-10-15 14:00:00",
+    "duration": 30,
+    "patid": 12345,
+    "provider": 215,
+    "appointment": "Konsultation",
+    "comment": "Notes",
+    "status": "scheduled"
+  }]
+}
+```
+
+#### 3. Modify Appointment (Cancel/Reschedule)
+```
+POST /v1/agenda/modifyAppointment
+Body: {
+  "appointmentId": 98765,
+  "status": "cancelled"
+}
+```
+
+---
+
+### Key Data Mappings
+
+**Provider/Therapist:**
+- Antoine Theurillat: Provider ID `215`
+- Calendar ID: `120` (from previous API tests)
+
+**Appointment Types:**
+- `"Konsultation"` - Standard consultation
+- `"Folgetermin 30 Min"` - 30-minute follow-up
+- `"Folgetermin 60 Min"` - 60-minute follow-up
+- `"Telefon"` - Phone appointment
+
+**Date Format:**
+- Always: `"YYYY-MM-DD HH:MM:SS"` (e.g., `"2025-10-15 14:00:00"`)
+- Timezone: Local time (Europe/Zurich)
+
+---
+
+### Implementation Notes (from old repo)
+
+1. **Calendar ID is critical** - Each provider has specific calendar IDs
+2. **Both `date`/`end` AND `dateTs`/`endTs` required** - API docs specify both
+3. **Patient must exist first** - Use `getCustomerByMail` to find or create patient
+4. **Response format varies** - Sometimes `result` is array, sometimes object
+5. **CORS handled via proxy** - Cannot call directly from browser
+
+---
+
+### Next Steps for Integration
+
+1. ✅ Create `vitabyteBookingApi.ts` service (based on old `epatApi.ts`)
+2. ✅ Implement `bookAppointment()` function
+3. ✅ Add patient lookup/creation flow
+4. ✅ Test with real credentials on Vercel
+5. ✅ Update `appointmentService.ts` to use real API
+6. ✅ Deploy and test end-to-end booking
 
 ---
 
