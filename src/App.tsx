@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { AdminAuthProvider } from "./contexts/AdminAuthContext";
 import { AnimatePresence } from "framer-motion";
 import { Suspense, lazy } from "react";
 
@@ -20,6 +21,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const GoogleCalendarCallback = lazy(() => import("./pages/GoogleCalendarCallback"));
 const BookingConfirmation = lazy(() => import("./pages/BookingConfirmation"));
 const Admin = lazy(() => import("./pages/Admin"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 
 // Create a fallback loading component
 const PageLoading = () => (
@@ -80,6 +82,11 @@ const AnimationRoutes = () => {
             <BookingConfirmation />
           </Suspense>
         } />
+        <Route path="/admin-login" element={
+          <Suspense fallback={<PageLoading />}>
+            <AdminLogin />
+          </Suspense>
+        } />
         <Route path="/admin" element={
           <Suspense fallback={<PageLoading />}>
             <Admin />
@@ -98,7 +105,9 @@ const App = () => (
       <Sonner position="top-right" closeButton className="sonner-premium" />
       <BrowserRouter>
         <AuthProvider>
-          <AnimationRoutes />
+          <AdminAuthProvider>
+            <AnimationRoutes />
+          </AdminAuthProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +42,7 @@ interface Booking {
 }
 
 export default function Admin() {
+  const { isAdminAuthenticated, logout } = useAdminAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +51,13 @@ export default function Admin() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!isAdminAuthenticated) {
+      navigate('/admin-login');
+    }
+  }, [isAdminAuthenticated, navigate]);
 
   // Fetch bookings from Supabase
   const fetchBookings = async () => {
@@ -206,9 +215,14 @@ export default function Admin() {
       <div className="min-h-screen bg-gradient-to-br from-psychPurple/5 to-white py-8 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-psychText mb-2">Admin-Panel</h1>
-            <p className="text-psychText/60">Verwaltung aller Terminbuchungen</p>
+          <div className="mb-8 flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-psychText mb-2">Admin-Panel</h1>
+              <p className="text-psychText/60">Verwaltung aller Terminbuchungen</p>
+            </div>
+            <Button onClick={logout} variant="outline">
+              Abmelden
+            </Button>
           </div>
 
           {/* Stats Cards */}
