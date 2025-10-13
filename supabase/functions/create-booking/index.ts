@@ -110,116 +110,18 @@ serve(async (req) => {
 
     console.log('✅ Booking created in DB:', booking.id)
 
-    // Step 3: Create appointment in Vitabyte
-    const vitabyteUsername = Deno.env.get('VITABYTE_USERNAME') || Deno.env.get('VITE_VITABYTE_USERNAME')
-    const vitabytePassword = Deno.env.get('VITABYTE_PASSWORD') || Deno.env.get('VITE_VITABYTE_PASSWORD')
-    
-    if (!vitabyteUsername || !vitabytePassword) {
-      console.error('❌ Vitabyte credentials not found')
-      
-      // Update booking status to failed
-      await supabase
-        .from('bookings')
-        .update({ status: 'failed' })
-        .eq('id', booking.id)
-      
-      throw new Error('Vitabyte Konfigurationsfehler. Bitte kontaktieren Sie den Support.')
-    }
-
-    const authToken = btoa(`${vitabyteUsername}:${vitabytePassword}`)
-    
-    // Format dates for Vitabyte: "YYYY-MM-DD HH:MM:SS"
-    const formatForVitabyte = (date: Date) => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
-      const seconds = String(date.getSeconds()).padStart(2, '0')
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-    }
-
-    const vitabytePayload = {
-      date: formatForVitabyte(startTime),
-      end: formatForVitabyte(endTime),
-      dateTs: formatForVitabyte(startTime),
-      endTs: formatForVitabyte(endTime),
-      calendar: 136,
-      patid: 0, // No patient ID needed
-      appointment: bookingData.notes || bookingData.appointmentType,
-      comment: `${bookingData.firstName} ${bookingData.lastName} (${bookingData.email}) - Gebucht via psychcentral.app`
-    }
-
-    console.log('📤 Sending to Vitabyte API:', vitabytePayload)
-
-    try {
-      const vitabyteResponse = await fetch('https://psych.vitabyte.ch/v1/agenda/createAppointment', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${authToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(vitabytePayload)
-      })
-
-      const vitabyteData = await vitabyteResponse.json()
-      console.log('📥 Vitabyte response:', vitabyteData)
-
-      if (vitabyteData.status === true || vitabyteData.status === 'ok') {
-        let appointmentId: number | undefined
-
-        if (Array.isArray(vitabyteData.result) && vitabyteData.result.length > 0) {
-          appointmentId = vitabyteData.result[0].appointmentid
-        } else if (typeof vitabyteData.result === 'object' && vitabyteData.result.appointmentid) {
-          appointmentId = vitabyteData.result.appointmentid
-        }
-
-        if (appointmentId) {
-          // Update booking with Vitabyte appointment ID
-          await supabase
-            .from('bookings')
-            .update({ vitabyte_appointment_id: appointmentId })
-            .eq('id', booking.id)
-          
-          console.log(`✅ Vitabyte appointment created! ID: ${appointmentId}`)
-          
-          return new Response(
-            JSON.stringify({
-              success: true,
-              booking: {
-                ...booking,
-                vitabyte_appointment_id: appointmentId
-              }
-            }),
-            { 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200
-            }
-          )
-        }
+    // Return success without Vitabyte integration
+    // Bookings are stored in database only and can be managed via Admin Panel
+    return new Response(
+      JSON.stringify({
+        success: true,
+        booking: booking
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
       }
-
-      // Vitabyte failed but we have DB booking
-      console.warn('⚠️ Vitabyte booking failed, but DB booking exists')
-      await supabase
-        .from('bookings')
-        .update({ status: 'failed' })
-        .eq('id', booking.id)
-      
-      throw new Error(`Vitabyte Fehler: ${vitabyteData.msg || 'Unbekannter Fehler'}`)
-      
-    } catch (vitabyteError: any) {
-      console.error('❌ Vitabyte API error:', vitabyteError)
-      
-      // Mark booking as failed
-      await supabase
-        .from('bookings')
-        .update({ status: 'failed' })
-        .eq('id', booking.id)
-      
-      throw new Error('Fehler beim Erstellen des Termins in Vitabyte. Der Termin wurde lokal gespeichert.')
-    }
+    )
 
   } catch (error: any) {
     console.error('❌ Booking error:', error)
