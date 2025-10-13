@@ -224,10 +224,21 @@ export const appointmentService = {
     return checkTimeSlotAvailability(therapistId, therapistSlots);
   },
   
-  bookAppointment: async (appointment: Omit<Appointment, 'id'>, patientData: { firstName: string; lastName: string; email: string; phone?: string }): Promise<Appointment> => {
+  bookAppointment: async (appointment: Omit<Appointment, 'id'>, patientData: { firstName: string; lastName: string; email: string; phone?: string; appointmentType: string }): Promise<Appointment> => {
     console.log('📅 Starting appointment booking process via Edge Function...');
     
     try {
+      // Map appointment type to expected values
+      let mappedAppointmentType: 'erstgespraech' | 'folgetermin' | 'telefontermin' = 'folgetermin';
+      
+      if (patientData.appointmentType.includes('erstgespraech') || patientData.appointmentType === 'erstgespraech') {
+        mappedAppointmentType = 'erstgespraech';
+      } else if (patientData.appointmentType.includes('telefontermin') || patientData.appointmentType === 'telefontermin') {
+        mappedAppointmentType = 'telefontermin';
+      } else {
+        mappedAppointmentType = 'folgetermin';
+      }
+      
       // Call the Edge Function for robust booking with double-booking prevention
       const { data, error } = await supabase.functions.invoke('create-booking', {
         body: {
@@ -238,7 +249,7 @@ export const appointmentService = {
           lastName: patientData.lastName,
           email: patientData.email,
           phone: patientData.phone,
-          appointmentType: appointment.notes || 'folgetermin',
+          appointmentType: mappedAppointmentType,
           appointmentMode: appointment.type,
           notes: appointment.notes
         }

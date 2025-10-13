@@ -334,7 +334,8 @@ export default function Book() {
         firstName: firstName,
         lastName: lastName,
         email: patient.email,
-        phone: patient.phone
+        phone: patient.phone,
+        appointmentType: reason // Pass the reason value (erstgespraech, folgetermin, etc.)
       };
       
       // Book via Edge Function with double-booking prevention
