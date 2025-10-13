@@ -239,6 +239,16 @@ export const appointmentService = {
         mappedAppointmentType = 'folgetermin';
       }
       
+      // Map appointment mode: convert 'in-person' to 'in_person'
+      let mappedAppointmentMode: 'in_person' | 'video' | 'phone' = 'in_person';
+      if (appointment.type === 'video') {
+        mappedAppointmentMode = 'video';
+      } else if (appointment.type === 'phone') {
+        mappedAppointmentMode = 'phone';
+      } else {
+        mappedAppointmentMode = 'in_person';
+      }
+      
       // Call the Edge Function for robust booking with double-booking prevention
       const { data, error } = await supabase.functions.invoke('create-booking', {
         body: {
@@ -250,7 +260,7 @@ export const appointmentService = {
           email: patientData.email,
           phone: patientData.phone,
           appointmentType: mappedAppointmentType,
-          appointmentMode: appointment.type,
+          appointmentMode: mappedAppointmentMode,
           notes: appointment.notes
         }
       });

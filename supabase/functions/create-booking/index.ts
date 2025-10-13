@@ -57,25 +57,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Step 1: Check for existing overlapping bookings
-    const { data: existingBookings, error: checkError } = await supabase
-      .from('bookings')
-      .select('id, start_time, end_time, first_name, last_name')
-      .eq('therapist_id', bookingData.therapistId)
-      .eq('status', 'scheduled')
-      .overlaps('slot', `[${startTime.toISOString()},${endTime.toISOString()})`)
-
-    if (checkError) {
-      console.error('❌ Error checking for conflicts:', checkError)
-      throw new Error('Fehler beim Prüfen der Verfügbarkeit')
-    }
-
-    if (existingBookings && existingBookings.length > 0) {
-      console.warn('⚠️ Booking conflict detected:', existingBookings)
-      throw new Error('Dieser Zeitslot ist bereits gebucht. Bitte wählen Sie einen anderen Termin.')
-    }
-
-    // Step 2: Insert into database (this will also enforce the exclusion constraint)
+    // Insert into database (exclusion constraint will prevent overlaps)
     const { data: booking, error: insertError } = await supabase
       .from('bookings')
       .insert({
@@ -100,12 +82,48 @@ serve(async (req) => {
     if (insertError) {
       console.error('❌ Database insert error:', insertError)
       
-      // Check if it's a conflict error (exclusion constraint)
+      // Handle specific database errors
       if (insertError.code === '23P01') {
-        throw new Error('Dieser Zeitslot wurde gerade von einem anderen Patienten gebucht. Bitte wählen Sie einen anderen Termin.')
+        // Exclusion constraint violation (overlapping booking)
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Dieser Zeitslot ist bereits gebucht. Bitte wählen Sie einen anderen Termin.'
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 409 // Conflict
+          }
+        )
       }
       
-      throw new Error('Fehler beim Speichern der Buchung')
+      if (insertError.code === '23514') {
+        // Check constraint violation (invalid appointment_type or appointment_mode)
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Ungültige Termindaten. Bitte überprüfen Sie Ihre Eingabe.',
+            details: insertError.message
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        )
+      }
+      
+      // Generic database error
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Fehler beim Speichern der Buchung',
+          details: insertError.message
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      )
     }
 
     console.log('✅ Booking created in DB:', booking.id)
