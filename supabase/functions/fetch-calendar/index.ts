@@ -3,8 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 // Whitelist of allowed calendar configurations
 const CALENDAR_CONFIGS: Record<string, Record<string, string>> = {
   't1': {
-    'appointment': '0aaa93-fd0a04-9ccb36-8e6306', // Antoine's main calendar (NEW - connection restored)
-    'epat': '0aaa93-fd0a04-9ccb36-8e6306' // Antoine's main calendar (NEW - connection restored)
+    'appointment': 'c5ad79-40dc35-228b71-218c1c', // Antoine's main calendar (LATEST - 2025-10-13)
+    'epat': 'c5ad79-40dc35-228b71-218c1c' // Antoine's main calendar (LATEST - 2025-10-13)
   }
 }
 
