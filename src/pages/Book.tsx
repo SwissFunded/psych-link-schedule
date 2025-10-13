@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { appointmentService, TimeSlot } from '@/services/appointmentService';
-import { recheckTimeSlot, clearAllCalendarCache } from '@/services/vitabyteCalendarService';
+import { recheckTimeSlot } from '@/services/vitabyteCalendarService';
 import { format, addDays, startOfDay, parseISO, addMinutes } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import ReasonSelect, { reasons } from '@/components/ui/ReasonSelect';
 import DayCarousel from '@/components/ui/DayCarousel';
 import DayCarouselSkeleton from '@/components/ui/DayCarouselSkeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { hapticFeedback } from '@/utils/haptics';
 
 export default function Book() {
@@ -236,30 +236,6 @@ export default function Book() {
     setStartDate(prev => addDays(prev, 14)); // Load 14 more days
   };
   
-  const handleRefreshCalendar = async () => {
-    try {
-      setLoading(true);
-      clearAllCalendarCache(); // Clear all calendar caches
-      autoSearchedRef.current = false; // Reset auto-search guard on refresh
-      toast.info("🔄 Kalender wird aktualisiert...");
-      
-      // Refetch time slots
-      const endDate = addDays(startDate, 14);
-      const slots = await appointmentService.getAvailableTimeSlots(
-        defaultTherapistId,
-        startDate,
-        endDate
-      );
-      setAvailableSlots(slots.filter(slot => slot.available));
-      toast.success("✅ Kalender aktualisiert!");
-    } catch (error) {
-      console.error('Failed to refresh calendar:', error);
-      toast.error("Kalender konnte nicht aktualisiert werden");
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   const handleNext = () => {
     if (currentStep === 0 && appointmentType) {
       setCurrentStep(1);
@@ -366,19 +342,6 @@ export default function Book() {
           <div className="min-w-0 flex-1">
             <TherapistHeader name={therapistName} />
           </div>
-          
-          {/* DEV: Temporary refresh button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefreshCalendar}
-            disabled={loading}
-            className="gap-2 border-orange-400 text-orange-600 hover:bg-orange-50 flex-shrink-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">DEV: Kalender aktualisieren</span>
-            <span className="sm:hidden">Refresh</span>
-          </Button>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 md:gap-8">
