@@ -327,8 +327,18 @@ export default function Book() {
         notes: appointmentTypeDisplay,
       };
       
-      // Book directly to Vitabyte Calendar 136 (no patient lookup needed)
-      const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
+      const [firstName, ...lastNameParts] = patient.name.split(' ');
+      const lastName = lastNameParts.join(' ') || firstName;
+      
+      const patientData = {
+        firstName: firstName,
+        lastName: lastName,
+        email: patient.email,
+        phone: patient.phone
+      };
+      
+      // Book via Edge Function with double-booking prevention
+      const bookedAppointment = await appointmentService.bookAppointment(newAppointment, patientData);
       
       if (bookedAppointment) {
         hapticFeedback.success(); // Mobile haptic feedback for success

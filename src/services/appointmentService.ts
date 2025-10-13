@@ -1,7 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { checkTimeSlotAvailability } from './vitabyteCalendarService';
-import { vitabyteBookingApi, type CreateAppointmentRequest } from './vitabyteBookingApi';
-import { format, addMinutes, parseISO } from 'date-fns';
 // TODO: Google Calendar sync needs to be moved to server-side (Supabase Edge Functions)
 // The googleapis package is Node.js-only and cannot run in the browser
 // import { 
@@ -226,116 +224,95 @@ export const appointmentService = {
     return checkTimeSlotAvailability(therapistId, therapistSlots);
   },
   
-  bookAppointment: async (appointment: Omit<Appointment, 'id'>): Promise<Appointment> => {
-    console.log('📅 Starting appointment booking process...');
-    
-    // Step 1: Create appointment in Vitabyte (Calendar ID 136 for Antoine)
-    let vitabyteAppointmentId: number | null = null;
+  bookAppointment: async (appointment: Omit<Appointment, 'id'>, patientData: { firstName: string; lastName: string; email: string; phone?: string }): Promise<Appointment> => {
+    console.log('📅 Starting appointment booking process via Edge Function...');
     
     try {
-      const startTime = parseISO(appointment.date);
-      const endTime = addMinutes(startTime, appointment.duration);
-      
-      // Format dates for Vitabyte API: "YYYY-MM-DD HH:MM:SS"
-      const formatForVitabyte = (date: Date) => 
-        format(date, 'yyyy-MM-dd HH:mm:ss');
-      
-      const appointmentData: CreateAppointmentRequest = {
-        date: formatForVitabyte(startTime),
-        end: formatForVitabyte(endTime),
-        dateTs: formatForVitabyte(startTime),  // Required per API docs
-        endTs: formatForVitabyte(endTime),      // Required per API docs
-        calendar: 136,  // Antoine's calendar ID
-        patid: 0,  // No patient ID needed
-        appointment: appointment.notes || 'Folgetermin', // Appointment type
-        comment: `Gebucht über psychcentral.app - ${appointment.type}`,
+      // Call the Edge Function for robust booking with double-booking prevention
+      const { data, error } = await supabase.functions.invoke('create-booking', {
+        body: {
+          therapistId: appointment.therapistId,
+          startTime: appointment.date,
+          durationMinutes: appointment.duration,
+          firstName: patientData.firstName,
+          lastName: patientData.lastName,
+          email: patientData.email,
+          phone: patientData.phone,
+          appointmentType: appointment.notes || 'folgetermin',
+          appointmentMode: appointment.type,
+          notes: appointment.notes
+        }
+      });
+
+      if (error) {
+        console.error('❌ Edge Function error:', error);
+        throw new Error(error.message || 'Fehler beim Buchen des Termins');
+      }
+
+      if (!data || !data.success) {
+        console.error('❌ Booking failed:', data);
+        throw new Error(data?.error || 'Fehler beim Buchen des Termins');
+      }
+
+      console.log('✅ Booking successful:', data.booking);
+
+      // Create appointment object from response
+      const newAppointment: Appointment = {
+        id: data.booking.id,
+        ...appointment
       };
+
+      // Update our mock data
+      patientAppointments.push(newAppointment);
       
-      console.log('📤 Sending to Vitabyte API:', appointmentData);
-      const response = await vitabyteBookingApi.createAppointment(appointmentData);
+      // Mark the slot as unavailable
+      const slotIndex = availableSlots.findIndex(slot => 
+        slot.therapistId === appointment.therapistId &&
+        slot.date === appointment.date
+      );
       
-      vitabyteAppointmentId = response.appointmentid;
-      console.log(`✅ Vitabyte appointment created! ID: ${vitabyteAppointmentId}`);
+      if (slotIndex !== -1) {
+        availableSlots[slotIndex].available = false;
+      }
       
+      // Also check fixedAvailableSlots
+      const fixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
+        slot.therapistId === appointment.therapistId &&
+        slot.date === appointment.date
+      );
+      
+      if (fixedSlotIndex !== -1) {
+        fixedAvailableSlots[fixedSlotIndex].available = false;
+      }
+      
+      // For 60-minute appointments, also mark the next slot as unavailable
+      if (appointment.duration === 60) {
+        const nextSlotTime = new Date(appointment.date);
+        nextSlotTime.setMinutes(nextSlotTime.getMinutes() + 30);
+        const nextSlotDate = nextSlotTime.toISOString();
+        
+        const nextSlotIndex = availableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === nextSlotDate
+        );
+        if (nextSlotIndex !== -1) {
+          availableSlots[nextSlotIndex].available = false;
+        }
+        
+        const nextFixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
+          slot.therapistId === appointment.therapistId &&
+          slot.date === nextSlotDate
+        );
+        if (nextFixedSlotIndex !== -1) {
+          fixedAvailableSlots[nextFixedSlotIndex].available = false;
+        }
+      }
+      
+      return newAppointment;
     } catch (error: any) {
-      console.error('❌ Vitabyte booking failed:', error);
-      // Show error to user but continue with local booking as fallback
-      console.warn('⚠️ Falling back to local booking only');
+      console.error('❌ Booking failed:', error);
+      throw error;
     }
-    
-    // Step 2: Create local appointment record (always, as backup)
-    const newAppointment: Appointment = {
-      ...appointment,
-      id: vitabyteAppointmentId ? `vit-${vitabyteAppointmentId}` : `apt-${Math.random().toString(36).substr(2, 9)}`
-    };
-    
-    // Update our mock data
-    patientAppointments.push(newAppointment);
-    
-    // Mark the slot as unavailable
-    const slotIndex = availableSlots.findIndex(slot => 
-      slot.therapistId === appointment.therapistId &&
-      slot.date === appointment.date
-    );
-    
-    if (slotIndex !== -1) {
-      availableSlots[slotIndex].available = false;
-    }
-    
-    // Also check fixedAvailableSlots
-    const fixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
-      slot.therapistId === appointment.therapistId &&
-      slot.date === appointment.date
-    );
-    
-    if (fixedSlotIndex !== -1) {
-      fixedAvailableSlots[fixedSlotIndex].available = false;
-    }
-    
-    // For 60-minute appointments, also mark the next slot as unavailable
-    if (appointment.duration === 60) {
-      const nextSlotTime = new Date(appointment.date);
-      nextSlotTime.setMinutes(nextSlotTime.getMinutes() + 30);
-      const nextSlotDate = nextSlotTime.toISOString();
-      
-      const nextSlotIndex = availableSlots.findIndex(slot =>
-        slot.therapistId === appointment.therapistId &&
-        slot.date === nextSlotDate
-      );
-      if (nextSlotIndex !== -1) {
-        availableSlots[nextSlotIndex].available = false;
-      }
-      
-      const nextFixedSlotIndex = fixedAvailableSlots.findIndex(slot =>
-        slot.therapistId === appointment.therapistId &&
-        slot.date === nextSlotDate
-      );
-      if (nextFixedSlotIndex !== -1) {
-        fixedAvailableSlots[nextFixedSlotIndex].available = false;
-      }
-    }
-    
-    // TODO: Google Calendar sync - needs server-side implementation
-    // Sync to Google Calendar if connected
-    // try {
-    //   const calendarAuth = await getGoogleCalendarAuth();
-    //   if (calendarAuth) {
-    //     const therapist = await appointmentService.getTherapistById(appointment.therapistId);
-    //     if (therapist) {
-    //       const calendarEvent = formatAppointmentForCalendar(newAppointment, therapist.name);
-    //       const eventId = await addToGoogleCalendar(calendarEvent, calendarAuth);
-    //       if (eventId) {
-    //         newAppointment.googleCalendarEventId = eventId;
-    //         console.log('✓ Appointment synced to Google Calendar');
-    //       }
-    //     }
-    //   }
-    // } catch (error) {
-    //   console.error('Failed to sync to Google Calendar:', error);
-    //   // Don't fail the booking if calendar sync fails
-    // }
-    
-    return newAppointment;
   },
   
   cancelAppointment: async (appointmentId: string): Promise<boolean> => {
