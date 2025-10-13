@@ -33,9 +33,9 @@ export default async function handler(
 
     const fullUrl = `${baseUrl}${endpointPath}`;
 
-    // Get credentials from environment variables
-    const username = process.env.VITE_VITABYTE_USERNAME || 'Miro';
-    const password = process.env.VITE_VITABYTE_PASSWORD || '#dCdGV;f8je,1Tj34nxo';
+    // Get credentials from environment variables (Vercel uses non-VITE_ prefixed vars)
+    const username = process.env.VITABYTE_USERNAME || process.env.VITE_VITABYTE_USERNAME || 'Miro';
+    const password = process.env.VITABYTE_PASSWORD || process.env.VITE_VITABYTE_PASSWORD || '#dCdGV;f8je,1Tj34nxo';
     
     // Create Basic Auth token
     const authToken = Buffer.from(`${username}:${password}`).toString('base64');
