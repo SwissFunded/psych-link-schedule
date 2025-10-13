@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { checkTimeSlotAvailability } from './vitabyteCalendarService';
+import { vitabyteBookingApi, type CreateAppointmentRequest } from './vitabyteBookingApi';
+import { format, addMinutes, parseISO } from 'date-fns';
 // TODO: Google Calendar sync needs to be moved to server-side (Supabase Edge Functions)
 // The googleapis package is Node.js-only and cannot run in the browser
 // import { 
@@ -224,13 +226,70 @@ export const appointmentService = {
     return checkTimeSlotAvailability(therapistId, therapistSlots);
   },
   
-  bookAppointment: async (appointment: Omit<Appointment, 'id'>): Promise<Appointment> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  bookAppointment: async (appointment: Omit<Appointment, 'id'>, userEmail?: string): Promise<Appointment> => {
+    console.log('📅 Starting appointment booking process...');
     
+    // Step 1: Get patient ID from Vitabyte (if email provided)
+    let patientId: number | null = null;
+    
+    if (userEmail) {
+      try {
+        console.log(`🔍 Looking up patient: ${userEmail}`);
+        const customers = await vitabyteBookingApi.getCustomerByEmail(userEmail);
+        
+        if (customers.length > 0) {
+          patientId = customers[0].patid;
+          console.log(`✅ Patient found! ID: ${patientId}`);
+        } else {
+          console.warn('⚠️ Patient not found in Vitabyte');
+          throw new Error('Patient nicht im System gefunden. Bitte kontaktieren Sie die Praxis für eine Registrierung.');
+        }
+      } catch (error: any) {
+        console.error('❌ Patient lookup failed:', error);
+        throw error; // Re-throw to show error to user
+      }
+    }
+    
+    // Step 2: Create appointment in Vitabyte (if patient found)
+    let vitabyteAppointmentId: number | null = null;
+    
+    if (patientId) {
+      try {
+        const startTime = parseISO(appointment.date);
+        const endTime = addMinutes(startTime, appointment.duration);
+        
+        // Format dates for Vitabyte API: "YYYY-MM-DD HH:MM:SS"
+        const formatForVitabyte = (date: Date) => 
+          format(date, 'yyyy-MM-dd HH:mm:ss');
+        
+        const appointmentData: CreateAppointmentRequest = {
+          date: formatForVitabyte(startTime),
+          end: formatForVitabyte(endTime),
+          dateTs: formatForVitabyte(startTime),  // Required per API docs
+          endTs: formatForVitabyte(endTime),      // Required per API docs
+          calendar: 120,  // Antoine's calendar ID
+          patid: patientId,
+          appointment: appointment.notes || 'Folgetermin', // Appointment type
+          comment: `Gebucht über psychcentral.app - ${appointment.type}`,
+        };
+        
+        console.log('📤 Sending to Vitabyte API:', appointmentData);
+        const response = await vitabyteBookingApi.createAppointment(appointmentData);
+        
+        vitabyteAppointmentId = response.appointmentid;
+        console.log(`✅ Vitabyte appointment created! ID: ${vitabyteAppointmentId}`);
+        
+      } catch (error: any) {
+        console.error('❌ Vitabyte booking failed:', error);
+        // Show error to user but continue with local booking as fallback
+        console.warn('⚠️ Falling back to local booking only');
+      }
+    }
+    
+    // Step 3: Create local appointment record (always, as backup)
     const newAppointment: Appointment = {
       ...appointment,
-      id: 'apt' + Math.random().toString(36).substr(2, 9)
+      id: vitabyteAppointmentId ? `vit-${vitabyteAppointmentId}` : `apt-${Math.random().toString(36).substr(2, 9)}`
     };
     
     // Update our mock data

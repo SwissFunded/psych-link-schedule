@@ -2279,3 +2279,251 @@ Body: {
 
 ---
 
+## Planner: Vitabyte Booking API Integration Implementation Plan
+
+### Background & Goal
+
+Integrate the Vitabyte Booking API to enable **real appointment creation** directly into Vitabyte's system. Currently, appointments are only stored locally in our app - we need them to sync to Vitabyte so they appear in Antoine's calendar and practice management system.
+
+### Key Requirements
+
+1. **Create appointments in Vitabyte** when users book via our portal
+2. **Look up or create patients** before booking (need Patient ID)
+3. **Handle authentication** (HTTP Basic Auth with credentials)
+4. **CORS proxy** for browser-to-API communication
+5. **Error handling** with user-friendly messages
+6. **Maintain backward compatibility** (local storage as fallback)
+
+---
+
+### Implementation Plan (6 Steps)
+
+#### **Step 1: Create Vitabyte Booking API Service** 
+**File:** `src/services/vitabyteBookingApi.ts`
+
+**What to build:**
+- HTTP client with Basic Auth (axios)
+- Type definitions for API requests/responses
+- Core functions:
+  - `verifyCredentials()` - Test API connection
+  - `getCustomerByEmail(email)` - Find patient by email
+  - `createAppointment(data)` - Book appointment in Vitabyte
+  - `getPatientAppointments(patid)` - Fetch patient's appointments
+  - `cancelAppointment(appointmentId)` - Cancel/modify appointment
+
+**Auth setup:**
+```typescript
+const username = 'Miro';
+const password = '#dCdGV;f8je,1Tj34nxo';
+const token = btoa(`${username}:${password}`);
+// Header: Authorization: Basic {token}
+```
+
+**Success criteria:**
+- ✅ API service compiles without errors
+- ✅ Types match Vitabyte API response format
+- ✅ Basic Auth implemented correctly
+
+---
+
+#### **Step 2: Create API Proxy (Vercel Serverless Function)**
+**File:** `api/vitabyte-proxy.ts` (or similar)
+
+**Why needed:**
+- Browser cannot call `https://psych.vitabyte.ch` directly (CORS)
+- Proxy handles auth and forwards requests server-side
+
+**Implementation:**
+```typescript
+// api/vitabyte-proxy.ts
+export default async function handler(req, res) {
+  const { endpoint, ...body } = req.body;
+  
+  // Forward to Vitabyte API with auth
+  const response = await fetch(`https://psych.vitabyte.ch/v1${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + Buffer.from('Miro:#dCdGV;f8je,1Tj34nxo').toString('base64'),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  
+  const data = await response.json();
+  res.json(data);
+}
+```
+
+**Success criteria:**
+- ✅ Proxy deployed to Vercel
+- ✅ Can forward requests to Vitabyte API
+- ✅ Returns responses to frontend
+
+---
+
+#### **Step 3: Update Appointment Service**
+**File:** `src/services/appointmentService.ts`
+
+**Changes needed:**
+1. Import `vitabyteBookingApi`
+2. Modify `bookAppointment()`:
+   - Look up user by email → get `patid`
+   - If no `patid`, show error (patient must exist in Vitabyte)
+   - Call `vitabyteBookingApi.createAppointment()`
+   - Store appointment locally as backup
+   - Return success/error
+
+**Booking flow:**
+```typescript
+async bookAppointment(slot, userData) {
+  // 1. Find patient in Vitabyte
+  const customers = await vitabyteBookingApi.getCustomerByEmail(userData.email);
+  if (!customers.length) {
+    throw new Error('Patient not found in Vitabyte. Please contact practice.');
+  }
+  const patid = customers[0].patid;
+  
+  // 2. Create appointment in Vitabyte
+  const appointmentData = {
+    date: formatDate(slot.date),
+    end: formatDate(addMinutes(slot.date, slot.duration)),
+    dateTs: formatDate(slot.date),
+    endTs: formatDate(addMinutes(slot.date, slot.duration)),
+    calendar: 120, // Antoine's calendar
+    patid: patid,
+    appointment: slot.reason,
+    comment: slot.notes || ''
+  };
+  
+  const vitabyteAppointment = await vitabyteBookingApi.createAppointment(appointmentData);
+  
+  // 3. Store locally as backup
+  await storeLocally(vitabyteAppointment);
+  
+  return vitabyteAppointment;
+}
+```
+
+**Success criteria:**
+- ✅ Booking calls Vitabyte API
+- ✅ Appointments created in Vitabyte system
+- ✅ Error handling works
+- ✅ User feedback is clear
+
+---
+
+#### **Step 4: Update Environment Variables**
+**Files:** `.env.local`, Vercel dashboard
+
+**Add:**
+```env
+VITE_VITABYTE_API_URL=https://psych.vitabyte.ch/v1
+VITE_VITABYTE_USERNAME=Miro
+VITE_VITABYTE_PASSWORD=#dCdGV;f8je,1Tj34nxo
+VITE_VITABYTE_CALENDAR_ID=120
+VITE_VITABYTE_PROVIDER_ID=215
+```
+
+**Success criteria:**
+- ✅ Environment variables configured
+- ✅ Credentials not hardcoded in source
+- ✅ Vercel deployment has correct env vars
+
+---
+
+#### **Step 5: Testing & Validation**
+
+**Test cases:**
+1. **Verify API connection** - Test credentials work
+2. **Patient lookup** - Find existing patient by email
+3. **Create appointment** - Book real appointment
+4. **View in Vitabyte** - Confirm appointment appears in calendar
+5. **Error handling** - Test invalid patient, invalid time slot
+6. **Edge cases** - Network errors, API timeout
+
+**Success criteria:**
+- ✅ Test appointment created successfully
+- ✅ Appears in Vitabyte calendar (CID: 0aaa93-fd0a04-9ccb36-8e6306)
+- ✅ All error cases handled gracefully
+- ✅ User receives clear feedback
+
+---
+
+#### **Step 6: Deployment & Documentation**
+
+**Deploy:**
+1. Build frontend with new API integration
+2. Deploy Vercel serverless proxy function
+3. Update environment variables in Vercel
+4. Test on production URL
+
+**Document:**
+- Update scratchpad with implementation details
+- Add inline code comments
+- Create troubleshooting guide for common errors
+
+**Success criteria:**
+- ✅ Deployed to production
+- ✅ Real bookings work end-to-end
+- ✅ Documentation complete
+- ✅ Ready for user testing
+
+---
+
+### Technical Challenges & Solutions
+
+**Challenge 1: CORS**
+- **Solution:** Vercel serverless function as proxy
+
+**Challenge 2: Patient must exist in Vitabyte**
+- **Solution:** Lookup by email first, show clear error if not found
+- **Future:** Add patient creation endpoint (if available)
+
+**Challenge 3: Calendar ID mapping**
+- **Solution:** Hardcode Antoine's Calendar ID (120) for now
+- **Future:** Fetch dynamically from `/getServices` endpoint
+
+**Challenge 4: Error handling**
+- **Solution:** Wrap all API calls in try-catch, show user-friendly messages
+
+**Challenge 5: Backward compatibility**
+- **Solution:** Keep local storage as fallback if API fails
+
+---
+
+### Risk Assessment
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| API credentials invalid | High | Test with `/verify` endpoint first |
+| Patient not found | Medium | Clear error message, contact support |
+| Network/timeout errors | Medium | Retry logic, fallback to local storage |
+| Wrong calendar ID | High | Verify Calendar ID 120 is correct for Antoine |
+| Duplicate bookings | Low | Pre-booking recheck already implemented |
+
+---
+
+### Project Status Board
+
+- [ ] **Step 1:** Create `vitabyteBookingApi.ts` service
+- [ ] **Step 2:** Create Vercel API proxy
+- [ ] **Step 3:** Update `appointmentService.ts`
+- [ ] **Step 4:** Configure environment variables
+- [ ] **Step 5:** Test booking flow
+- [ ] **Step 6:** Deploy to production
+
+---
+
+### Estimated Timeline
+
+- **Step 1:** 30 minutes (API service)
+- **Step 2:** 20 minutes (Proxy function)
+- **Step 3:** 40 minutes (Appointment service integration)
+- **Step 4:** 10 minutes (Environment setup)
+- **Step 5:** 30 minutes (Testing)
+- **Step 6:** 20 minutes (Deployment)
+
+**Total:** ~2.5 hours
+
+---
+

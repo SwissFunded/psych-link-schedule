@@ -327,7 +327,8 @@ export default function Book() {
         notes: appointmentTypeDisplay,
       };
       
-      const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
+      // Pass user email to enable Vitabyte API booking
+      const bookedAppointment = await appointmentService.bookAppointment(newAppointment, patient.email);
       
       if (bookedAppointment) {
         hapticFeedback.success(); // Mobile haptic feedback for success
