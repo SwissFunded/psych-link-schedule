@@ -327,8 +327,8 @@ export default function Book() {
         notes: appointmentTypeDisplay,
       };
       
-      // Pass user email to enable Vitabyte API booking
-      const bookedAppointment = await appointmentService.bookAppointment(newAppointment, patient.email);
+      // Book directly to Vitabyte Calendar 136 (no patient lookup needed)
+      const bookedAppointment = await appointmentService.bookAppointment(newAppointment);
       
       if (bookedAppointment) {
         hapticFeedback.success(); // Mobile haptic feedback for success
